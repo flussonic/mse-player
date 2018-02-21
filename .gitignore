@@ -1,0 +1,17 @@
+node_modules
+.DS_Store
+.env
+coverage
+*.cache
+npm-debug.log
+
+# bump
+*.bkp
+
+# Vim
+*~
+*.swp
+*.swo
+
+# PhpStorm
+.idea
