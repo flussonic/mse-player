@@ -14,6 +14,8 @@ const EVENTS = {
 
   // Buffer
   BUFFER_UPDATE_END: 'updateend',
+  BUFFER_ERROR: 'onerror',
+  BUFFER_ABORT: 'onabort',
 }
 
 export default EVENTS

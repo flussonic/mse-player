@@ -31,12 +31,14 @@
     </div>
     <button onclick="window.setTracks()">set tracks</button>
   </div>
-
   <button onclick="window.player.play()">Play</button>
   <button onclick="window.player.stop()">Stop</button>
   <button onclick="window.player.pause()">Pause</button>
   <button onclick="window.player.resume()">Resume</button>
-
+  <div>
+    <input type="text" id="seek" value="1519732800"/>
+    <button onclick="seek()">seek</button>
+  </div>
   <script type="text/javascript" src="latest/FlussonicMsePlayer.js"></script>
   <script>
     window.onload = onLoad()
@@ -44,13 +46,13 @@
     function onLoad() {
       const element = document.getElementById('player')
 //      const url = (window.location.protocol == "https:" ? "wss:" : "ws:")+ '//'+window.location.host+"/clock/mse_ld";
-      const url = 'ws://localhost:8080/s/mse_ld'
+      const url = 'ws://localhost:8080/clock/mse_ld'
       const videoTracksSelect = document.getElementById('videoTracks')
       const audioTracksSelect = document.getElementById('audioTracks')
       const mbrControls = document.querySelector('.mbr-controls')
       window.player = new FlussonicMsePlayer(element, url)
 
-      window.player.onProgress = (currentTime) => console.log(currentTime)
+      window.player.onProgress = (currentTime) => void 0 //console.log(currentTime)
 
       window.player.onMediaInfo = (rawMetaData) => {
         const videoTracks = window.player.getVideoTracks()
@@ -74,6 +76,20 @@
         const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value
 
         window.player.setTracks([videoTrackId, audioTrackId])
+      }
+
+      window.seek = () => {
+        debugger
+        const element = document.getElementById('seek')
+        let value
+        if (!element || element instanceof HTMLInputElement) {
+          value = parseInt(element.value, 10)
+          value = value > 0 ? value : void 0
+        }
+        if (value) {
+          window.player.seek(value)
+        } else throw new Error('incorrect input!')
+        //   .value
       }
     }
   </script>

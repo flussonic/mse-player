@@ -46,16 +46,18 @@ export default class MSEPlayer {
       if (!utc) {
         throw new Error('utc should be "live" or UTC value')
       }
-      this.stop().then(() => this.play(utc))
+      this.websocket.send(`play_from=${utc}`)
+      this.afterSeekFlag = true
     } catch(err) {
-      console.warn(`onMediaDetaching:${err.message} while calling endOfStream`);
+      console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
     }
   }
 
   play(time, videoTrack, audioTack) {
+
     if (this.playing) {return}
 
-    if (this._pause) {
+    if (this._pause && !this.afterSeekFlag) {
       this._resume()
       return
     }
@@ -80,9 +82,13 @@ export default class MSEPlayer {
       return
     }
 
-    const startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack)
-    startWS.bind(this)()
+    this.websocket.send(`play_from=${time}`)
+    this._pause = false
+    this.playing = true
 
+    const startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack)
+
+    startWS.bind(this)()
 
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     this.playPromise = this.media.play()
@@ -318,6 +324,7 @@ export default class MSEPlayer {
         this.doArrayBuffer(rawData, this.maybeAppend)
       } else {
         this.procInitSegment(rawData)
+        this.afterSeekFlag = false
       }
     } catch(e) {
       console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
@@ -342,7 +349,8 @@ export default class MSEPlayer {
 
       // 1.
       if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
-        this.createSourceBuffers(data.tracks)
+          this.createSourceBuffers(data.tracks)
+
 
         // TODO: describe cases
         data.tracks.forEach((track) => {
@@ -352,8 +360,16 @@ export default class MSEPlayer {
         return
       }
 
-      // 2.
+      // 2
       if (this.mediaSource && this.mediaSource.sourceBuffers.length) {
+        if (this.afterSeekFlag) {
+          data.tracks.forEach((track) => {
+            this.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload))
+          })
+          this.afterSeekFlag = false
+          return
+        }
+
         this.stop().then(() => {
           setTimeout(() => this.play(), 5000)
         })
@@ -424,9 +440,13 @@ export default class MSEPlayer {
 
       this._buffers[track.id] = this.mediaSource.addSourceBuffer(mimeType)
       const buffer = this._buffers[track.id]
-
-      this._queues[track.id] = [];
+      buffer.mode = "sequence"
+      this._queues[track.id] = []
       const queue = this._queues[track.id]
+
+      buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, updateEnd)
+      buffer.addEventListener(EVENTS.BUFFER_ERROR, onError)
+      buffer.addEventListener(EVENTS.BUFFER_ABORT, onAbort)
 
       function updateEnd() {
         try {
@@ -438,11 +458,15 @@ export default class MSEPlayer {
         }
       }
 
-      buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, updateEnd)
+      function onError() {
+        throw new Error('buffer error: ', arguments)
+      }
+
+      function onAbort() {
+        console.warn('abort buffer')
+      }
     })
   }
-
-
 
   _setTracks(videoTrack, audioTrack) {
     this.onMediaDetaching().then(() => {
@@ -450,6 +474,5 @@ export default class MSEPlayer {
       this.onsoa = this.play.bind(this, this.utc, videoTrack, audioTrack)
       this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
     })
-
   }
 }

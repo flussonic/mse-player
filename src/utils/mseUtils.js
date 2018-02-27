@@ -48,9 +48,9 @@ export function doArrayBuffer(rawData, mbAppend) {
 }
 
 // TODO
-export function getWSURL(url, time1, videoTrack, audioTrack) {
+export function getWSURL(url, utc, videoTrack, audioTrack) {
   // TODO: then use @param time it prevent to wrong data from ws(trackID view[47] for example is 100)
-  const time = void 0
+  const time = utc
 
   if (!time && !videoTrack && !audioTrack) {
     return url
