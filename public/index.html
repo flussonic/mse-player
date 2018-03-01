@@ -45,7 +45,6 @@
 
     function onLoad() {
       const element = document.getElementById('player')
-//      const url = (window.location.protocol == "https:" ? "wss:" : "ws:")+ '//'+window.location.host+"/clock/mse_ld";
       const url = 'ws://localhost:8080/clock/mse_ld'
       const videoTracksSelect = document.getElementById('videoTracks')
       const audioTracksSelect = document.getElementById('audioTracks')
@@ -74,12 +73,10 @@
       window.setTracks = () => {
         const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
         const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value
-
         window.player.setTracks([videoTrackId, audioTrackId])
       }
 
       window.seek = () => {
-        debugger
         const element = document.getElementById('seek')
         let value
         if (!element || element instanceof HTMLInputElement) {
@@ -89,7 +86,6 @@
         if (value) {
           window.player.seek(value)
         } else throw new Error('incorrect input!')
-        //   .value
       }
     }
   </script>

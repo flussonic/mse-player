@@ -41,6 +41,14 @@ export default class MSEPlayer {
     this.onAttachMedia({media})
   }
 
+  play() {
+    return this._play()
+  }
+
+  stop() {
+    return this.onMediaDetaching()
+  }
+
   seek(utc) {
     try {
       if (!utc) {
@@ -51,55 +59,6 @@ export default class MSEPlayer {
     } catch(err) {
       console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
     }
-  }
-
-  play(time, videoTrack, audioTack) {
-
-    if (this.playing) {return}
-
-    if (this._pause && !this.afterSeekFlag) {
-      this._resume()
-      return
-    }
-
-    // TODO: to observe this case, I have no idea when it fired
-    if (!this.mediaSource) {
-      this.onAttachMedia({media: this.media})
-      this.onsoa = this.play.bind(this, time, videoTrack, audioTack)
-      this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
-      console.warn('mediaSource did not create')
-      return
-    }
-
-    this.playTime = time
-    this.videoTrack = videoTrack
-    this.audioTack = audioTack
-
-    // deferring execution
-    if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-      console.warn('readyState is not "open"')
-      this.shouldPlay = true
-      return
-    }
-
-    this.websocket.send(`play_from=${time}`)
-    this._pause = false
-    this.playing = true
-
-    const startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack)
-
-    startWS.bind(this)()
-
-    // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    this.playPromise = this.media.play()
-    this.startProgressTimer()
-    this.playing = true
-
-    return this.playPromise
-  }
-
-  stop() {
-    return this.onMediaDetaching()
   }
 
   pause() {
@@ -158,6 +117,49 @@ export default class MSEPlayer {
    *
    */
 
+  _play(time, videoTrack, audioTack) {
+
+    if (this.playing) {return}
+
+    if (this._pause && !this.afterSeekFlag) {
+      this._resume()
+      return
+    }
+
+    // TODO: to observe this case, I have no idea when it fired
+    if (!this.mediaSource) {
+      this.onAttachMedia({media: this.media})
+      this.onsoa = this._play.bind(this, time, videoTrack, audioTack)
+      this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
+      console.warn('mediaSource did not create')
+      return
+    }
+
+    this.playTime = time
+    this.videoTrack = videoTrack
+    this.audioTack = audioTack
+
+    // deferring execution
+    if (this.mediaSource && this.mediaSource.readyState !== 'open') {
+      console.warn('readyState is not "open"')
+      this.shouldPlay = true
+      return
+    }
+
+    this._pause = false
+    this.playing = true
+
+    const startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack)
+
+    startWS.bind(this)()
+
+    // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+    this.playPromise = this.media.play()
+    this.startProgressTimer()
+    this.playing = true
+
+    return this.playPromise
+  }
 
   init() {
     this._buffers = {}
@@ -306,7 +308,7 @@ export default class MSEPlayer {
     if (this.shouldPlay) {
       console.info(`readyState now is ${this.mediaSource.readyState}, and will be played`, this.playTime, this.audioTack, this.videoTrack)
       this.shouldPlay = false
-      this.play(this.playTime, this.audioTack, this.videoTrack)
+      this._play(this.playTime, this.audioTack, this.videoTrack)
     }
   }
 
@@ -349,8 +351,7 @@ export default class MSEPlayer {
 
       // 1.
       if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
-          this.createSourceBuffers(data.tracks)
-
+        this.createSourceBuffers(data.tracks)
 
         // TODO: describe cases
         data.tracks.forEach((track) => {
@@ -415,7 +416,7 @@ export default class MSEPlayer {
   onTimer() {
     if (!(this.utc && this.utc != this.utcPrev)) {return}
     try {
-      this.onProgress(this.utc, this.media.currentTime, this.pts1)
+      this.onProgress(this.utc)
     } catch(e) {
       console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
     }
@@ -471,7 +472,7 @@ export default class MSEPlayer {
   _setTracks(videoTrack, audioTrack) {
     this.onMediaDetaching().then(() => {
       this.onAttachMedia({media: this.media})
-      this.onsoa = this.play.bind(this, this.utc, videoTrack, audioTrack)
+      this.onsoa = this._play.bind(this, this.utc, videoTrack, audioTrack)
       this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
     })
   }
