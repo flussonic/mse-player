@@ -1,0 +1,44 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  </head>
+  <style>
+    .player-container {
+      border: 1px solid black;
+    }
+
+    #player {
+      position: relative;
+      width: 100%;
+    }
+
+    .mbr-controls {
+      display: none;
+    }
+  </style>
+<body>
+  <div class="player-container">
+    <video id="player"/>
+  </div>
+  <div class="mbr-controls">
+    <div>
+      <label for="videoTracks">video tracks</label>
+      <select name="videoTracks" id="videoTracks"></select>
+    </div>
+    <div>
+      <label for="audioTracks">audio tracks</label>
+      <select name="audioTracks" id="audioTracks"></select>
+    </div>
+    <button onclick="window.setTracks()">set tracks</button>
+  </div>
+  <button onclick="window.player.play()">Play</button>
+  <button onclick="window.player.stop()">Stop</button>
+  <button onclick="window.player.pause()">Pause</button>
+  <button onclick="window.player.resume()">Resume</button>
+  <div>
+    <input type="text" id="seek" value="1519732800"/>
+    <button onclick="seek()">seek</button>
+  </div>
+  <script type="text/javascript" src="latest/App.js"></script>
+</body>
+</html>
