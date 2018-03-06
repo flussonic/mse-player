@@ -1,9 +1,11 @@
 {
-  "name": "flussonic-mse-player",
+  "name": "@flussonic/flussonic-mse-player",
   "version": "0.1.0",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/mse-player.js",
-  "keywords": ["flussonic"],
+  "keywords": [
+    "flussonic"
+  ],
   "homepage": "https://github.com/flussonic/mse-player",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -13,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:flussonic/mse-player.git"
+    "url": "git@github.com/flussonic/mse-player.git"
   },
   "author": "https://erlyvideo.ru/",
   "bugs": {
@@ -34,5 +36,8 @@
   "dependencies": {
     "eslint": "~4.9.0",
     "parseurl": "~1.3.2"
+  },
+  "directories": {
+    "example": "examples"
   }
 }
