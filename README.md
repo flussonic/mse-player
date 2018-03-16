@@ -6,7 +6,7 @@ flussonic-mse-player is a JavaScript library for playing video relies on flusson
 ## Installation
 
 ```
-npm install --save flussonic-mse-player
+npm install --save @flussonic/flussonic-mse-player
 ```
 
 ## Usage
