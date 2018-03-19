@@ -1,5 +1,4 @@
-import FlussonicMsePlayer from 'flu-mse-player'
-debugger
+import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
 window.onload = onLoad()
 
 function onLoad() {

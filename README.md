@@ -14,14 +14,20 @@ npm install --save @flussonic/flussonic-mse-player
 ### Construction:
 
 ```
+import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
+...
 const player = new FlussonicMsePlayer(element, url, opts)
 ```
 
-element - <video> DOM element
-url - url of a stream
-opts
-  onProgress(utc: number) - triggered every 100ms while a stream is playing and gives current playback time
-  onMediaInfo(info: MediaInfo) - triggered then metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
+`element` - <video> DOM element
+
+`url` - url of a stream
+
+`opts` is plain object it can include methods:
+
+  - `onProgress(utc: number)` - triggered every 100ms while a stream is playing and gives current playback time
+
+  - `onMediaInfo(info: MediaInfo)` - triggered then metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
 
 
 ### Methods:
@@ -38,6 +44,7 @@ setTracks(tracks: Array<Track>)
 
 ### Types:
 
+```
 MediaInfo {
   height: number,
   width: number,
@@ -63,3 +70,4 @@ StreamInfo {
 }
 
 Track: string
+```
