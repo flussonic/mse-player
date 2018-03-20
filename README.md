@@ -36,6 +36,12 @@ var player = new FlussonicMsePlayer(element, url, opts)
 
 [example](https://github.com/flussonic/mse-player/tree/master/examples/scripttag)
 
+### Static Methods:
+
+- **isSupported()** - return `true` if browser is supported Media Source Extension
+
+-  **replaceHttpByWS(url: string)** - return new url where replaced http(s):// by ws(s)://
+
 ### Construction:
 
 ```
