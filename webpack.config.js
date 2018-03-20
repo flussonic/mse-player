@@ -4,23 +4,21 @@ const Clean = require('clean-webpack-plugin')
 
 const webpackConfig = require('./webpack-base-config')
 
+webpackConfig.output = {
+  path: path.resolve(__dirname, 'dist/'),
+  filename: '[name].js',
+  library: 'FlussonicMsePlayer',
+  libraryTarget: 'umd',
+}
 
 webpackConfig.entry = {
   'FlussonicMsePlayer': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
 }
 
-webpackConfig.output = {
-  path: path.resolve(__dirname, '../flu/reactapp/lib/'),
-  filename: '[name].js',
-  library: '[name]',
-  libraryTarget: 'umd'
-}
-
 if (process.env.npm_lifecycle_event === 'build-min') {
   webpackConfig.entry = {
-    'mse-player': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
+    'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
   }
-  webpackConfig.output.path = path.resolve(__dirname, 'dist/')
   webpackConfig.plugins.push(new webpack.LoaderOptionsPlugin({ minimize: true, debug: false }))
   webpackConfig.plugins.push(new webpack.optimize.UglifyJsPlugin({
       compress: {

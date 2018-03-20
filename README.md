@@ -11,11 +11,34 @@ npm install --save @flussonic/flussonic-mse-player
 
 ## Usage
 
-### Construction:
+#### Webpack:
 
 ```
 import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
 ...
+const player = new FlussonicMsePlayer(element, url, opts)
+```
+
+[example](https://github.com/flussonic/mse-player/tree/master/examples/simple)
+
+#### Script tag:
+
+Since the library include via script tag it is accesible at `window.FlussonicMsePlayer`
+
+```html
+<script type="text/javascript" src="../../dist/FlussonicMsePlayer.js"></script>
+```
+
+```javascript
+var FlussonicMsePlayer = window.FlussonicMsePlayer
+var player = new FlussonicMsePlayer(element, url, opts)
+```
+
+[example](https://github.com/flussonic/mse-player/tree/master/examples/scripttag)
+
+### Construction:
+
+```
 const player = new FlussonicMsePlayer(element, url, opts)
 ```
 
@@ -32,15 +55,15 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 ### Methods:
 
-play() - start playing
+- **play()** - start playing
 
-pause() -
+- **pause()** - send `pause` command by websocket
 
-stop() - stop playing
+- **stop()** - close websocket connection; detach mediaSource from given HTMLMediaElement; invoke the HTMLMediaElement stop method
 
-seek(utc: number) - seek
+- **seek(utc: number)** - send `seek` command by websocket
 
-setTracks(tracks: Array<Track>)
+- **setTracks(tracks: Array<Track>)** -
 
 ### Types:
 
