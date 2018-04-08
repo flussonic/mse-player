@@ -9,22 +9,22 @@ module.exports = {
   plugins: [
     new DirectoryNamedWebpackPlugin(true),
     new webpack.DefinePlugin({
-      VERSION: JSON.stringify(require('./package.json').version)
-    })
+      VERSION: JSON.stringify(require('./package.json').version),
+    }),
   ],
   module: {
     loaders: [
       {
         test: /\.js$/,
         loader: 'babel-loader',
-        exclude: [path.resolve(__dirname, './node_modules')]
+        exclude: [path.resolve(__dirname, './node_modules')],
       },
-    ]
+    ],
   },
   resolve: {
-    modules: ['node_modules']
+    modules: ['node_modules'],
   },
   devServer: {
     disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882
-  }
+  },
 }

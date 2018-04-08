@@ -1,4 +1,3 @@
-
 window.onload = onLoad()
 
 function onLoad() {
@@ -9,18 +8,21 @@ function onLoad() {
   const mbrControls = document.querySelector('.mbr-controls')
   window.player = new window.FlussonicMsePlayer(element, url)
 
-  window.player.onProgress = (currentTime) => void 0 //console.log(currentTime)
+  window.player.onProgress = currentTime => void 0 //console.log(currentTime)
 
-  window.player.onMediaInfo = (rawMetaData) => {
+  window.player.onMediaInfo = rawMetaData => {
     const videoTracks = window.player.getVideoTracks()
     const audioTracks = window.player.getAudioTracks()
-    const videoOptions = videoTracks.map((v, i) => (
-      `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${v['height']}</option>`
-    ))
+    const videoOptions = videoTracks.map(
+      (v, i) =>
+        `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${
+          v['height']
+        }</option>`
+    )
 
-    const audioOptions = audioTracks.map(v => (
-      `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
-    ))
+    const audioOptions = audioTracks.map(
+      v => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
+    )
 
     videoTracksSelect.innerHTML = videoOptions.join('')
     audioTracksSelect.innerHTML = audioOptions.join('')

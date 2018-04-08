@@ -4,9 +4,8 @@ const Clean = require('clean-webpack-plugin')
 
 const webpackConfig = require('./webpack-base-config')
 
-
 webpackConfig.entry = {
-  'App': [path.resolve(__dirname, 'src/index.js')],
+  App: [path.resolve(__dirname, 'src/index.js')],
 }
 
 webpackConfig.output = {

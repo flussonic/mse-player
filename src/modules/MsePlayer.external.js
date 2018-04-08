@@ -8,7 +8,6 @@ const TYPE_CONTENT_VIDEO = 'video'
 const TYPE_CONTENT_AUDIO = 'audio'
 
 export default class MSEPlayer {
-
   static replaceHttpByWS(url) {
     return mseUtils.replaceHttpByWS(url)
   }
@@ -23,7 +22,6 @@ export default class MSEPlayer {
    *
    */
   constructor(media, urlStream, opts) {
-
     if (!(media instanceof HTMLMediaElement)) {
       throw new Error(MSG.NOT_HTML_MEDIA_ELEMENT)
     }
@@ -33,7 +31,7 @@ export default class MSEPlayer {
     this.onProgress = opts && opts.onProgress
     this.onMediaInfo = opts && opts.onMediaInfo
 
-    this.doArrayBuffer =  mseUtils.doArrayBuffer.bind(this)
+    this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
 
     this.init()
@@ -56,18 +54,22 @@ export default class MSEPlayer {
       }
       this.websocket.send(`play_from=${utc}`)
       this.afterSeekFlag = true
-    } catch(err) {
+    } catch (err) {
       console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
     }
   }
 
   pause() {
-    if (this._pause) {return}
-    if (!this.media) {return}
-    if (!this.websocket) {return}
-    if (!this.mediaSource) {return}
-    if (this.mediaSource && this.mediaSource.readyState !== 'open') {return}
-    if (!this.playPromise) {return}
+    if (
+      this._pause ||
+      !this.media ||
+      !this.websocket ||
+      !this.mediaSource ||
+      (this.mediaSource && this.mediaSource.readyState !== 'open') ||
+      !this.playPromise
+    ) {
+      return
+    }
 
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     this.playPromise.then(pause.bind(this))
@@ -80,12 +82,11 @@ export default class MSEPlayer {
       if (this.onPause) {
         try {
           this.onPause()
-        } catch(e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+        } catch (e) {
+          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
         }
       }
     }
-
   }
 
   setTracks(tracks) {
@@ -98,15 +99,19 @@ export default class MSEPlayer {
       console.error('tracks should be an Array instance: ["v1", "a1"]')
     }
 
-    const videoTracksStr = tracks.filter(id => {
-      const stream = this.mediaInfo.streams.find(s => id === s['track_id'])
-      return !!stream && stream.content === TYPE_CONTENT_VIDEO
-    }).join('')
+    const videoTracksStr = tracks
+      .filter(id => {
+        const stream = this.mediaInfo.streams.find(s => id === s['track_id'])
+        return !!stream && stream.content === TYPE_CONTENT_VIDEO
+      })
+      .join('')
 
-    const audioTracksStr = tracks.filter(id => {
-      const stream = this.mediaInfo.streams.find(s => id === s['track_id'])
-      return !!stream && stream.content === TYPE_CONTENT_AUDIO
-    }).join('')
+    const audioTracksStr = tracks
+      .filter(id => {
+        const stream = this.mediaInfo.streams.find(s => id === s['track_id'])
+        return !!stream && stream.content === TYPE_CONTENT_AUDIO
+      })
+      .join('')
 
     return this._setTracks(videoTracksStr, audioTracksStr)
   }
@@ -118,8 +123,9 @@ export default class MSEPlayer {
    */
 
   _play(time, videoTrack, audioTack) {
-
-    if (this.playing) {return}
+    if (this.playing) {
+      return
+    }
 
     if (this._pause && !this.afterSeekFlag) {
       this._resume()
@@ -203,12 +209,11 @@ export default class MSEPlayer {
 
     if (this.media) {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp) // checkVideoProgress
-      mediaEmptyPromise = new Promise((resolve) => {
+      mediaEmptyPromise = new Promise(resolve => {
         this._onmee = this.onMediaElementEmptied(resolve).bind(this)
       })
 
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_EMPTIED, this._onmee)
-
     }
 
     this.oncvp = null
@@ -231,11 +236,10 @@ export default class MSEPlayer {
           // as we are anyway detaching the MediaSource
           // let's just avoid this exception to propagate
           ms.endOfStream()
-        } catch(err) {
-          console.warn(`onMediaDetaching:${err.message} while calling endOfStream`);
+        } catch (err) {
+          console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
         }
       }
-
 
       ms.removeEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
       ms.removeEventListener(EVENTS.MEDIA_SOURCE_SOURCE_ENDED, this.onmse)
@@ -255,7 +259,7 @@ export default class MSEPlayer {
   destroyWebsocket() {
     if (this.websocket) {
       this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsdm)
-      this.websocket.onclose = function () {}; // disable onclose handler first
+      this.websocket.onclose = function() {} // disable onclose handler first
       this.websocket.close()
       this.onwsdm = null
     }
@@ -274,12 +278,11 @@ export default class MSEPlayer {
     const media = this.media
     if (media) {
       // setup the media source
-      const ms = this.mediaSource = new MediaSource()
+      const ms = (this.mediaSource = new MediaSource())
       //Media Source listeners
 
       this.onmse = this.onMediaSourceEnded.bind(this)
       this.onmsc = this.onMediaSourceClose.bind(this)
-
 
       ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_ENDED, this.onmse)
       ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc)
@@ -288,7 +291,7 @@ export default class MSEPlayer {
 
       this.oncvp = mseUtils.checkVideoProgress(media).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         this.onmso = this.onMediaSourceOpen.bind(this, resolve)
         ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
       })
@@ -306,7 +309,12 @@ export default class MSEPlayer {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      console.info(`readyState now is ${this.mediaSource.readyState}, and will be played`, this.playTime, this.audioTack, this.videoTrack)
+      console.info(
+        `readyState now is ${this.mediaSource.readyState}, and will be played`,
+        this.playTime,
+        this.audioTack,
+        this.videoTrack
+      )
       this.shouldPlay = false
       this._play(this.playTime, this.audioTack, this.videoTrack)
     }
@@ -319,8 +327,10 @@ export default class MSEPlayer {
 
   dispatchMessage(e) {
     try {
-      if (this._pause) {return}
-      if (!this.playing) {return}
+      if (this._pause || !this.playing) {
+        return
+      }
+
       const rawData = e.data
       if (rawData instanceof ArrayBuffer) {
         this.doArrayBuffer(rawData, this.maybeAppend)
@@ -328,8 +338,16 @@ export default class MSEPlayer {
         this.procInitSegment(rawData)
         this.afterSeekFlag = false
       }
-    } catch(e) {
-      console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
+    } catch (err) {
+      console.error(mseUtils.errorMsg(e))
+
+      if (this.media && this.media.error) {
+        console.error('MediaError:', this.media.error)
+      }
+
+      if (e.data instanceof ArrayBuffer) {
+        console.error('Data:', mseUtils.debugData(e.data))
+      }
     }
   }
 
@@ -339,13 +357,12 @@ export default class MSEPlayer {
   procInitSegment(rawData) {
     const data = JSON.parse(rawData)
     if (data.type === segmentsTypes.MSE_INIT_SEGMENT) {
-
       if (this.onMediaInfo) {
         this.mediaInfo = data.metadata
         try {
           this.onMediaInfo(data.metadata)
-        } catch(e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+        } catch (e) {
+          console.error(mseUtils.errorMsg(e))
         }
       }
 
@@ -354,7 +371,7 @@ export default class MSEPlayer {
         this.createSourceBuffers(data.tracks)
 
         // TODO: describe cases
-        data.tracks.forEach((track) => {
+        data.tracks.forEach(track => {
           this.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload))
         })
 
@@ -364,7 +381,7 @@ export default class MSEPlayer {
       // 2
       if (this.mediaSource && this.mediaSource.sourceBuffers.length) {
         if (this.afterSeekFlag) {
-          data.tracks.forEach((track) => {
+          data.tracks.forEach(track => {
             this.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload))
           })
           this.afterSeekFlag = false
@@ -374,21 +391,24 @@ export default class MSEPlayer {
         this.stop().then(() => {
           setTimeout(() => this.play(), 5000)
         })
-
       }
-    // TODO: describe cases
+      // TODO: describe cases
     } else if (data.type === segmentsTypes.MSE_MEDIA_SEGMENT) {
       this.maybeAppend(data.id, mseUtils.base64ToArrayBuffer(data.payload))
     }
   }
 
   getVideoTracks() {
-    if (!this.mediaInfo) {return}
+    if (!this.mediaInfo) {
+      return
+    }
     return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_VIDEO)
   }
 
   getAudioTracks() {
-    if (!this.mediaInfo) {return}
+    if (!this.mediaInfo) {
+      return
+    }
     return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_AUDIO)
   }
 
@@ -414,11 +434,13 @@ export default class MSEPlayer {
   }
 
   onTimer() {
-    if (!(this.utc && this.utc != this.utcPrev)) {return}
+    if (!(this.utc && this.utc != this.utcPrev)) {
+      return
+    }
     try {
       this.onProgress(this.utc)
-    } catch(e) {
-      console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
+    } catch (e) {
+      console.error(mseUtils.errorMsg(e))
     }
 
     this.utcPrev = this.utc
@@ -435,13 +457,11 @@ export default class MSEPlayer {
   createSourceBuffers(tracks) {
     tracks.forEach(track => {
       // TODO: use metadata from server
-      const mimeType = track.content === 'video'
-        ? 'video/mp4; codecs="avc1.4d401f"'
-        : 'audio/mp4; codecs="mp4a.40.2"'
+      const mimeType = track.content === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
 
       this._buffers[track.id] = this.mediaSource.addSourceBuffer(mimeType)
       const buffer = this._buffers[track.id]
-      buffer.mode = "sequence"
+      buffer.mode = 'sequence'
       this._queues[track.id] = []
       const queue = this._queues[track.id]
 
@@ -455,7 +475,7 @@ export default class MSEPlayer {
             buffer.appendBuffer(queue.shift())
           }
         } catch (e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+          console.error(mseUtils.errorMsg(e))
         }
       }
 

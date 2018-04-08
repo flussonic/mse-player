@@ -10,7 +10,7 @@ const EVENTS = {
 
   // WebSocket
   WS_OPEN: 'open',
-  WS_MESSAGE :'message',
+  WS_MESSAGE: 'message',
 
   // Buffer
   BUFFER_UPDATE_END: 'updateend',
