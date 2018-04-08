@@ -359,22 +359,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.pause = function pause() {
-    if (this._pause) {
-      return;
-    }
-    if (!this.media) {
-      return;
-    }
-    if (!this.websocket) {
-      return;
-    }
-    if (!this.mediaSource) {
-      return;
-    }
-    if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-      return;
-    }
-    if (!this.playPromise) {
+    if (this._pause || !this.media || !this.websocket || !this.mediaSource || this.mediaSource && this.mediaSource.readyState !== 'open' || !this.playPromise) {
       return;
     }
 
@@ -432,7 +417,6 @@ var MSEPlayer = function () {
    */
 
   MSEPlayer.prototype._play = function _play(time, videoTrack, audioTack) {
-
     if (this.playing) {
       return;
     }
@@ -636,12 +620,10 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
     try {
-      if (this._pause) {
+      if (this._pause || !this.playing) {
         return;
       }
-      if (!this.playing) {
-        return;
-      }
+
       var rawData = e.data;
       if (rawData instanceof ArrayBuffer) {
         this.doArrayBuffer(rawData, this.maybeAppend);
@@ -649,8 +631,16 @@ var MSEPlayer = function () {
         this.procInitSegment(rawData);
         this.afterSeekFlag = false;
       }
-    } catch (e) {
-      console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+    } catch (err) {
+      console.error(mseUtils.errorMsg(e));
+
+      if (this.media && this.media.error) {
+        console.error('MediaError:', this.media.error);
+      }
+
+      if (e.data instanceof ArrayBuffer) {
+        console.error('Data:', mseUtils.debugData(e.data));
+      }
     }
   };
 
@@ -664,13 +654,12 @@ var MSEPlayer = function () {
 
     var data = JSON.parse(rawData);
     if (data.type === segmentsTypes.MSE_INIT_SEGMENT) {
-
       if (this.onMediaInfo) {
         this.mediaInfo = data.metadata;
         try {
           this.onMediaInfo(data.metadata);
         } catch (e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+          console.error(mseUtils.errorMsg(e));
         }
       }
 
@@ -754,7 +743,7 @@ var MSEPlayer = function () {
     try {
       this.onProgress(this.utc);
     } catch (e) {
-      console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+      console.error(mseUtils.errorMsg(e));
     }
 
     this.utcPrev = this.utc;
@@ -777,7 +766,7 @@ var MSEPlayer = function () {
 
       _this5._buffers[track.id] = _this5.mediaSource.addSourceBuffer(mimeType);
       var buffer = _this5._buffers[track.id];
-      buffer.mode = "sequence";
+      buffer.mode = 'sequence';
       _this5._queues[track.id] = [];
       var queue = _this5._queues[track.id];
 
@@ -791,7 +780,7 @@ var MSEPlayer = function () {
             buffer.appendBuffer(queue.shift());
           }
         } catch (e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+          console.error(mseUtils.errorMsg(e));
         }
       }
 
@@ -861,12 +850,16 @@ module.exports = exports['default'];
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.replaceHttpByWS = exports.checkVideoProgress = exports.MAX_DELAY = undefined;
+exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = exports.MAX_DELAY = undefined;
 exports.getMediaSource = getMediaSource;
 exports.isAndroid = isAndroid;
 exports.isSupportedMSE = isSupportedMSE;
 exports.base64ToArrayBuffer = base64ToArrayBuffer;
+exports.RawDataToUint8Array = RawDataToUint8Array;
+exports.getTrackId = getTrackId;
+exports.getRealUtcFromData = getRealUtcFromData;
 exports.doArrayBuffer = doArrayBuffer;
+exports.debugData = debugData;
 exports.getWSURL = getWSURL;
 exports.startWebSocket = startWebSocket;
 
@@ -888,7 +881,7 @@ function getMediaSource() {
 
 function isAndroid() {
   var ua = navigator.userAgent;
-  return ua.indexOf("Android") !== -1;
+  return ua.indexOf('Android') !== -1;
 }
 
 function isSupportedMSE() {
@@ -912,16 +905,37 @@ function base64ToArrayBuffer(base64) {
   });
 }
 
-function doArrayBuffer(rawData, mbAppend) {
+function RawDataToUint8Array(rawData) {
   // 12,4 = mfhd;20,4 slice - segment.id;36,4 = tfhd;44,4 slice - track.id;64,4 = tfdt
   // 72,8 slice - prestime;84,4 = futc;92,8 slice - real utc;104,4 = trun
-  var view = new Uint8Array(rawData);
+  var result = new Uint8Array(rawData);
+  return result;
+}
+function getTrackId(data) {
+  return data[47];
+}
+
+function getRealUtcFromData(view) {
   var pts1 = view[92] << 24 | view[93] << 16 | view[94] << 8 | view[95];
   var pts2 = view[96] << 24 | view[97] << 16 | view[98] << 8 | view[99];
-  var pts = pts1 + pts2 / 1000000;
-  this.utc = pts;
+  var realUtc = pts1 + pts2 / 1000000;
+  return realUtc;
+}
 
-  mbAppend(view[47], view);
+function doArrayBuffer(rawData, mbAppend) {
+  var view = RawDataToUint8Array(rawData);
+  var trackId = getTrackId(view);
+  this.utc = getRealUtcFromData(view);
+
+  mbAppend(trackId, view);
+}
+
+function debugData(rawData) {
+  var view = RawDataToUint8Array(rawData);
+  var trackId = getTrackId(view);
+  var utc = getRealUtcFromData(view);
+
+  return { trackId: trackId, utc: utc, view: view };
 }
 
 // TODO
@@ -1003,6 +1017,10 @@ function startWebSocket(url, time) {
 
 var replaceHttpByWS = exports.replaceHttpByWS = function replaceHttpByWS(url) {
   return url.replace(/^http/, 'ws');
+};
+
+var errorMsg = exports.errorMsg = function errorMsg(e) {
+  return 'Error ' + e.name + ': ' + e.message + '\n' + e.stack;
 };
 
 /***/ }),
