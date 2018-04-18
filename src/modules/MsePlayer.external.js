@@ -17,7 +17,7 @@ let errorsCount = 0
 
 export default class MSEPlayer {
   static replaceHttpByWS(url) {
-    this.destroyWebsocket()
+    return mseUtils.replaceHttpByWS(url)
   }
 
   static isSupported() {
