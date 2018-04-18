@@ -1,11 +1,11 @@
-import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
-// import FlussonicMsePlayer from '../../../dist/FlussonicMsePlayer'
+// import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
+import FlussonicMsePlayer from '../../../dist/FlussonicMsePlayer'
 
 window.onload = onLoad()
 
 function onLoad() {
   const element = document.getElementById('player')
-  const url = 'ws://localhost:8080/clock/mse_ld'
+  const url = 'ws://localhost:8080/DVR/mse_ld?from=1523883088'
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')

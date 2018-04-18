@@ -9,6 +9,7 @@
   "homepage": "https://github.com/flussonic/mse-player",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build-watch": "webpack --progress --watch",
     "build": "webpack --progress",
     "build-min": "webpack --progress",
     "start": "webpack-dev-server --host 0.0.0.0 --content-base public/ --output-public-path latest/ --hot"
