@@ -58,6 +58,9 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
   - `onMediaInfo(info: MediaInfo)` - triggered then metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
 
+  - `bufferMode: 'segments'|'sequence'` - [SourceBuffer Object Append Mode](https://www.w3.org/TR/media-source/#h-sourcebuffer). Default value is `'sequence'`.
+
+  - `errorsBeforeStop: number` - Amount of errors will be happened before invoke the *stop()* method.
 
 ### Methods:
 
