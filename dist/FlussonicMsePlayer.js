@@ -312,7 +312,7 @@ var errorsCount = 0;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
-    this.destroyWebsocket();
+    return mseUtils.replaceHttpByWS(url);
   };
 
   MSEPlayer.isSupported = function isSupported() {
