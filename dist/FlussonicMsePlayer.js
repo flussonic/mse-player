@@ -302,9 +302,17 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var TYPE_CONTENT_VIDEO = 'video';
 var TYPE_CONTENT_AUDIO = 'audio';
 
+var BUFFER_MODE_SEGMENTS = 'segments';
+var BUFFER_MODE_SEQUENCE = 'sequence';
+
+var DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE;
+var DEFAULT_ERRORS_BEFORE_STOP = 1;
+
+var errorsCount = 0;
+
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
-    return mseUtils.replaceHttpByWS(url);
+    this.destroyWebsocket();
   };
 
   MSEPlayer.isSupported = function isSupported() {
@@ -327,6 +335,20 @@ var MSEPlayer = function () {
 
     this.media = media;
     this.url = urlStream;
+    this.opts = opts || {};
+
+    this.opts.bufferMode = this.opts.bufferMode ? this.opts.bufferMode : DEFAULT_BUFFER_MODE || 'sequence';
+
+    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
+      throw new Error('invalid bufferMode param, should be undefined or ' + BUFFER_MODE_SEGMENTS + ' or ' + BUFFER_MODE_SEQUENCE + '.');
+    }
+
+    this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
+
+    if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
+      throw new Error('invalid errorsBeforeStop param, should be number');
+    }
+
     this.onProgress = opts && opts.onProgress;
     this.onMediaInfo = opts && opts.onMediaInfo;
 
@@ -641,6 +663,10 @@ var MSEPlayer = function () {
       if (e.data instanceof ArrayBuffer) {
         console.error('Data:', mseUtils.debugData(e.data));
       }
+      errorsCount++;
+      if (errorsCount >= this.opts.errorsBeforeStop) {
+        this.destroyWebsocket();
+      }
     }
   };
 
@@ -766,11 +792,11 @@ var MSEPlayer = function () {
 
       _this5._buffers[track.id] = _this5.mediaSource.addSourceBuffer(mimeType);
       var buffer = _this5._buffers[track.id];
-      buffer.mode = 'sequence';
+      buffer.mode = _this5.opts && _this5.opts.bufferMode;
       _this5._queues[track.id] = [];
       var queue = _this5._queues[track.id];
 
-      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, updateEnd);
+      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, updateEnd.bind(_this5));
       buffer.addEventListener(_events2.default.BUFFER_ERROR, onError);
       buffer.addEventListener(_events2.default.BUFFER_ABORT, onAbort);
 
@@ -780,7 +806,7 @@ var MSEPlayer = function () {
             buffer.appendBuffer(queue.shift());
           }
         } catch (e) {
-          console.error(mseUtils.errorMsg(e));
+          console.error(mseUtils.errorMsg(e), this.media.error);
         }
       }
 
