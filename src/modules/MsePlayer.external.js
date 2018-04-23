@@ -38,13 +38,7 @@ export default class MSEPlayer {
     this.url = urlStream
     this.opts = opts || {}
 
-    this.opts.bufferMode = this.opts.bufferMode ? this.opts.bufferMode : DEFAULT_BUFFER_MODE || 'sequence'
-
-    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
-      throw new Error(
-        `invalid bufferMode param, should be undefined or ${BUFFER_MODE_SEGMENTS} or ${BUFFER_MODE_SEQUENCE}.`
-      )
-    }
+    this.setBufferMode(this.opts)
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
 
@@ -54,6 +48,7 @@ export default class MSEPlayer {
 
     this.onProgress = opts && opts.onProgress
     this.onMediaInfo = opts && opts.onMediaInfo
+    this.onError = opts && opts.onError
 
     this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
@@ -140,6 +135,21 @@ export default class MSEPlayer {
     return this._setTracks(videoTracksStr, audioTracksStr)
   }
 
+  setBufferMode(optsOrBufferModeValue) {
+    if (typeof optsOrBufferModeValue === 'object') {
+      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE
+    }
+
+    if (typeof optsOrBufferModeValue === 'string') {
+      this.opts.bufferMode = optsOrBufferModeValue
+    }
+
+    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
+      throw new Error(
+        `invalid bufferMode param, should be undefined or ${BUFFER_MODE_SEGMENTS} or ${BUFFER_MODE_SEQUENCE}.`
+      )
+    }
+  }
   /**
    *
    *  Private members
@@ -215,8 +225,12 @@ export default class MSEPlayer {
 
   onMediaDetaching() {
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+    const bindedMD = this.handlerMediaDetaching.bind(this)
     if (this.playPromise) {
-      return this.playPromise.then(this.handlerMediaDetaching.bind(this))
+      // there are two cases:
+      // resolved/rejected
+      // both required to shutdown ws, mediasources and etc.
+      return this.playPromise.then(bindedMD, bindedMD)
     }
     if (!this.playPromise) {
       return this.handlerMediaDetaching()
@@ -363,7 +377,7 @@ export default class MSEPlayer {
         this.afterSeekFlag = false
       }
     } catch (err) {
-      console.error(mseUtils.errorMsg(e))
+      console.error(mseUtils.errorMsg(e), err)
 
       if (this.media && this.media.error) {
         console.error('MediaError:', this.media.error)
@@ -374,7 +388,11 @@ export default class MSEPlayer {
       }
       errorsCount++
       if (errorsCount >= this.opts.errorsBeforeStop) {
-        this.destroyWebsocket()
+        this.stopPromise = this.stop()
+      }
+
+      if (this.onError) {
+        this.onError(err, e)
       }
     }
   }
