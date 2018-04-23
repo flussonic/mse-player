@@ -275,6 +275,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
 var _segments = __webpack_require__(14);
 
 var segmentsTypes = _interopRequireWildcard(_segments);
@@ -337,11 +339,7 @@ var MSEPlayer = function () {
     this.url = urlStream;
     this.opts = opts || {};
 
-    this.opts.bufferMode = this.opts.bufferMode ? this.opts.bufferMode : DEFAULT_BUFFER_MODE || 'sequence';
-
-    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
-      throw new Error('invalid bufferMode param, should be undefined or ' + BUFFER_MODE_SEGMENTS + ' or ' + BUFFER_MODE_SEQUENCE + '.');
-    }
+    this.setBufferMode(this.opts);
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
 
@@ -351,6 +349,7 @@ var MSEPlayer = function () {
 
     this.onProgress = opts && opts.onProgress;
     this.onMediaInfo = opts && opts.onMediaInfo;
+    this.onError = opts && opts.onError;
 
     this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this);
     this.maybeAppend = this.maybeAppend.bind(this);
@@ -432,6 +431,19 @@ var MSEPlayer = function () {
     return this._setTracks(videoTracksStr, audioTracksStr);
   };
 
+  MSEPlayer.prototype.setBufferMode = function setBufferMode(optsOrBufferModeValue) {
+    if ((typeof optsOrBufferModeValue === 'undefined' ? 'undefined' : _typeof(optsOrBufferModeValue)) === 'object') {
+      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE;
+    }
+
+    if (typeof optsOrBufferModeValue === 'string') {
+      this.opts.bufferMode = optsOrBufferModeValue;
+    }
+
+    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
+      throw new Error('invalid bufferMode param, should be undefined or ' + BUFFER_MODE_SEGMENTS + ' or ' + BUFFER_MODE_SEQUENCE + '.');
+    }
+  };
   /**
    *
    *  Private members
@@ -507,8 +519,12 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.onMediaDetaching = function onMediaDetaching() {
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+    var bindedMD = this.handlerMediaDetaching.bind(this);
     if (this.playPromise) {
-      return this.playPromise.then(this.handlerMediaDetaching.bind(this));
+      // there are two cases:
+      // resolved/rejected
+      // both required to shutdown ws, mediasources and etc.
+      return this.playPromise.then(bindedMD, bindedMD);
     }
     if (!this.playPromise) {
       return this.handlerMediaDetaching();
@@ -654,7 +670,7 @@ var MSEPlayer = function () {
         this.afterSeekFlag = false;
       }
     } catch (err) {
-      console.error(mseUtils.errorMsg(e));
+      console.error(mseUtils.errorMsg(e), err);
 
       if (this.media && this.media.error) {
         console.error('MediaError:', this.media.error);
@@ -665,7 +681,11 @@ var MSEPlayer = function () {
       }
       errorsCount++;
       if (errorsCount >= this.opts.errorsBeforeStop) {
-        this.destroyWebsocket();
+        this.stopPromise = this.stop();
+      }
+
+      if (this.onError) {
+        this.onError(err, e);
       }
     }
   };
