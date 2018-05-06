@@ -341,7 +341,7 @@ export default class MSEPlayer {
     let mediaSource = this.mediaSource
     if (mediaSource) {
       // once received, don't listen anymore to sourceopen event
-      mediaSource.removeEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onSourceOpen)
+      mediaSource.removeEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
     }
 
     // play was called but stoped and was pend(1.readyState is not open)
