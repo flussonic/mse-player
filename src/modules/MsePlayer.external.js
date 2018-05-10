@@ -459,7 +459,18 @@ export default class MSEPlayer {
   }
 
   maybeAppend(trackId, binaryData) {
+
     const buffer = this._buffers[trackId]
+
+    if (this.afterSeekFlag) {
+
+      for(let k in this._buffers) {
+        this._buffers[k].abort()
+        this._buffers[k].mode = 'sequence'
+      }
+
+      this.afterSeekFlag = false
+    }
     const queue = this._queues[trackId]
     if (buffer.updating || queue.length > 0) {
       queue.push(binaryData)
