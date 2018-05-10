@@ -762,7 +762,18 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.maybeAppend = function maybeAppend(trackId, binaryData) {
+
     var buffer = this._buffers[trackId];
+
+    if (this.afterSeekFlag) {
+
+      for (var k in this._buffers) {
+        this._buffers[k].abort();
+        this._buffers[k].mode = 'sequence';
+      }
+
+      this.afterSeekFlag = false;
+    }
     var queue = this._queues[trackId];
     if (buffer.updating || queue.length > 0) {
       queue.push(binaryData);
