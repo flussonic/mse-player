@@ -307,6 +307,9 @@ var TYPE_CONTENT_AUDIO = 'audio';
 var BUFFER_MODE_SEGMENTS = 'segments';
 var BUFFER_MODE_SEQUENCE = 'sequence';
 
+var LIVE = 'live';
+var WS_COMMAND_SEEK_LIVE = '';
+var WS_COMMAND_SEEK = 'play_from=';
 var DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 
@@ -372,7 +375,9 @@ var MSEPlayer = function () {
       if (!utc) {
         throw new Error('utc should be "live" or UTC value');
       }
-      this.websocket.send('play_from=' + utc);
+      var commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK;
+
+      this.websocket.send('' + commandStr + utc);
       this.afterSeekFlag = true;
     } catch (err) {
       console.warn('onMediaDetaching:' + err.message + ' while calling endOfStream');
@@ -639,7 +644,7 @@ var MSEPlayer = function () {
     var mediaSource = this.mediaSource;
     if (mediaSource) {
       // once received, don't listen anymore to sourceopen event
-      mediaSource.removeEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, this.onSourceOpen);
+      mediaSource.removeEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, this.onmso);
     }
 
     // play was called but stoped and was pend(1.readyState is not open)
