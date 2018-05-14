@@ -10,6 +10,9 @@ const TYPE_CONTENT_AUDIO = 'audio'
 const BUFFER_MODE_SEGMENTS = 'segments'
 const BUFFER_MODE_SEQUENCE = 'sequence'
 
+const LIVE = 'live'
+const WS_COMMAND_SEEK_LIVE = ''
+const WS_COMMAND_SEEK = 'play_from='
 const DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 
@@ -71,7 +74,11 @@ export default class MSEPlayer {
       if (!utc) {
         throw new Error('utc should be "live" or UTC value')
       }
-      this.websocket.send(`play_from=${utc}`)
+      const commandStr = utc === LIVE
+        ? WS_COMMAND_SEEK_LIVE
+        : WS_COMMAND_SEEK
+
+      this.websocket.send(`${commandStr}${utc}`)
       this.afterSeekFlag = true
     } catch (err) {
       console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
