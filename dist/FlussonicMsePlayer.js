@@ -312,6 +312,7 @@ var WS_COMMAND_SEEK_LIVE = '';
 var WS_COMMAND_SEEK = 'play_from=';
 var DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
+var DEFAULT_UPDATE = 100;
 
 var errorsCount = 0;
 
@@ -341,7 +342,7 @@ var MSEPlayer = function () {
     this.media = media;
     this.url = urlStream;
     this.opts = opts || {};
-
+    this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
     this.setBufferMode(this.opts);
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
@@ -363,6 +364,7 @@ var MSEPlayer = function () {
   }
 
   MSEPlayer.prototype.play = function play() {
+    console.log('FlussonicMsePlayer: play()');
     return this._play();
   };
 
@@ -376,7 +378,7 @@ var MSEPlayer = function () {
         throw new Error('utc should be "live" or UTC value');
       }
       var commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK;
-
+      console.log('' + commandStr + utc);
       this.websocket.send('' + commandStr + utc);
       this.afterSeekFlag = true;
     } catch (err) {
@@ -436,68 +438,85 @@ var MSEPlayer = function () {
     return this._setTracks(videoTracksStr, audioTracksStr);
   };
 
-  MSEPlayer.prototype.setBufferMode = function setBufferMode(optsOrBufferModeValue) {
-    if ((typeof optsOrBufferModeValue === 'undefined' ? 'undefined' : _typeof(optsOrBufferModeValue)) === 'object') {
-      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE;
-    }
-
-    if (typeof optsOrBufferModeValue === 'string') {
-      this.opts.bufferMode = optsOrBufferModeValue;
-    }
-
-    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
-      throw new Error('invalid bufferMode param, should be undefined or ' + BUFFER_MODE_SEGMENTS + ' or ' + BUFFER_MODE_SEQUENCE + '.');
-    }
-  };
   /**
    *
    *  Private members
    *
    */
 
+
+  MSEPlayer.prototype._log = function _log(msg) {
+    if (this.opts.debug) {
+      console.log(msg);
+    }
+  };
+
   MSEPlayer.prototype._play = function _play(time, videoTrack, audioTack) {
-    if (this.playing) {
-      return;
-    }
+    var _this2 = this;
 
-    if (this._pause && !this.afterSeekFlag) {
-      this._resume();
-      return;
-    }
+    return new Promise(function (resolve, reject) {
+      if (_this2.playing) {
+        _this2._log('_play: terminate because already has been playing');
+        return resolve();
+      }
 
-    // TODO: to observe this case, I have no idea when it fired
-    if (!this.mediaSource) {
-      this.onAttachMedia({ media: this.media });
-      this.onsoa = this._play.bind(this, time, videoTrack, audioTack);
-      this.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa);
-      console.warn('mediaSource did not create');
-      return;
-    }
+      if (_this2._pause && !_this2.afterSeekFlag) {
+        _this2._resume();
+        _this2._log('_play: terminate because _paused and should resume');
+        return resolve();
+      }
 
-    this.playTime = time;
-    this.videoTrack = videoTrack;
-    this.audioTack = audioTack;
+      // TODO: to observe this case, I have no idea when it fired
+      if (!_this2.mediaSource) {
+        _this2.onAttachMedia({ media: _this2.media });
+        _this2.onsoa = _this2._play.bind(_this2, time, videoTrack, audioTack);
+        _this2.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this2.onsoa);
+        console.warn('mediaSource did not create');
+        _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
+        _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
+        return;
+      }
 
-    // deferring execution
-    if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-      console.warn('readyState is not "open"');
-      this.shouldPlay = true;
-      return;
-    }
+      _this2.playTime = time;
+      _this2.videoTrack = videoTrack;
+      _this2.audioTack = audioTack;
 
-    this._pause = false;
-    this.playing = true;
+      // deferring execution
+      if (_this2.mediaSource && _this2.mediaSource.readyState !== 'open') {
+        console.warn('readyState is not "open"');
+        _this2.shouldPlay = true;
+        _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
+        _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
+        return;
+      }
 
-    var startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack);
+      _this2._pause = false;
+      _this2.playing = true;
 
-    startWS.bind(this)();
+      var startWS = mseUtils.startWebSocket(_this2.url, time, videoTrack, audioTack);
 
-    // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    this.playPromise = this.media.play();
-    this.startProgressTimer();
-    this.playing = true;
+      startWS.bind(_this2)();
 
-    return this.playPromise;
+      // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+      _this2.playPromise = _this2.media.play();
+      _this2.startProgressTimer();
+      _this2.playing = true;
+
+      _this2.playPromise.then(function () {
+        if (_this2.resolveThenMediaSourceOpen) {
+          _this2.resolveThenMediaSourceOpen();
+          _this2.resolveThenMediaSourceOpen = void 0;
+          _this2.rejectThenMediaSourceOpen = void 0;
+        }
+      }, function () {
+        if (_this2.rejectThenMediaSourceOpen) {
+          _this2.rejectThenMediaSourceOpen();
+          _this2.resolveThenMediaSourceOpen = void 0;
+          _this2.rejectThenMediaSourceOpen = void 0;
+        }
+      });
+      return _this2.playPromise;
+    });
   };
 
   MSEPlayer.prototype.init = function init() {
@@ -523,6 +542,11 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onMediaDetaching = function onMediaDetaching() {
+    if (this.stopRunning) {
+      console.log('stop is running.');
+      return;
+    }
+    this.stopRunning = true;
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     var bindedMD = this.handlerMediaDetaching.bind(this);
     if (this.playPromise) {
@@ -537,7 +561,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.handlerMediaDetaching = function handlerMediaDetaching() {
-    var _this2 = this;
+    var _this3 = this;
 
     console.info('media source detaching');
 
@@ -549,9 +573,11 @@ var MSEPlayer = function () {
     if (this.media) {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp); // checkVideoProgress
       mediaEmptyPromise = new Promise(function (resolve) {
-        _this2._onmee = _this2.onMediaElementEmptied(resolve).bind(_this2);
+        _this3._onmee = _this3.onMediaElementEmptied(resolve).bind(_this3);
       });
-
+      mediaEmptyPromise.then(function () {
+        return _this3.stopRunning = false;
+      });
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_EMPTIED, this._onmee);
     }
 
@@ -613,7 +639,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onAttachMedia = function onAttachMedia(data) {
-    var _this3 = this;
+    var _this4 = this;
 
     this.media = data.media;
     var media = this.media;
@@ -633,8 +659,8 @@ var MSEPlayer = function () {
       this.oncvp = mseUtils.checkVideoProgress(media).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
       return new Promise(function (resolve) {
-        _this3.onmso = _this3.onMediaSourceOpen.bind(_this3, resolve);
-        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this3.onmso);
+        _this4.onmso = _this4.onMediaSourceOpen.bind(_this4, resolve);
+        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this4.onmso);
       });
     }
   };
@@ -701,7 +727,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
-    var _this4 = this;
+    var _this5 = this;
 
     var data = JSON.parse(rawData);
     if (data.type === segmentsTypes.MSE_INIT_SEGMENT) {
@@ -720,7 +746,7 @@ var MSEPlayer = function () {
 
         // TODO: describe cases
         data.tracks.forEach(function (track) {
-          _this4.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload));
+          _this5.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload));
         });
 
         return;
@@ -730,7 +756,7 @@ var MSEPlayer = function () {
       if (this.mediaSource && this.mediaSource.sourceBuffers.length) {
         if (this.afterSeekFlag) {
           data.tracks.forEach(function (track) {
-            _this4.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload));
+            _this5.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload));
           });
           this.afterSeekFlag = false;
           return;
@@ -738,7 +764,7 @@ var MSEPlayer = function () {
 
         this.stop().then(function () {
           setTimeout(function () {
-            return _this4.play();
+            return _this5.play();
           }, 5000);
         });
       }
@@ -789,7 +815,7 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.startProgressTimer = function startProgressTimer() {
     if (this.onProgress) {
-      this.timer = setInterval(this.onTimer.bind(this), 100);
+      this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime);
     }
   };
 
@@ -820,19 +846,19 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.createSourceBuffers = function createSourceBuffers(tracks) {
-    var _this5 = this;
+    var _this6 = this;
 
     tracks.forEach(function (track) {
       // TODO: use metadata from server
       var mimeType = track.content === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
 
-      _this5._buffers[track.id] = _this5.mediaSource.addSourceBuffer(mimeType);
-      var buffer = _this5._buffers[track.id];
-      buffer.mode = _this5.opts && _this5.opts.bufferMode;
-      _this5._queues[track.id] = [];
-      var queue = _this5._queues[track.id];
+      _this6._buffers[track.id] = _this6.mediaSource.addSourceBuffer(mimeType);
+      var buffer = _this6._buffers[track.id];
+      buffer.mode = _this6.opts && _this6.opts.bufferMode;
+      _this6._queues[track.id] = [];
+      var queue = _this6._queues[track.id];
 
-      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, updateEnd.bind(_this5));
+      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, updateEnd.bind(_this6));
       buffer.addEventListener(_events2.default.BUFFER_ERROR, onError);
       buffer.addEventListener(_events2.default.BUFFER_ABORT, onAbort);
 
@@ -857,13 +883,27 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype._setTracks = function _setTracks(videoTrack, audioTrack) {
-    var _this6 = this;
+    var _this7 = this;
 
     this.onMediaDetaching().then(function () {
-      _this6.onAttachMedia({ media: _this6.media });
-      _this6.onsoa = _this6._play.bind(_this6, _this6.utc, videoTrack, audioTrack);
-      _this6.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this6.onsoa);
+      _this7.onAttachMedia({ media: _this7.media });
+      _this7.onsoa = _this7._play.bind(_this7, _this7.utc, videoTrack, audioTrack);
+      _this7.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this7.onsoa);
     });
+  };
+
+  MSEPlayer.prototype.setBufferMode = function setBufferMode(optsOrBufferModeValue) {
+    if ((typeof optsOrBufferModeValue === 'undefined' ? 'undefined' : _typeof(optsOrBufferModeValue)) === 'object') {
+      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE;
+    }
+
+    if (typeof optsOrBufferModeValue === 'string') {
+      this.opts.bufferMode = optsOrBufferModeValue;
+    }
+
+    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
+      throw new Error('invalid bufferMode param, should be undefined or ' + BUFFER_MODE_SEGMENTS + ' or ' + BUFFER_MODE_SEQUENCE + '.');
+    }
   };
 
   return MSEPlayer;
