@@ -15,6 +15,7 @@ const WS_COMMAND_SEEK_LIVE = ''
 const WS_COMMAND_SEEK = 'play_from='
 const DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE
 const DEFAULT_ERRORS_BEFORE_STOP = 1
+const DEFAULT_UPDATE = 100
 
 let errorsCount = 0
 
@@ -40,7 +41,7 @@ export default class MSEPlayer {
     this.media = media
     this.url = urlStream
     this.opts = opts || {}
-
+    this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE
     this.setBufferMode(this.opts)
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
@@ -62,6 +63,7 @@ export default class MSEPlayer {
   }
 
   play() {
+    console.log('FlussonicMsePlayer: play()')
     return this._play()
   }
 
@@ -77,7 +79,7 @@ export default class MSEPlayer {
       const commandStr = utc === LIVE
         ? WS_COMMAND_SEEK_LIVE
         : WS_COMMAND_SEEK
-
+      console.log(`${commandStr}${utc}`)
       this.websocket.send(`${commandStr}${utc}`)
       this.afterSeekFlag = true
     } catch (err) {
@@ -142,70 +144,89 @@ export default class MSEPlayer {
     return this._setTracks(videoTracksStr, audioTracksStr)
   }
 
-  setBufferMode(optsOrBufferModeValue) {
-    if (typeof optsOrBufferModeValue === 'object') {
-      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE
-    }
-
-    if (typeof optsOrBufferModeValue === 'string') {
-      this.opts.bufferMode = optsOrBufferModeValue
-    }
-
-    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
-      throw new Error(
-        `invalid bufferMode param, should be undefined or ${BUFFER_MODE_SEGMENTS} or ${BUFFER_MODE_SEQUENCE}.`
-      )
-    }
-  }
   /**
    *
    *  Private members
    *
    */
+  _log(msg) {
+    if (this.opts.debug) {
+      console.log(msg)
+    }
+  }
 
   _play(time, videoTrack, audioTack) {
-    if (this.playing) {
-      return
-    }
+    return new Promise((resolve, reject) => {
+      if (this.playing) {
+        this._log('_play: terminate because already has been playing')
+        return resolve()
+      }
 
-    if (this._pause && !this.afterSeekFlag) {
-      this._resume()
-      return
-    }
+      if (this._pause && !this.afterSeekFlag) {
+        this._resume()
+        this._log('_play: terminate because _paused and should resume')
+        return resolve()
+      }
 
-    // TODO: to observe this case, I have no idea when it fired
-    if (!this.mediaSource) {
-      this.onAttachMedia({media: this.media})
-      this.onsoa = this._play.bind(this, time, videoTrack, audioTack)
-      this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
-      console.warn('mediaSource did not create')
-      return
-    }
+      // TODO: to observe this case, I have no idea when it fired
+      if (!this.mediaSource) {
+        this.onAttachMedia({media: this.media})
+        this.onsoa = this._play.bind(this, time, videoTrack, audioTack)
+        this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
+        console.warn('mediaSource did not create')
+        this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen
+          ? this.resolveThenMediaSourceOpen
+          : resolve
+        this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen
+            ? this.rejectThenMediaSourceOpen
+            : reject
+        return
+      }
 
-    this.playTime = time
-    this.videoTrack = videoTrack
-    this.audioTack = audioTack
+      this.playTime = time
+      this.videoTrack = videoTrack
+      this.audioTack = audioTack
 
-    // deferring execution
-    if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-      console.warn('readyState is not "open"')
-      this.shouldPlay = true
-      return
-    }
+      // deferring execution
+      if (this.mediaSource && this.mediaSource.readyState !== 'open') {
+        console.warn('readyState is not "open"')
+        this.shouldPlay = true
+        this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen
+          ? this.resolveThenMediaSourceOpen
+          : resolve
+        this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen
+          ? this.rejectThenMediaSourceOpen
+          : reject
+        return
+      }
 
-    this._pause = false
-    this.playing = true
+      this._pause = false
+      this.playing = true
 
-    const startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack)
+      const startWS = mseUtils.startWebSocket(this.url, time, videoTrack, audioTack)
 
-    startWS.bind(this)()
+      startWS.bind(this)()
 
-    // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    this.playPromise = this.media.play()
-    this.startProgressTimer()
-    this.playing = true
+      // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+      this.playPromise = this.media.play()
+      this.startProgressTimer()
+      this.playing = true
 
-    return this.playPromise
+      this.playPromise.then(() => {
+        if (this.resolveThenMediaSourceOpen) {
+          this.resolveThenMediaSourceOpen()
+          this.resolveThenMediaSourceOpen = void 0
+          this.rejectThenMediaSourceOpen = void 0
+        }
+      }, () => {
+        if (this.rejectThenMediaSourceOpen) {
+          this.rejectThenMediaSourceOpen()
+          this.resolveThenMediaSourceOpen = void 0
+          this.rejectThenMediaSourceOpen = void 0
+        }
+      })
+      return this.playPromise
+    })
   }
 
   init() {
@@ -231,6 +252,11 @@ export default class MSEPlayer {
   }
 
   onMediaDetaching() {
+    if (this.stopRunning) {
+      console.log('stop is running.')
+      return
+    }
+    this.stopRunning = true
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     const bindedMD = this.handlerMediaDetaching.bind(this)
     if (this.playPromise) {
@@ -257,7 +283,7 @@ export default class MSEPlayer {
       mediaEmptyPromise = new Promise(resolve => {
         this._onmee = this.onMediaElementEmptied(resolve).bind(this)
       })
-
+      mediaEmptyPromise.then(() => this.stopRunning = false)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_EMPTIED, this._onmee)
     }
 
@@ -488,7 +514,7 @@ export default class MSEPlayer {
 
   startProgressTimer() {
     if (this.onProgress) {
-      this.timer = setInterval(this.onTimer.bind(this), 100)
+      this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime)
     }
   }
 
@@ -559,5 +585,21 @@ export default class MSEPlayer {
       this.onsoa = this._play.bind(this, this.utc, videoTrack, audioTrack)
       this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
     })
+  }
+
+  setBufferMode(optsOrBufferModeValue) {
+    if (typeof optsOrBufferModeValue === 'object') {
+      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE
+    }
+
+    if (typeof optsOrBufferModeValue === 'string') {
+      this.opts.bufferMode = optsOrBufferModeValue
+    }
+
+    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
+      throw new Error(
+        `invalid bufferMode param, should be undefined or ${BUFFER_MODE_SEGMENTS} or ${BUFFER_MODE_SEQUENCE}.`
+      )
+    }
   }
 }
