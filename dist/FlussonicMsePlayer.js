@@ -1073,8 +1073,9 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
   return resultUrl;
 }
 
-var MAX_DELAY = exports.MAX_DELAY = /Edge\/1[45]/.test(navigator.userAgent) ? 10 // very slow buffers in Edge 14/15
+var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(navigator.userAgent) ? 10 // very slow buffers in Edge 14/15
 : 2;
+console.log('MAX_DELAY', MAX_DELAY, navigator.userAgent);
 
 var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media) {
   var maxDelay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : MAX_DELAY;

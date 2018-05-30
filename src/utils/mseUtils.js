@@ -105,8 +105,8 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
   return resultUrl
 }
 
-export const MAX_DELAY = /Edge\/1[45]/.test(navigator.userAgent)
-  ? 10 // very slow buffers in Edge 14/15
+export const MAX_DELAY = /Edge/.test(navigator.userAgent)
+  ? 10 // very slow buffers in Edge
   : 2
 
 export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
