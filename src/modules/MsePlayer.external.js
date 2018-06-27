@@ -582,7 +582,7 @@ export default class MSEPlayer {
   _setTracks(videoTrack, audioTrack) {
     this.onMediaDetaching().then(() => {
       this.onAttachMedia({media: this.media})
-      this.onsoa = this._play.bind(this, this.utc, videoTrack, audioTrack)
+      this.onsoa = this._play.bind(this, null, videoTrack, audioTrack)
       this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
     })
   }
