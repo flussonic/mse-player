@@ -13,7 +13,7 @@ npm install --save @flussonic/flussonic-mse-player
 
 #### Webpack:
 
-```
+```javascript
 import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
 ...
 const player = new FlussonicMsePlayer(element, url, opts)
@@ -44,7 +44,7 @@ var player = new FlussonicMsePlayer(element, url, opts)
 
 ### Construction:
 
-```
+```javascript
 const player = new FlussonicMsePlayer(element, url, opts)
 ```
 
@@ -76,7 +76,7 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 ### Types:
 
-```
+```javascript
 MediaInfo {
   height: number,
   width: number,
@@ -84,21 +84,21 @@ MediaInfo {
 }
 
 StreamInfo {
-  bitrate : number,
-  codec :  string,
-  content :  string,
-   fps :  number,
-  height :  number,
-  length_size :  number,
-  level :  string,
-  pixel_height :  number,
-  pixel_width :  number,
-  profile : "Baseline" 
-  sar_height :  number, 
-  sar_width :  number, 
-  size :  string,
-  track_id :  string,
-  width :  number
+  bitrate: number,
+  codec: string,
+  content: string,
+  fps: number,
+  height: number,
+  length_size: number,
+  level: string,
+  pixel_height: number,
+  pixel_width: number,
+  profile: "Baseline",
+  sar_height: number,
+  sar_width: number,
+  size: string,
+  track_id: string,
+  width: number
 }
 
 Track: string
