@@ -66,11 +66,11 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 - **play(from?: UtcOrLive, videoTrack?: Track, audioTrack?: Track) => Promise<any>** - start playing.
 
-  Return a Promise. Resolved if HTMLMediaElement.play() will be resolved[HTMLMediaElement.play() Returns a Promise](https://developers.google.com/web/updates/2016/03/play-returns-promise). Overwise rejected with error message.
+  Return a `Promise`. Resolved if HTMLMediaElement.play() resolved([HTMLMediaElement.play() Returns a Promise](https://developers.google.com/web/updates/2016/03/play-returns-promise)). Overwise rejected with error message.
 
-  if you do autoplay="true" muted="false" video. The `play` will be rejected[Autoplay Policy Changes](https://developers.google.com/web/updates/2017/09/autoplay-policy-changes)
+  if you do autoplay="true" muted="false" video. The `play` will be rejected([Autoplay Policy Changes](https://developers.google.com/web/updates/2017/09/autoplay-policy-changes))
 
-  For resolve this behaviour you can mute the video before playing. Or you can process play's rejection and show play button. 
+  For resolve this behaviour you can mute the video before playing. Or you can process play's rejection and show play button.
 
 - **pause()** - send `pause` command by websocket
 
