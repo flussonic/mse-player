@@ -363,9 +363,11 @@ var MSEPlayer = function () {
     this.onAttachMedia({ media: media });
   }
 
-  MSEPlayer.prototype.play = function play() {
-    console.log('FlussonicMsePlayer: play()');
-    return this._play();
+  MSEPlayer.prototype.play = function play(time, videoTrack, audioTack) {
+    if (this.opts.debug) {
+      console.log('FlussonicMsePlayer: play()');
+    }
+    return this._play(time, videoTrack, audioTack);
   };
 
   MSEPlayer.prototype.stop = function stop() {
@@ -887,7 +889,7 @@ var MSEPlayer = function () {
 
     this.onMediaDetaching().then(function () {
       _this7.onAttachMedia({ media: _this7.media });
-      _this7.onsoa = _this7._play.bind(_this7, _this7.utc, videoTrack, audioTrack);
+      _this7.onsoa = _this7._play.bind(_this7, null, videoTrack, audioTrack);
       _this7.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this7.onsoa);
     });
   };
@@ -1073,9 +1075,9 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
   return resultUrl;
 }
 
-var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(navigator.userAgent) ? 10 // very slow buffers in Edge 14/15
+var ua = navigator.userAgent;
+var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua) ? 10 // very slow buffers in Edge
 : 2;
-console.log('MAX_DELAY', MAX_DELAY, navigator.userAgent);
 
 var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media) {
   var maxDelay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : MAX_DELAY;
