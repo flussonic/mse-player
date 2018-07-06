@@ -64,7 +64,7 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 ### Methods:
 
-- **play()** - start playing
+- **play(from?: UtcOrLive, videoTrack?: Track, audioTrack?: Track) => Promise<any> ** - start playing
 
 - **pause()** - send `pause` command by websocket
 
@@ -102,4 +102,7 @@ StreamInfo {
 }
 
 Track: string
+
+type UtcOrLive = number | 'live'
+
 ```

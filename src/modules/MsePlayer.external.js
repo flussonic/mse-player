@@ -62,9 +62,11 @@ export default class MSEPlayer {
     this.onAttachMedia({media})
   }
 
-  play() {
-    console.log('FlussonicMsePlayer: play()')
-    return this._play()
+  play(time, videoTrack, audioTack) {
+    if (this.opts.debug) {
+      console.log('FlussonicMsePlayer: play()')
+    }
+    return this._play(time, videoTrack, audioTack)
   }
 
   stop() {
