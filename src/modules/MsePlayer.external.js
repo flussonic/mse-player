@@ -1,11 +1,16 @@
 import * as segmentsTypes from '../enums/segments'
+
+import {AUDIO, VIDEO} from '../enums/common'
+
 import EVENTS from '../enums/events'
 import MSG from '../enums/messages'
 import * as mseUtils from '../utils/mseUtils'
+import {logger} from '../utils/logger'
+
 import 'core-js/fn/array/find'
 
-const TYPE_CONTENT_VIDEO = 'video'
-const TYPE_CONTENT_AUDIO = 'audio'
+const TYPE_CONTENT_VIDEO = VIDEO
+const TYPE_CONTENT_AUDIO = AUDIO
 
 const BUFFER_MODE_SEGMENTS = 'segments'
 const BUFFER_MODE_SEQUENCE = 'sequence'
@@ -56,6 +61,9 @@ export default class MSEPlayer {
 
     this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
+
+    // Source Buffer listeners
+    this.onsbue = this.onSBUpdateEnd.bind(this);
 
     this.init()
 
@@ -232,6 +240,13 @@ export default class MSEPlayer {
   }
 
   init() {
+    // start new implementation
+    this.sourceBuffer = {}
+    this.flushRange = [];
+    this.appended = 0;
+    this._missed = 0;
+    // end new inplementation
+
     this._buffers = {}
     this._queues = {}
     this.playing = false
@@ -329,15 +344,6 @@ export default class MSEPlayer {
     this.media.load()
   }
 
-  destroyWebsocket() {
-    if (this.websocket) {
-      this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsdm)
-      this.websocket.onclose = function() {} // disable onclose handler first
-      this.websocket.close()
-      this.onwsdm = null
-    }
-  }
-
   onMediaElementEmptied(resolve) {
     if (this._onmee && this.media) {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_EMPTIED, this._onmee)
@@ -393,6 +399,15 @@ export default class MSEPlayer {
     }
   }
 
+  destroyWebsocket() {
+    if (this.websocket) {
+      this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsdm)
+      this.websocket.onclose = function() {} // disable onclose handler first
+      this.websocket.close()
+      this.onwsdm = null
+    }
+  }
+
   onWebsocketOpen() {
     this.websocket.send('resume')
     this.websocket.removeEventListener(EVENTS.WS_OPEN, this.onwso)
@@ -405,8 +420,44 @@ export default class MSEPlayer {
       }
 
       const rawData = e.data
+
+      if (this._setTracksFlag) {
+        this._missed++
+        if (!this._missedData) {this._missedData = []}
+        this._missedData.push(rawData)
+        if (rawData instanceof ArrayBuffer) {
+          return;
+        }
+      }
+
+      if (this._missed > 0) {
+          console.log('was missed:', this._missed)
+          this._missed = 0;
+      }
+
       if (rawData instanceof ArrayBuffer) {
-        this.doArrayBuffer(rawData, this.maybeAppend)
+        if (this._missedData && this._missedData.length) {
+          this._missedData.push(rawData)
+          const shiftedData = this._missedData.shift()
+          let data
+          if (shiftedData instanceof ArrayBuffer) {
+            data = shiftedData
+            console.log('this.doArrayBuffer(rawData, this.maybeAppend)')
+            this.doArrayBuffer(data, this.maybeAppend)
+          } else {
+            debugger
+            const parsedData = JSON.parse(shiftedData)
+            parsedData.tracks.forEach(t => {
+              this.maybeAppend(t.id ,mseUtils.base64ToArrayBuffer(t.payload))
+            })
+            // data = mseUtils.base64ToArrayBuffer(parsedData.tracks[0].payload)
+            // data = mseUtils.base64ToArrayBuffer(parsedData.tracks[0].payload)
+            // this.maybeAppend(this.audioTrackId + 1 ,data)
+            console.log('this.audioTrackId + 1 ,data')
+          }
+        } else {
+          this.doArrayBuffer(rawData, this.maybeAppend)
+        }
       } else {
         this.procInitSegment(rawData)
         this.afterSeekFlag = false
@@ -449,7 +500,7 @@ export default class MSEPlayer {
 
       // 1.
       if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
-        this.createSourceBuffers(data.tracks)
+        this.createSourceBuffers(data)
 
         // TODO: describe cases
         data.tracks.forEach(track => {
@@ -468,15 +519,122 @@ export default class MSEPlayer {
           this.afterSeekFlag = false
           return
         }
-
-        this.stop().then(() => {
-          setTimeout(() => this.play(), 5000)
-        })
+        const startOffset = 0
+        const endOffset = Infinity
+        // TODO: should invoke remove method of SourceBuffer's
+        this.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
+        // attempt flush immediately
+        this.flushBufferCounter = 0;
+        this.doFlush()
       }
       // TODO: describe cases
     } else if (data.type === segmentsTypes.MSE_MEDIA_SEGMENT) {
       this.maybeAppend(data.id, mseUtils.base64ToArrayBuffer(data.payload))
     }
+  }
+
+  doFlush () {
+    // loop through all buffer ranges to flush
+    while (this.flushRange.length) {
+      let range = this.flushRange[0];
+      // flushBuffer will abort any buffer append in progress and flush Audio/Video Buffer
+      if (this.flushBuffer(range.start, range.end, range.type)) {
+        // range flushed, remove from flush array
+        this.flushRange.shift();
+        this.flushBufferCounter = 0;
+      } else {
+        this._needsFlush = true;
+        // avoid looping, wait for SB update end to retrigger a flush
+        return;
+      }
+    }
+    if (this.flushRange.length === 0) {
+      // everything flushed
+      this._needsFlush = false;
+
+      // let's recompute this.appended, which is used to avoid flush looping
+      let appended = 0;
+      let sourceBuffer = this.sourceBuffer;
+      try {
+        for (let type in sourceBuffer) {
+          appended += sourceBuffer[type].buffered.length;
+        }
+      } catch (error) {
+        // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
+        // this is harmess at this stage, catch this to avoid reporting an internal exception
+        logger.error('error while accessing sourceBuffer.buffered');
+      }
+      this.appended = appended;
+      this._setTracksFlag = false
+      debugger
+      // this.hls.trigger(Event.BUFFER_FLUSHED);
+    }
+  }
+
+  /*
+    flush specified buffered range,
+    return true once range has been flushed.
+    as sourceBuffer.remove() is asynchronous, flushBuffer will be retriggered on sourceBuffer update end
+  */
+  flushBuffer (startOffset, endOffset, typeIn) {
+    let sb, i, bufStart, bufEnd, flushStart, flushEnd, sourceBuffer = this.sourceBuffer;
+    if (Object.keys(sourceBuffer).length) {
+      logger.log(`flushBuffer,pos/start/end: ${this.media.currentTime.toFixed(3)}/${startOffset}/${endOffset}`);
+      // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
+      if (this.flushBufferCounter < this.appended) {
+        for (let type in sourceBuffer) {
+          // check if sourcebuffer type is defined (typeIn): if yes, let's only flush this one
+          // if no, let's flush all sourcebuffers
+          if (typeIn && type !== typeIn) {
+            continue;
+          }
+
+          sb = sourceBuffer[type];
+          // we are going to flush buffer, mark source buffer as 'not ended'
+          sb.ended = false;
+          if (!sb.updating) {
+            try {
+              for (i = 0; i < sb.buffered.length; i++) {
+                bufStart = sb.buffered.start(i);
+                bufEnd = sb.buffered.end(i);
+                // workaround firefox not able to properly flush multiple buffered range.
+                if (navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 && endOffset === Number.POSITIVE_INFINITY) {
+                  flushStart = startOffset;
+                  flushEnd = endOffset;
+                } else {
+                  flushStart = Math.max(bufStart, startOffset);
+                  flushEnd = Math.min(bufEnd, endOffset);
+                }
+                /* sometimes sourcebuffer.remove() does not flush
+                   the exact expected time range.
+                   to avoid rounding issues/infinite loop,
+                   only flush buffer range of length greater than 500ms.
+                */
+                if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
+                  this.flushBufferCounter++;
+                  logger.log(`flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${this.media.currentTime}`);
+                  sb.remove(flushStart, flushEnd);
+                  return false;
+                }
+              }
+            } catch (e) {
+              logger.warn('exception while accessing sourcebuffer, it might have been removed from MediaSource');
+            }
+          } else {
+            // logger.log('abort ' + type + ' append in progress');
+            // this will abort any appending in progress
+            // sb.abort();
+            logger.warn('cannot flush, sb updating in progress');
+            return false;
+          }
+        }
+      } else {
+        logger.warn('abort flushing too many retries');
+      }
+      logger.log('buffer flushed');
+    }
+    // everything flushed !
+    return true;
   }
 
   getVideoTracks() {
@@ -494,8 +652,17 @@ export default class MSEPlayer {
   }
 
   maybeAppend(trackId, binaryData) {
+    let buffer
+    const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : 2
+    buffer = this._buffers[trackIdByType]
 
-    const buffer = this._buffers[trackId]
+    // let buffer
+    // if (trackId === this.audioTrackId) {
+      // buffer = this.sourceBuffer[AUDIO]
+    // }// else
+    // {
+      // buffer = this.sourceBuffer[VIDEO]
+    // }
 
     if (this.afterSeekFlag) {
 
@@ -506,11 +673,14 @@ export default class MSEPlayer {
 
       this.afterSeekFlag = false
     }
-    const queue = this._queues[trackId]
+
+    const queue = this._queues[trackIdByType]
     if (buffer.updating || queue.length > 0) {
       queue.push(binaryData)
     } else {
       buffer.appendBuffer(binaryData)
+      this.appended++
+      this.appending = true
     }
   }
 
@@ -546,22 +716,43 @@ export default class MSEPlayer {
     console.log('media source closed')
   }
 
-  createSourceBuffers(tracks) {
-    tracks.forEach(track => {
-      // TODO: use metadata from server
-      const mimeType = track.content === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
+  createSourceBuffers(data) {
+    const sourceBuffer = this.sourceBuffer;
 
-      this._buffers[track.id] = this.mediaSource.addSourceBuffer(mimeType)
-      const buffer = this._buffers[track.id]
+    [data.metadata.streams[0], data.metadata.streams[1]]
+    //data.metadata.streams.
+    .forEach((s, i) => {
+      const isVideo = s.content === VIDEO;
+      const mimeType = isVideo
+        ? 'video/mp4; codecs="avc1.4d401f"'
+        : 'audio/mp4; codecs="mp4a.40.2"'
+
+      const id = i + 1 // parseInt(s['track_id'].slice(1), 10)
+
+      if (!isVideo) {
+        this.audioTrackId = id
+      }
+
+      this._buffers[id] = this.mediaSource.addSourceBuffer(mimeType)
+
+
+
+      const buffer = this._buffers[id]
+
+      // video/audio
+      sourceBuffer[s.content] = buffer
+
       buffer.mode = this.opts && this.opts.bufferMode
-      this._queues[track.id] = []
-      const queue = this._queues[track.id]
+      this._queues[id] = []
+      const queue = this._queues[id]
 
       buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, updateEnd.bind(this))
-      buffer.addEventListener(EVENTS.BUFFER_ERROR, onError)
-      buffer.addEventListener(EVENTS.BUFFER_ABORT, onAbort)
 
       function updateEnd() {
+        if (this._needsFlush) {
+          debugger
+          this.doFlush()
+        }
         try {
           if (queue.length > 0 && !buffer.updating) {
             buffer.appendBuffer(queue.shift())
@@ -571,22 +762,64 @@ export default class MSEPlayer {
         }
       }
 
-      function onError() {
-        throw new Error('buffer error: ', arguments)
-      }
-
-      function onAbort() {
-        console.warn('abort buffer')
-      }
     })
+    // data.tracks.forEach(track => {
+    //   // TODO: use metadata from server
+    //   const mimeType = track.content === 'video'
+    //     ? 'video/mp4; codecs="avc1.4d401f"'
+    //     : 'audio/mp4; codecs="mp4a.40.2"'
+    //
+    //   this._buffers[track.id] = this.mediaSource.addSourceBuffer(mimeType)
+    //   const buffer = this._buffers[track.id]
+    //   buffer.mode = this.opts && this.opts.bufferMode
+    //   this._queues[track.id] = []
+    //   const queue = this._queues[track.id]
+    //
+    //   buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, updateEnd.bind(this))
+    //   buffer.addEventListener(EVENTS.BUFFER_ERROR, onError)
+    //   buffer.addEventListener(EVENTS.BUFFER_ABORT, onAbort)
+    //
+    //   function updateEnd() {
+    //     try {
+    //       if (queue.length > 0 && !buffer.updating) {
+    //         buffer.appendBuffer(queue.shift())
+    //       }
+    //     } catch (e) {
+    //       console.error(mseUtils.errorMsg(e), this.media.error)
+    //     }
+    //   }
+    //
+    //   function onError() {
+    //     throw new Error('buffer error: ', arguments)
+    //   }
+    //
+    //   function onAbort() {
+    //     console.warn('abort buffer')
+    //   }
+    // })
   }
 
+  onSBUpdateEnd() {
+    if (this._needsFlush) {
+      debugger
+      this.doFlush()
+    }
+    try {
+      if (queue.length > 0 && !buffer.updating) {
+        buffer.appendBuffer(queue.shift())
+      }
+    } catch (e) {
+      console.error(mseUtils.errorMsg(e), this.media.error)
+    }
+    }
+
   _setTracks(videoTrack, audioTrack) {
-    this.onMediaDetaching().then(() => {
-      this.onAttachMedia({media: this.media})
-      this.onsoa = this._play.bind(this, null, videoTrack, audioTrack)
-      this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
-    })
+
+    this.media.pause()
+    this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
+    // this._setTracksAttachMediaFlag = true
+    this._setTracksFlag = true
+    debugger
   }
 
   setBufferMode(optsOrBufferModeValue) {
