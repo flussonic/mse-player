@@ -25,6 +25,7 @@ const DEFAULT_UPDATE = 100
 let errorsCount = 0
 
 export default class MSEPlayer {
+
   static replaceHttpByWS(url) {
     return mseUtils.replaceHttpByWS(url)
   }
@@ -62,8 +63,6 @@ export default class MSEPlayer {
     this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
 
-    // Source Buffer listeners
-    this.onsbue = this.onSBUpdateEnd.bind(this);
 
     this.init()
 
@@ -450,10 +449,6 @@ export default class MSEPlayer {
             parsedData.tracks.forEach(t => {
               this.maybeAppend(t.id ,mseUtils.base64ToArrayBuffer(t.payload))
             })
-            // data = mseUtils.base64ToArrayBuffer(parsedData.tracks[0].payload)
-            // data = mseUtils.base64ToArrayBuffer(parsedData.tracks[0].payload)
-            // this.maybeAppend(this.audioTrackId + 1 ,data)
-            console.log('this.audioTrackId + 1 ,data')
           }
         } else {
           this.doArrayBuffer(rawData, this.maybeAppend)
@@ -566,7 +561,6 @@ export default class MSEPlayer {
       }
       this.appended = appended;
       this._setTracksFlag = false
-      debugger
       // this.hls.trigger(Event.BUFFER_FLUSHED);
     }
   }
@@ -653,16 +647,8 @@ export default class MSEPlayer {
 
   maybeAppend(trackId, binaryData) {
     let buffer
-    const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : 2
+    const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : this.videoTrackId
     buffer = this._buffers[trackIdByType]
-
-    // let buffer
-    // if (trackId === this.audioTrackId) {
-      // buffer = this.sourceBuffer[AUDIO]
-    // }// else
-    // {
-      // buffer = this.sourceBuffer[VIDEO]
-    // }
 
     if (this.afterSeekFlag) {
 
@@ -742,18 +728,18 @@ export default class MSEPlayer {
   createSourceBuffers(data) {
     const sourceBuffer = this.sourceBuffer;
 
-    [data.metadata.streams[0], data.metadata.streams[1]]
-    //data.metadata.streams.
-    .forEach((s, i) => {
+    data.tracks.forEach((s) => {
       const isVideo = s.content === VIDEO;
       const mimeType = isVideo
         ? 'video/mp4; codecs="avc1.4d401f"'
         : 'audio/mp4; codecs="mp4a.40.2"'
 
-      const id = i + 1 // parseInt(s['track_id'].slice(1), 10)
+      const id = s.id
 
       if (!isVideo) {
         this.audioTrackId = id
+      } else {
+        this.videoTrackId = id
       }
 
       this._buffers[id] = this.mediaSource.addSourceBuffer(mimeType)
@@ -773,7 +759,6 @@ export default class MSEPlayer {
 
       function updateEnd() {
         if (this._needsFlush) {
-          debugger
           this.doFlush()
         }
         try {
@@ -786,55 +771,8 @@ export default class MSEPlayer {
       }
 
     })
-    // data.tracks.forEach(track => {
-    //   // TODO: use metadata from server
-    //   const mimeType = track.content === 'video'
-    //     ? 'video/mp4; codecs="avc1.4d401f"'
-    //     : 'audio/mp4; codecs="mp4a.40.2"'
-    //
-    //   this._buffers[track.id] = this.mediaSource.addSourceBuffer(mimeType)
-    //   const buffer = this._buffers[track.id]
-    //   buffer.mode = this.opts && this.opts.bufferMode
-    //   this._queues[track.id] = []
-    //   const queue = this._queues[track.id]
-    //
-    //   buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, updateEnd.bind(this))
-    //   buffer.addEventListener(EVENTS.BUFFER_ERROR, onError)
-    //   buffer.addEventListener(EVENTS.BUFFER_ABORT, onAbort)
-    //
-    //   function updateEnd() {
-    //     try {
-    //       if (queue.length > 0 && !buffer.updating) {
-    //         buffer.appendBuffer(queue.shift())
-    //       }
-    //     } catch (e) {
-    //       console.error(mseUtils.errorMsg(e), this.media.error)
-    //     }
-    //   }
-    //
-    //   function onError() {
-    //     throw new Error('buffer error: ', arguments)
-    //   }
-    //
-    //   function onAbort() {
-    //     console.warn('abort buffer')
-    //   }
-    // })
-  }
 
-  onSBUpdateEnd() {
-    if (this._needsFlush) {
-      debugger
-      this.doFlush()
-    }
-    try {
-      if (queue.length > 0 && !buffer.updating) {
-        buffer.appendBuffer(queue.shift())
-      }
-    } catch (e) {
-      console.error(mseUtils.errorMsg(e), this.media.error)
-    }
-    }
+  }
 
   _setTracks(videoTrack, audioTrack) {
     this.media.pause()
@@ -843,7 +781,6 @@ export default class MSEPlayer {
     // this._setTracksAttachMediaFlag = true
     this._setTracksFlag = true
     this.immediateSwitch = true
-    debugger
   }
 
   setBufferMode(optsOrBufferModeValue) {
