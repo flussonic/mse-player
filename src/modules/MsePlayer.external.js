@@ -685,8 +685,25 @@ export default class MSEPlayer {
   }
 
   startProgressTimer() {
-    if (this.onProgress) {
-      this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime)
+    this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime)
+  }
+
+  /**
+   * on immediate level switch end, after new fragment has been buffered:
+   * - nudge video decoder by slightly adjusting video currentTime (if currentTime buffered)
+   * - resume the playback if needed
+   */
+  immediateLevelSwitchEnd () {
+    const media = this.media
+    if (media && media.buffered.length) {
+      this.immediateSwitch = false
+      // if (BufferHelper.isBuffered(media, media.currentTime)) {
+        // only nudge if currentTime is buffered
+        // media.currentTime -= 0.0001;
+      // }
+      if (!this.previouslyPaused) {
+        media.play()
+      }
     }
   }
 
@@ -696,16 +713,22 @@ export default class MSEPlayer {
   }
 
   onTimer() {
+    if (this.immediateSwitch) {
+      this.immediateLevelSwitchEnd()
+    }
+
     if (!(this.utc && this.utc != this.utcPrev)) {
       return
     }
+
+    this.utcPrev = this.utc
+
+    if (!this.onProgress) {return}
     try {
       this.onProgress(this.utc)
     } catch (e) {
       console.error(mseUtils.errorMsg(e))
     }
-
-    this.utcPrev = this.utc
   }
 
   onMediaSourceEnded() {
@@ -814,11 +837,12 @@ export default class MSEPlayer {
     }
 
   _setTracks(videoTrack, audioTrack) {
-
     this.media.pause()
+    this.previouslyPaused = false
     this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
     // this._setTracksAttachMediaFlag = true
     this._setTracksFlag = true
+    this.immediateSwitch = true
     debugger
   }
 
