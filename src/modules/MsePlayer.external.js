@@ -90,6 +90,7 @@ export default class MSEPlayer {
         : WS_COMMAND_SEEK
       console.log(`${commandStr}${utc}`)
       this.websocket.send(`${commandStr}${utc}`)
+      this.seekValue = utc
       this.afterSeekFlag = true
     } catch (err) {
       console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
@@ -413,12 +414,34 @@ export default class MSEPlayer {
   }
 
   dispatchMessage(e) {
+    // !!!
     try {
       if (this._pause || !this.playing) {
         return
       }
 
       const rawData = e.data
+
+      if (this.afterSeekFlag) {
+          let cUtc = 0
+          if (rawData instanceof ArrayBuffer) {
+            cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
+
+          } else {
+            console.log('not Attay buffer')
+          }
+          //
+          if (Math.abs(cUtc - this.seekValue) > 20) {
+            console.warn(
+              'skip old frame',
+              window.humanTime(cUtc),
+              window.humanTime(this.seekValue),
+              cUtc, this.seekValue,
+              cUtc - this.seekValue
+            )
+            return
+          }
+      }
 
       if (this._setTracksFlag) {
         this._missed++
@@ -646,6 +669,7 @@ export default class MSEPlayer {
   }
 
   maybeAppend(trackId, binaryData) {
+    // !!!!
     let buffer
     const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : this.videoTrackId
     buffer = this._buffers[trackIdByType]
@@ -699,6 +723,7 @@ export default class MSEPlayer {
   }
 
   onTimer() {
+    // #TODO explain
     if (this.immediateSwitch) {
       this.immediateLevelSwitchEnd()
     }

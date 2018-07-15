@@ -60,7 +60,9 @@ export function doArrayBuffer(rawData, mbAppend) {
   const view = RawDataToUint8Array(rawData)
   const trackId = getTrackId(view)
   this.utc = getRealUtcFromData(view)
-
+  if (this.afterSeekFlag) {
+    console.log('first frame UTC:', window.humanTime(this.utc))
+  }
   mbAppend(trackId, view)
 }
 
@@ -124,8 +126,8 @@ export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
     return
   }
 
-  console.log('nudge', ct, '->', l ? endTime : '-', evt)
-  media.currentTime = endTime - 0.2
+  console.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
+  media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
 }
 
 export function startWebSocket(url, time, videoTrack = '', audioTack = '') {
