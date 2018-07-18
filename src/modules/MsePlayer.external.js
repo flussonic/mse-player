@@ -99,7 +99,6 @@ export default class MSEPlayer {
       this.websocket.send(`${commandStr}${utc}`)
       this.seekValue = utc
       this.afterSeekFlag = true
-      debugger
       if (this.afterSeekFlag) {
         for(let k in this.sourceBuffer) {
           this.sourceBuffer[k].abort()
@@ -433,6 +432,9 @@ export default class MSEPlayer {
 
   dispatchMessage(e) {
     // !!!
+    if (this.stopRunning) {
+      return
+    }
     try {
       if (this._pause || !this.playing) {
         return
@@ -490,7 +492,10 @@ export default class MSEPlayer {
       }
 
       if (isDataAB) {
-        this._missedData.push(rawData)
+        const view = mseUtils.RawDataToUint8Array(rawData)
+        const trackId = mseUtils.getTrackId(view)
+        const trackType = this.getTypeBytrackId(trackId)
+        this._missedData.push({type: trackType, data: view})
         this.doArrayBuffer()
       }
 
@@ -528,7 +533,11 @@ export default class MSEPlayer {
       }
     }
   }
-
+  getTypeBytrackId(id) {
+    return this.audioTrackId === id
+      ? AUDIO
+      : VIDEO
+  }
   // there are two cases
   // 1. this.mediaSource is already exists
   // 2. this.meidaSource is undefined
@@ -548,7 +557,7 @@ export default class MSEPlayer {
       this.previouslyPaused = false
       this._setTracksFlag = true
       this.immediateSwitch = true
-      this._missedData = [rawData]
+      // this._missedData = [rawData]
       const startOffset = 0
       const endOffset = Infinity
       // TODO: should invoke remove method of SourceBuffer's
@@ -556,7 +565,7 @@ export default class MSEPlayer {
       // attempt flush immediately
       this.flushBufferCounter = 0;
       this.doFlush()
-      return
+      // return
     }
 
     this.setTracksByType(data)
@@ -568,7 +577,12 @@ export default class MSEPlayer {
     // TODO: describe cases
     data.tracks.forEach(track => {
       const view = mseUtils.base64ToArrayBuffer(track.payload)
-      this.maybeAppend(track.id, view)
+      const segment = {
+        type: this.getTypeBytrackId(track.id),
+        isInit: true,
+        data: view,
+      }
+      this.maybeAppend(segment)
     })
 
   }
@@ -711,22 +725,27 @@ export default class MSEPlayer {
     return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_AUDIO)
   }
 
-  maybeAppend(trackId, binaryData) {
+  maybeAppend(segment) {
     // !!!!
     // let buffer
-    const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : this.videoTrackId
 
-    const trackType = trackId === this.audioTrackId
-      ? AUDIO
-      : VIDEO
-    const buffer = this.sourceBuffer[trackType]// _buffers[trackIdByType]
+    // const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : this.videoTrackId
 
-    // const queue = this._queues[trackType]
-    //  || queue.length > 0
+    // const trackType = trackId === this.audioTrackId
+      // ? AUDIO
+      // : VIDEO
+
+    if (this._needsFlush) {
+      this._missedData.unshift(segment)
+      return
+    }
+
+    const buffer = this.sourceBuffer[segment.type]
+
     if (buffer.updating) {
-      this._missedData.unshift(binaryData)
+      this._missedData.unshift(segment)
     } else {
-      buffer.appendBuffer(binaryData)
+      buffer.appendBuffer(segment.data)
       this.appended++
       // где выключается?
       this.appending = true
@@ -840,33 +859,32 @@ export default class MSEPlayer {
   }
 
   onSBUpdateEnd() {
-    // if (this._needsFlush) {
-        // this.doFlush()
-    // }
-    if (!this._needsFlush) {
-
+    if (this._needsFlush) {
+      this.doFlush()
     }
-    this.doArrayBuffer()
+    if (!this._needsFlush && this._missedData.length) {
+      this.doArrayBuffer()
+    }
   }
 
   _setTracks(videoTrack, audioTrack) {
-    this.media.pause()
-    this.previouslyPaused = false
+    // this.media.pause()
+    // this.previouslyPaused = false
     this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
     // this._setTracksAttachMediaFlag = true
     this._setTracksFlag = true
-    this.immediateSwitch = true
-    this._missedData = []
+    // this.immediateSwitch = true
+    // this._missedData = []
     this.waitForInitFrame = true
     // TODO: перенести логику в _setTracks метод
 
-    const startOffset = 0
-    const endOffset = Infinity
+    // const startOffset = 0
+    // const endOffset = Infinity
     // TODO: should invoke remove method of SourceBuffer's
-    this.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
+    // this.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
     // attempt flush immediately
-    this.flushBufferCounter = 0;
-    this.doFlush()
+    // this.flushBufferCounter = 0;
+    // this.doFlush()
 
     debugger
   }

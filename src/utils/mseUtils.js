@@ -56,15 +56,16 @@ export function getRealUtcFromData(view) {
   return realUtc
 }
 
-export function doArrayBuffer() { // rawData, mbAppend
-  const rawData = this._missedData.shift()
-  const view = RawDataToUint8Array(rawData)
-  const trackId = getTrackId(view)
-  this.utc = getRealUtcFromData(view)
+export function doArrayBuffer() {
+  const segment = this._missedData.shift()
+
+  if (!segment.isInit) {
+    this.utc = getRealUtcFromData(segment.data)
+  }
   if (this.afterSeekFlag) {
     console.log('first frame UTC:', window.humanTime(this.utc))
   }
-  this.maybeAppend(trackId, view)
+  this.maybeAppend(segment)
 }
 
 export function debugData(rawData) {
