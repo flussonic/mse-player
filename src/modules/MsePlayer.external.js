@@ -99,12 +99,11 @@ export default class MSEPlayer {
       this.websocket.send(`${commandStr}${utc}`)
       this.seekValue = utc
       this.afterSeekFlag = true
-
+      debugger
       if (this.afterSeekFlag) {
-
-        for(let k in this._buffers) {
-          this._buffers[k].abort()
-          this._buffers[k].mode = 'sequence'
+        for(let k in this.sourceBuffer) {
+          this.sourceBuffer[k].abort()
+          this.sourceBuffer[k].mode = 'sequence'
         }
 
         this.afterSeekFlag = false
@@ -442,38 +441,38 @@ export default class MSEPlayer {
       const rawData = e.data
       let isDataAB = rawData instanceof ArrayBuffer
 
-      // if (this.seekValue) {
-      //   let cUtc = 0
-      //   if (isDataAB) {
-      //     cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
-      //   } else {
-      //     console.log('not Attay buffer')
-      //   }
-      //   //
-      //   if (Math.abs(cUtc - this.seekValue) > 20) {
-      //     console.warn(
-      //       'skip old frame',
-      //       window.humanTime(cUtc),
-      //       window.humanTime(this.seekValue),
-      //       cUtc, this.seekValue,
-      //       cUtc - this.seekValue
-      //     )
-      //     return
-      //   } else {
-      //       this.seekNormCount = this.seekNormCount
-      //         ? this.seekNormCount + 1
-      //         : 1
-      //   }
-      //
-      //   if (this.seekNormCount > 10) {
-      //     this.seekValue = void 0
-      //   }
-      // }
-      //
-      // // смена треков
-      // if (this.waitForInitFrame && isDataAB) {
-      //   return logger.log('old frames')
-      // }
+      if (this.seekValue) {
+        let cUtc = 0
+        if (isDataAB) {
+          cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
+        } else {
+          console.log('not Attay buffer')
+        }
+        //
+        if (Math.abs(cUtc - this.seekValue) > 20) {
+          console.warn(
+            'skip old frame',
+            window.humanTime(cUtc),
+            window.humanTime(this.seekValue),
+            cUtc, this.seekValue,
+            cUtc - this.seekValue
+          )
+          return
+        } else {
+            this.seekNormCount = this.seekNormCount
+              ? this.seekNormCount + 1
+              : 1
+        }
+
+        if (this.seekNormCount > 10) {
+          this.seekValue = void 0
+        }
+      }
+
+      // смена треков
+      if (this.waitForInitFrame && isDataAB) {
+        return logger.log('old frames')
+      }
       //
       // if (this.waitForInitFrame && !isDataAB) { //
       //   this.waitForInitFrame = false
@@ -841,7 +840,6 @@ export default class MSEPlayer {
   }
 
   onSBUpdateEnd() {
-    debugger
     // if (this._needsFlush) {
         // this.doFlush()
     // }
