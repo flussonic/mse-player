@@ -13,4 +13,11 @@ gulp.task('cp', function() {
     .pipe(gulp.dest(mseDepsOutput));
 });
 
-gulp.watch('dist/**/*', gulp.series('cp'))
+const webrtcOutput = '../flussonic/apps/demo/web-swift-publish/www/';
+
+gulp.task('cp:webrtc', function() {
+  return gulp.src(mseDepsList)
+    .pipe(gulp.dest(webrtcOutput));
+});
+
+gulp.watch('dist/**/*', gulp.parallel('cp', 'cp:webrtc'))
