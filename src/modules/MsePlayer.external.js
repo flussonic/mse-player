@@ -547,6 +547,10 @@ export default class MSEPlayer {
       return logger.warn('type is not MSE_INIT_SEGMENT')
     }
 
+    if (this.waitForInitFrame) {
+      this.waitForInitFrame = false
+    }
+
     this.doMediaInfo(data.metadata)
     console.log(data)
 
