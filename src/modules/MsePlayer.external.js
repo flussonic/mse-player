@@ -41,6 +41,7 @@ export default class MSEPlayer {
    */
   constructor(media, urlStream, opts) {
     enableLogs(true)
+    this._missedData = []
     if (!(media instanceof HTMLMediaElement)) {
       throw new Error(MSG.NOT_HTML_MEDIA_ELEMENT)
     }
@@ -72,6 +73,7 @@ export default class MSEPlayer {
     this.init()
 
     this.onAttachMedia({media})
+    this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this)
   }
 
   play(time, videoTrack, audioTack) {
@@ -440,63 +442,72 @@ export default class MSEPlayer {
       const rawData = e.data
       let isDataAB = rawData instanceof ArrayBuffer
 
-      if (this.seekValue) {
-        let cUtc = 0
-        if (isDataAB) {
-          cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
-        } else {
-          console.log('not Attay buffer')
-        }
-        //
-        if (Math.abs(cUtc - this.seekValue) > 20) {
-          console.warn(
-            'skip old frame',
-            window.humanTime(cUtc),
-            window.humanTime(this.seekValue),
-            cUtc, this.seekValue,
-            cUtc - this.seekValue
-          )
-          return
-        } else {
-            this.seekNormCount = this.seekNormCount
-              ? this.seekNormCount + 1
-              : 1
-        }
-
-        if (this.seekNormCount > 10) {
-          this.seekValue = void 0
-        }
-      }
-
-      // смена треков
-      if (this.waitForInitFrame && isDataAB) {
-        return logger.log('old frames')
-      }
-
-      if (this.waitForInitFrame && !isDataAB) { //
-        this.waitForInitFrame = false
-        this._missedData.push(rawData)
+      // if (this.seekValue) {
+      //   let cUtc = 0
+      //   if (isDataAB) {
+      //     cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
+      //   } else {
+      //     console.log('not Attay buffer')
+      //   }
+      //   //
+      //   if (Math.abs(cUtc - this.seekValue) > 20) {
+      //     console.warn(
+      //       'skip old frame',
+      //       window.humanTime(cUtc),
+      //       window.humanTime(this.seekValue),
+      //       cUtc, this.seekValue,
+      //       cUtc - this.seekValue
+      //     )
+      //     return
+      //   } else {
+      //       this.seekNormCount = this.seekNormCount
+      //         ? this.seekNormCount + 1
+      //         : 1
+      //   }
+      //
+      //   if (this.seekNormCount > 10) {
+      //     this.seekValue = void 0
+      //   }
+      // }
+      //
+      // // смена треков
+      // if (this.waitForInitFrame && isDataAB) {
+      //   return logger.log('old frames')
+      // }
+      //
+      // if (this.waitForInitFrame && !isDataAB) { //
+      //   this.waitForInitFrame = false
+      //   this._missedData.push(rawData)
+      //   return
+      // }
+      //
+      // if (this._setTracksFlag && !this.waitForInitFrame && isDataAB) {
+      //   this._missedData.push(rawData)
+      //   return
+      // }
+      if (!isDataAB) {
+        this.procInitSegment(rawData)
         return
-      }
-
-      if (this._setTracksFlag && !this.waitForInitFrame && isDataAB) {
-        this._missedData.push(rawData)
-        return
-      }
-
-      let shiftedData = rawData
-      // если были пропущенные данные
-      if (this._missedData && this._missedData.length) {
-        this._missedData.push(rawData)
-        shiftedData = this._missedData.shift()
-        isDataAB = shiftedData instanceof ArrayBuffer
       }
 
       if (isDataAB) {
-        this.doArrayBuffer(shiftedData, this.maybeAppend)
-      } else {
-        this.procInitSegment(shiftedData)
+        this._missedData.push(rawData)
+        this.doArrayBuffer()
       }
+
+      // let shiftedData = rawData
+      // если были пропущенные данные
+      // if (this._missedData && this._missedData.length) {
+        // shiftedData = this._missedData.shift()
+        // isDataAB = shiftedData instanceof ArrayBuffer
+      // }
+
+      // if (isDataAB) {
+      //   this.doArrayBuffer()
+      //   // shiftedData, this.maybeAppend
+      // } else {
+      //   this.procInitSegment(shiftedData)
+      // }
 
     } catch (err) {
       console.error(mseUtils.errorMsg(e), err)
@@ -703,16 +714,22 @@ export default class MSEPlayer {
 
   maybeAppend(trackId, binaryData) {
     // !!!!
-    let buffer
+    // let buffer
     const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : this.videoTrackId
-    buffer = this._buffers[trackIdByType]
 
-    const queue = this._queues[trackIdByType]
-    if (buffer.updating || queue.length > 0) {
-      queue.push(binaryData)
+    const trackType = trackId === this.audioTrackId
+      ? AUDIO
+      : VIDEO
+    const buffer = this.sourceBuffer[trackType]// _buffers[trackIdByType]
+
+    // const queue = this._queues[trackType]
+    //  || queue.length > 0
+    if (buffer.updating) {
+      this._missedData.unshift(binaryData)
     } else {
       buffer.appendBuffer(binaryData)
       this.appended++
+      // где выключается?
       this.appending = true
     }
   }
@@ -747,9 +764,9 @@ export default class MSEPlayer {
 
   onTimer() {
     // #TODO explain
-    // if (this.immediateSwitch) {
-    //   this.immediateLevelSwitchEnd()
-    // }
+    if (this.immediateSwitch) {
+      this.immediateLevelSwitchEnd()
+    }
 
     if (!(this.utc && this.utc != this.utcPrev)) {
       return
@@ -798,35 +815,40 @@ export default class MSEPlayer {
 
       const id = s.id
 
-      this._buffers[id] = this.mediaSource.addSourceBuffer(mimeType)
+      sourceBuffer[s.content] = this.mediaSource.addSourceBuffer(mimeType)
+      const buffer = sourceBuffer[s.content]
 
-      const buffer = this._buffers[id]
+      buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, this.onSBUpdateEnd)
 
-      // video/audio
-      sourceBuffer[s.content] = buffer
+      // this._queues[id] = []
+      // const queue = this._queues[id]
 
-      // buffer.mode = this.opts && this.opts.bufferMode
-
-      buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, updateEnd.bind(this))
-
-      this._queues[id] = []
-      const queue = this._queues[id]
-
-      function updateEnd() {
-        if (this._needsFlush) {
-          this.doFlush()
-        }
-        try {
-          if (queue.length > 0 && !buffer.updating) {
-            buffer.appendBuffer(queue.shift())
-          }
-        } catch (e) {
-          console.error(mseUtils.errorMsg(e), this.media.error)
-        }
-      }
+      // function updateEnd() {
+      //   if (this._needsFlush) {
+      //     this.doFlush()
+      //   }
+      //   try {
+      //     if (queue.length > 0 && !buffer.updating) {
+      //       buffer.appendBuffer(queue.shift())
+      //     }
+      //   } catch (e) {
+      //     console.error(mseUtils.errorMsg(e), this.media.error)
+      //   }
+      // }
 
     })
 
+  }
+
+  onSBUpdateEnd() {
+    debugger
+    // if (this._needsFlush) {
+        // this.doFlush()
+    // }
+    if (!this._needsFlush) {
+
+    }
+    this.doArrayBuffer()
   }
 
   _setTracks(videoTrack, audioTrack) {
