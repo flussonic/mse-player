@@ -70,7 +70,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 11);
+/******/ 	return __webpack_require__(__webpack_require__.s = 12);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -106,8 +106,8 @@ if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
 /* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var dP = __webpack_require__(29);
-var createDesc = __webpack_require__(34);
+var dP = __webpack_require__(32);
+var createDesc = __webpack_require__(37);
 module.exports = __webpack_require__(4) ? function (object, key, value) {
   return dP.f(object, key, createDesc(1, value));
 } : function (object, key, value) {
@@ -121,7 +121,7 @@ module.exports = __webpack_require__(4) ? function (object, key, value) {
 /***/ (function(module, exports, __webpack_require__) {
 
 // Thank's IE8 for his funny defineProperty
-module.exports = !__webpack_require__(6)(function () {
+module.exports = !__webpack_require__(7)(function () {
   return Object.defineProperty({}, 'a', { get: function () { return 7; } }).a != 7;
 });
 
@@ -161,6 +161,99 @@ module.exports = exports['default'];
 
 /***/ }),
 /* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.logger = exports.enableLogs = undefined;
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var _getSelfScope = __webpack_require__(28);
+
+function noop() {}
+
+var fakeLogger = {
+  trace: noop,
+  debug: noop,
+  log: noop,
+  warn: noop,
+  info: noop,
+  error: noop
+};
+
+var exportedLogger = fakeLogger;
+
+// let lastCallTime;
+// function formatMsgWithTimeInfo(type, msg) {
+//   const now = Date.now();
+//   const diff = lastCallTime ? '+' + (now - lastCallTime) : '0';
+//   lastCallTime = now;
+//   msg = (new Date(now)).toISOString() + ' | [' +  type + '] > ' + msg + ' ( ' + diff + ' ms )';
+//   return msg;
+// }
+
+function formatMsg(type, msg) {
+  msg = '[' + type + '] > ' + msg;
+  return msg;
+}
+
+var global = (0, _getSelfScope.getSelfScope)();
+
+function consolePrintFn(type) {
+  var func = global.console[type];
+  if (func) {
+    return function () {
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      if (args[0]) {
+        args[0] = formatMsg(type, args[0]);
+      }
+
+      func.apply(global.console, args);
+    };
+  }
+  return noop;
+}
+
+function exportLoggerFunctions(debugConfig) {
+  for (var _len2 = arguments.length, functions = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+    functions[_key2 - 1] = arguments[_key2];
+  }
+
+  functions.forEach(function (type) {
+    exportedLogger[type] = debugConfig[type] ? debugConfig[type].bind(debugConfig) : consolePrintFn(type);
+  });
+}
+
+var enableLogs = exports.enableLogs = function enableLogs(debugConfig) {
+  if (debugConfig === true || (typeof debugConfig === 'undefined' ? 'undefined' : _typeof(debugConfig)) === 'object') {
+    exportLoggerFunctions(debugConfig,
+    // Remove out from list here to hard-disable a log-level
+    // 'trace',
+    'debug', 'log', 'info', 'warn', 'error');
+    // Some browsers don't allow to use bind on console object anyway
+    // fallback to default if needed
+    try {
+      exportedLogger.log();
+    } catch (e) {
+      exportedLogger = fakeLogger;
+    }
+  } else {
+    exportedLogger = fakeLogger;
+  }
+};
+
+var logger = exports.logger = exportedLogger;
+
+/***/ }),
+/* 7 */
 /***/ (function(module, exports) {
 
 module.exports = function (exec) {
@@ -173,7 +266,7 @@ module.exports = function (exec) {
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports) {
 
 var id = 0;
@@ -184,11 +277,11 @@ module.exports = function (key) {
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // optional / simple context binding
-var aFunction = __webpack_require__(37);
+var aFunction = __webpack_require__(40);
 module.exports = function (fn, that, length) {
   aFunction(fn);
   if (that === undefined) return fn;
@@ -210,7 +303,7 @@ module.exports = function (fn, that, length) {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports) {
 
 var toString = {}.toString;
@@ -221,11 +314,11 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var store = __webpack_require__(47)('wks');
-var uid = __webpack_require__(7);
+var store = __webpack_require__(50)('wks');
+var uid = __webpack_require__(8);
 var Symbol = __webpack_require__(0).Symbol;
 var USE_SYMBOL = typeof Symbol == 'function';
 
@@ -238,31 +331,11 @@ $exports.store = store;
 
 
 /***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = __webpack_require__(12);
-
-
-/***/ }),
 /* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
+module.exports = __webpack_require__(13);
 
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _MsePlayer = __webpack_require__(13);
-
-var _MsePlayer2 = _interopRequireDefault(_MsePlayer);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = _MsePlayer2.default;
-module.exports = exports['default'];
 
 /***/ }),
 /* 13 */
@@ -275,25 +348,47 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+var _MsePlayer = __webpack_require__(14);
 
-var _segments = __webpack_require__(14);
+var _MsePlayer2 = _interopRequireDefault(_MsePlayer);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _MsePlayer2.default;
+module.exports = exports['default'];
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _segments = __webpack_require__(15);
 
 var segmentsTypes = _interopRequireWildcard(_segments);
+
+var _common = __webpack_require__(16);
 
 var _events = __webpack_require__(5);
 
 var _events2 = _interopRequireDefault(_events);
 
-var _messages = __webpack_require__(15);
+var _messages = __webpack_require__(17);
 
 var _messages2 = _interopRequireDefault(_messages);
 
-var _mseUtils = __webpack_require__(16);
+var _mseUtils = __webpack_require__(18);
 
 var mseUtils = _interopRequireWildcard(_mseUtils);
 
-__webpack_require__(26);
+var _logger = __webpack_require__(6);
+
+__webpack_require__(29);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -301,8 +396,8 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var TYPE_CONTENT_VIDEO = 'video';
-var TYPE_CONTENT_AUDIO = 'audio';
+var TYPE_CONTENT_VIDEO = _common.VIDEO;
+var TYPE_CONTENT_AUDIO = _common.AUDIO;
 
 var BUFFER_MODE_SEGMENTS = 'segments';
 var BUFFER_MODE_SEQUENCE = 'sequence';
@@ -335,15 +430,20 @@ var MSEPlayer = function () {
   function MSEPlayer(media, urlStream, opts) {
     _classCallCheck(this, MSEPlayer);
 
+    if (opts.debug) {
+      (0, _logger.enableLogs)(true);
+      window.humanTime = mseUtils.humanTime;
+    }
+
     if (!(media instanceof HTMLMediaElement)) {
       throw new Error(_messages2.default.NOT_HTML_MEDIA_ELEMENT);
     }
 
     this.media = media;
+
     this.url = urlStream;
     this.opts = opts || {};
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
-    this.setBufferMode(this.opts);
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
 
@@ -361,11 +461,12 @@ var MSEPlayer = function () {
     this.init();
 
     this.onAttachMedia({ media: media });
+    this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this);
   }
 
   MSEPlayer.prototype.play = function play(time, videoTrack, audioTack) {
     if (this.opts.debug) {
-      console.log('FlussonicMsePlayer: play()');
+      _logger.logger.log('FlussonicMsePlayer: play()');
     }
     return this._play(time, videoTrack, audioTack);
   };
@@ -380,11 +481,20 @@ var MSEPlayer = function () {
         throw new Error('utc should be "live" or UTC value');
       }
       var commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK;
-      console.log('' + commandStr + utc);
+      _logger.logger.log('' + commandStr + utc);
       this.websocket.send('' + commandStr + utc);
-      this.afterSeekFlag = true;
+
+      // need for determine old frames
+      this.seekValue = utc;
+
+      for (var k in this.sourceBuffer) {
+        this.sourceBuffer[k].abort();
+        this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
+      }
+
+      this.segments = [];
     } catch (err) {
-      console.warn('onMediaDetaching:' + err.message + ' while calling endOfStream');
+      _logger.logger.warn('onMediaDetaching:' + err.message + ' while calling endOfStream');
     }
   };
 
@@ -405,7 +515,7 @@ var MSEPlayer = function () {
         try {
           this.onPause();
         } catch (e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+          _logger.logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
         }
       }
     }
@@ -415,12 +525,12 @@ var MSEPlayer = function () {
     var _this = this;
 
     if (!this.mediaInfo) {
-      console.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
+      _logger.logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
       return;
     }
 
     if (!Array.isArray(tracks)) {
-      console.error('tracks should be an Array instance: ["v1", "a1"]');
+      _logger.logger.error('tracks should be an Array instance: ["v1", "a1"]');
     }
 
     var videoTracksStr = tracks.filter(function (id) {
@@ -446,25 +556,18 @@ var MSEPlayer = function () {
    *
    */
 
-
-  MSEPlayer.prototype._log = function _log(msg) {
-    if (this.opts.debug) {
-      console.log(msg);
-    }
-  };
-
   MSEPlayer.prototype._play = function _play(time, videoTrack, audioTack) {
     var _this2 = this;
 
     return new Promise(function (resolve, reject) {
       if (_this2.playing) {
-        _this2._log('_play: terminate because already has been playing');
+        _logger.logger.log('_play: terminate because already has been playing');
         return resolve();
       }
 
       if (_this2._pause && !_this2.afterSeekFlag) {
         _this2._resume();
-        _this2._log('_play: terminate because _paused and should resume');
+        _logger.logger.log('_play: terminate because _paused and should resume');
         return resolve();
       }
 
@@ -473,7 +576,7 @@ var MSEPlayer = function () {
         _this2.onAttachMedia({ media: _this2.media });
         _this2.onsoa = _this2._play.bind(_this2, time, videoTrack, audioTack);
         _this2.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this2.onsoa);
-        console.warn('mediaSource did not create');
+        _logger.logger.warn('mediaSource did not create');
         _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
         _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
         return;
@@ -485,7 +588,7 @@ var MSEPlayer = function () {
 
       // deferring execution
       if (_this2.mediaSource && _this2.mediaSource.readyState !== 'open') {
-        console.warn('readyState is not "open"');
+        _logger.logger.warn('readyState is not "open"');
         _this2.shouldPlay = true;
         _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
         _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
@@ -522,6 +625,14 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.init = function init() {
+    // start new implementation
+    this.segments = [];
+    this.sourceBuffer = {};
+    this.flushRange = [];
+    this.appended = 0;
+    this._missed = 0;
+    // end new inplementation
+
     this._buffers = {};
     this._queues = {};
     this.playing = false;
@@ -545,7 +656,7 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.onMediaDetaching = function onMediaDetaching() {
     if (this.stopRunning) {
-      console.log('stop is running.');
+      _logger.logger.warn('stop is running.');
       return;
     }
     this.stopRunning = true;
@@ -565,7 +676,7 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.handlerMediaDetaching = function handlerMediaDetaching() {
     var _this3 = this;
 
-    console.info('media source detaching');
+    _logger.logger.info('media source detaching');
 
     var mediaEmptyPromise = void 0;
 
@@ -604,7 +715,7 @@ var MSEPlayer = function () {
           // let's just avoid this exception to propagate
           ms.endOfStream();
         } catch (err) {
-          console.warn('onMediaDetaching:' + err.message + ' while calling endOfStream');
+          _logger.logger.warn('onMediaDetaching:' + err.message + ' while calling endOfStream');
         }
       }
 
@@ -621,15 +732,6 @@ var MSEPlayer = function () {
     URL.revokeObjectURL(this.media.src);
     this.media.removeAttribute('src');
     this.media.load();
-  };
-
-  MSEPlayer.prototype.destroyWebsocket = function destroyWebsocket() {
-    if (this.websocket) {
-      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsdm);
-      this.websocket.onclose = function () {}; // disable onclose handler first
-      this.websocket.close();
-      this.onwsdm = null;
-    }
   };
 
   MSEPlayer.prototype.onMediaElementEmptied = function onMediaElementEmptied(resolve) {
@@ -678,9 +780,18 @@ var MSEPlayer = function () {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      console.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTack, this.videoTrack);
+      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTack, this.videoTrack);
       this.shouldPlay = false;
       this._play(this.playTime, this.audioTack, this.videoTrack);
+    }
+  };
+
+  MSEPlayer.prototype.destroyWebsocket = function destroyWebsocket() {
+    if (this.websocket) {
+      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsdm);
+      this.websocket.onclose = function () {}; // disable onclose handler first
+      this.websocket.close();
+      this.onwsdm = null;
     }
   };
 
@@ -690,30 +801,49 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
+    if (this.stopRunning || this._pause || !this.playing) {
+      return;
+    }
+
+    var rawData = e.data;
+    var isDataAB = rawData instanceof ArrayBuffer;
+
     try {
-      if (this._pause || !this.playing) {
+      // after seek can receive old frames, it should be filtered
+      if (this.isOldFrameAfterSeek(rawData)) {
         return;
       }
 
-      var rawData = e.data;
-      if (rawData instanceof ArrayBuffer) {
-        this.doArrayBuffer(rawData, this.maybeAppend);
-      } else {
+      // wait for MSE_INIT_SEGMENT
+      if (this.waitForInitFrame && isDataAB) {
+        return _logger.logger.log('old frames');
+      }
+
+      // MSE_INIT_SEGMENT
+      if (!isDataAB) {
         this.procInitSegment(rawData);
-        this.afterSeekFlag = false;
+        return;
+      }
+
+      // ArrayBuffer data
+      if (isDataAB) {
+        var segment = this.rawDataToSegmnet(rawData);
+        this.segments.push(segment);
+        this.doArrayBuffer();
       }
     } catch (err) {
-      console.error(mseUtils.errorMsg(e), err);
+      _logger.logger.error(mseUtils.errorMsg(e), err);
 
       if (this.media && this.media.error) {
-        console.error('MediaError:', this.media.error);
+        _logger.logger.error('MediaError:', this.media.error);
       }
 
-      if (e.data instanceof ArrayBuffer) {
-        console.error('Data:', mseUtils.debugData(e.data));
+      if (isDataAB) {
+        _logger.logger.error('Data:', mseUtils.debugData(e.data));
       }
       errorsCount++;
       if (errorsCount >= this.opts.errorsBeforeStop) {
+        errorsCount = 0;
         this.stopPromise = this.stop();
       }
 
@@ -723,56 +853,218 @@ var MSEPlayer = function () {
     }
   };
 
-  // there are two cases
-  // 1. this.mediaSource is already exists
-  // 2. this.meidaSource is undefined
+  MSEPlayer.prototype.isOldFrameAfterSeek = function isOldFrameAfterSeek(rawData) {
+    if (this.seekValue) {
+      var cUtc = 0;
+      var isDataAB = rawData instanceof ArrayBuffer;
+      if (isDataAB) {
+        cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData));
+      } else {
+        _logger.logger.log('not Array buffer');
+      }
 
+      if (Math.abs(cUtc - this.seekValue) > 20) {
+        _logger.logger.warn('skip old frame', mseUtils.humanTime(cUtc), mseUtils.humanTime(this.seekValue), cUtc, this.seekValue, cUtc - this.seekValue);
+        return true;
+      } else {
+        this.seekNormCount = this.seekNormCount ? this.seekNormCount + 1 : 1;
+      }
+
+      if (this.seekNormCount > 10) {
+        this.seekValue = void 0;
+        this.seekNormCount = 0;
+      }
+    }
+    return false;
+  };
+
+  MSEPlayer.prototype.rawDataToSegmnet = function rawDataToSegmnet(rawData) {
+    var view = mseUtils.RawDataToUint8Array(rawData);
+    var trackId = mseUtils.getTrackId(view);
+    var trackType = this.getTypeBytrackId(trackId);
+    return { type: trackType, data: view };
+  };
+
+  MSEPlayer.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
+    return this.audioTrackId === id ? _common.AUDIO : _common.VIDEO;
+  };
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
     var _this5 = this;
 
     var data = JSON.parse(rawData);
-    if (data.type === segmentsTypes.MSE_INIT_SEGMENT) {
-      if (this.onMediaInfo) {
-        this.mediaInfo = data.metadata;
-        try {
-          this.onMediaInfo(data.metadata);
-        } catch (e) {
-          console.error(mseUtils.errorMsg(e));
-        }
-      }
+    if (data.type !== segmentsTypes.MSE_INIT_SEGMENT) {
+      return _logger.logger.warn('type is not MSE_INIT_SEGMENT');
+    }
 
-      // 1.
-      if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
-        this.createSourceBuffers(data.tracks);
+    if (this.waitForInitFrame) {
+      this.waitForInitFrame = false;
+    }
 
-        // TODO: describe cases
-        data.tracks.forEach(function (track) {
-          _this5.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload));
-        });
+    this.doMediaInfo(data.metadata);
+    _logger.logger.log(data);
 
+    if (this.isBuffered()) {
+      this.media.pause();
+      this.previouslyPaused = false;
+      this._setTracksFlag = true;
+      this.immediateSwitch = true;
+      var startOffset = 0;
+      var endOffset = Infinity;
+      // TODO: should invoke remove method of SourceBuffer's
+      this.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
+      // attempt flush immediately
+      this.flushBufferCounter = 0;
+      this.doFlush();
+    }
+
+    // calc this.audioTrackId this.videoTrackId
+    this.setTracksByType(data);
+
+    if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
+      this.createSourceBuffers(data);
+    }
+
+    // TODO: describe cases
+    data.tracks.forEach(function (track) {
+      var view = mseUtils.base64ToArrayBuffer(track.payload);
+      var segment = {
+        type: _this5.getTypeBytrackId(track.id),
+        isInit: true,
+        data: view
+      };
+      _this5.maybeAppend(segment);
+    });
+  };
+
+  MSEPlayer.prototype.isBuffered = function isBuffered() {
+    var appended = 0;
+    var sourceBuffer = this.sourceBuffer;
+    for (var type in sourceBuffer) {
+      appended += sourceBuffer[type].buffered.length;
+    }
+    return appended > 0;
+  };
+
+  MSEPlayer.prototype.doFlush = function doFlush() {
+    // loop through all buffer ranges to flush
+    while (this.flushRange.length) {
+      var range = this.flushRange[0];
+      // flushBuffer will abort any buffer append in progress and flush Audio/Video Buffer
+      if (this.flushBuffer(range.start, range.end, range.type)) {
+        // range flushed, remove from flush array
+        this.flushRange.shift();
+        this.flushBufferCounter = 0;
+      } else {
+        this._needsFlush = true;
+        // avoid looping, wait for SB update end to retrigger a flush
         return;
       }
+    }
+    if (this.flushRange.length === 0) {
+      // everything flushed
+      this._needsFlush = false;
 
-      // 2
-      if (this.mediaSource && this.mediaSource.sourceBuffers.length) {
-        if (this.afterSeekFlag) {
-          data.tracks.forEach(function (track) {
-            _this5.maybeAppend(track.id, mseUtils.base64ToArrayBuffer(track.payload));
-          });
-          this.afterSeekFlag = false;
-          return;
+      // let's recompute this.appended, which is used to avoid flush looping
+      var appended = 0;
+      var sourceBuffer = this.sourceBuffer;
+      try {
+        for (var type in sourceBuffer) {
+          appended += sourceBuffer[type].buffered.length;
         }
-
-        this.stop().then(function () {
-          setTimeout(function () {
-            return _this5.play();
-          }, 5000);
-        });
+      } catch (error) {
+        // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
+        // this is harmess at this stage, catch this to avoid reporting an internal exception
+        _logger.logger.error('error while accessing sourceBuffer.buffered');
       }
-      // TODO: describe cases
-    } else if (data.type === segmentsTypes.MSE_MEDIA_SEGMENT) {
-      this.maybeAppend(data.id, mseUtils.base64ToArrayBuffer(data.payload));
+      this.appended = appended;
+      this._setTracksFlag = false;
+    }
+  };
+
+  /*
+    flush specified buffered range,
+    return true once range has been flushed.
+    as sourceBuffer.remove() is asynchronous, flushBuffer will be retriggered on sourceBuffer update end
+  */
+
+
+  MSEPlayer.prototype.flushBuffer = function flushBuffer(startOffset, endOffset, typeIn) {
+    var sb = void 0,
+        i = void 0,
+        bufStart = void 0,
+        bufEnd = void 0,
+        flushStart = void 0,
+        flushEnd = void 0,
+        sourceBuffer = this.sourceBuffer;
+    if (Object.keys(sourceBuffer).length) {
+      _logger.logger.log('flushBuffer,pos/start/end: ' + this.media.currentTime.toFixed(3) + '/' + startOffset + '/' + endOffset);
+      // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
+      if (this.flushBufferCounter < this.appended) {
+        for (var type in sourceBuffer) {
+          // check if sourcebuffer type is defined (typeIn): if yes, let's only flush this one
+          // if no, let's flush all sourcebuffers
+          if (typeIn && type !== typeIn) {
+            continue;
+          }
+
+          sb = sourceBuffer[type];
+          // we are going to flush buffer, mark source buffer as 'not ended'
+          sb.ended = false;
+          if (!sb.updating) {
+            try {
+              for (i = 0; i < sb.buffered.length; i++) {
+                bufStart = sb.buffered.start(i);
+                bufEnd = sb.buffered.end(i);
+                // workaround firefox not able to properly flush multiple buffered range.
+                if (navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 && endOffset === Number.POSITIVE_INFINITY) {
+                  flushStart = startOffset;
+                  flushEnd = endOffset;
+                } else {
+                  flushStart = Math.max(bufStart, startOffset);
+                  flushEnd = Math.min(bufEnd, endOffset);
+                }
+                /* sometimes sourcebuffer.remove() does not flush
+                   the exact expected time range.
+                   to avoid rounding issues/infinite loop,
+                   only flush buffer range of length greater than 500ms.
+                */
+                if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
+                  this.flushBufferCounter++;
+                  _logger.logger.log('flush ' + type + ' [' + flushStart + ',' + flushEnd + '], of [' + bufStart + ',' + bufEnd + '], pos:' + this.media.currentTime);
+                  sb.remove(flushStart, flushEnd);
+                  return false;
+                }
+              }
+            } catch (e) {
+              _logger.logger.warn('exception while accessing sourcebuffer, it might have been removed from MediaSource');
+            }
+          } else {
+            // logger.log('abort ' + type + ' append in progress');
+            // this will abort any appending in progress
+            // sb.abort();
+            _logger.logger.warn('cannot flush, sb updating in progress');
+            return false;
+          }
+        }
+      } else {
+        _logger.logger.warn('abort flushing too many retries');
+      }
+      _logger.logger.log('buffer flushed');
+    }
+    // everything flushed !
+    return true;
+  };
+
+  MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
+    _logger.logger.log(metadata);
+    if (this.onMediaInfo) {
+      this.mediaInfo = metadata;
+      try {
+        this.onMediaInfo(metadata);
+      } catch (e) {
+        _logger.logger.error(mseUtils.errorMsg(e));
+      }
     }
   };
 
@@ -794,30 +1086,47 @@ var MSEPlayer = function () {
     });
   };
 
-  MSEPlayer.prototype.maybeAppend = function maybeAppend(trackId, binaryData) {
+  MSEPlayer.prototype.maybeAppend = function maybeAppend(segment) {
 
-    var buffer = this._buffers[trackId];
-
-    if (this.afterSeekFlag) {
-
-      for (var k in this._buffers) {
-        this._buffers[k].abort();
-        this._buffers[k].mode = 'sequence';
-      }
-
-      this.afterSeekFlag = false;
+    if (this._needsFlush) {
+      this.segments.unshift(segment);
+      return;
     }
-    var queue = this._queues[trackId];
-    if (buffer.updating || queue.length > 0) {
-      queue.push(binaryData);
+
+    var buffer = this.sourceBuffer[segment.type];
+
+    if (buffer.updating) {
+      this.segments.unshift(segment);
     } else {
-      buffer.appendBuffer(binaryData);
+      buffer.appendBuffer(segment.data);
+      this.appended++;
+      // TODO: find where switch off
+      this.appending = true;
     }
   };
 
   MSEPlayer.prototype.startProgressTimer = function startProgressTimer() {
-    if (this.onProgress) {
-      this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime);
+    this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime);
+  };
+
+  /**
+   * on immediate level switch end, after new fragment has been buffered:
+   * - nudge video decoder by slightly adjusting video currentTime (if currentTime buffered)
+   * - resume the playback if needed
+   */
+
+
+  MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
+    var media = this.media;
+    if (media && media.buffered.length) {
+      this.immediateSwitch = false;
+      // if (BufferHelper.isBuffered(media, media.currentTime)) {
+      // only nudge if currentTime is buffered
+      // media.currentTime -= 0.0001;
+      // }
+      if (!this.previouslyPaused) {
+        media.play();
+      }
     }
   };
 
@@ -827,85 +1136,81 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onTimer = function onTimer() {
+    // #TODO explain
+    if (this.immediateSwitch) {
+      this.immediateLevelSwitchEnd();
+    }
+
     if (!(this.utc && this.utc != this.utcPrev)) {
+      return;
+    }
+
+    this.utcPrev = this.utc;
+
+    if (!this.onProgress) {
       return;
     }
     try {
       this.onProgress(this.utc);
     } catch (e) {
-      console.error(mseUtils.errorMsg(e));
+      _logger.logger.error(mseUtils.errorMsg(e));
     }
-
-    this.utcPrev = this.utc;
   };
 
   MSEPlayer.prototype.onMediaSourceEnded = function onMediaSourceEnded() {
-    console.log('media source ended');
+    _logger.logger.log('media source ended');
   };
 
   MSEPlayer.prototype.onMediaSourceClose = function onMediaSourceClose() {
-    console.log('media source closed');
+    _logger.logger.log('media source closed');
   };
 
-  MSEPlayer.prototype.createSourceBuffers = function createSourceBuffers(tracks) {
+  MSEPlayer.prototype.setTracksByType = function setTracksByType(data) {
     var _this6 = this;
 
-    tracks.forEach(function (track) {
-      // TODO: use metadata from server
-      var mimeType = track.content === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+    data.tracks.forEach(function (s) {
+      var isVideo = s.content === _common.VIDEO;
+      var id = s.id;
 
-      _this6._buffers[track.id] = _this6.mediaSource.addSourceBuffer(mimeType);
-      var buffer = _this6._buffers[track.id];
-      buffer.mode = _this6.opts && _this6.opts.bufferMode;
-      _this6._queues[track.id] = [];
-      var queue = _this6._queues[track.id];
-
-      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, updateEnd.bind(_this6));
-      buffer.addEventListener(_events2.default.BUFFER_ERROR, onError);
-      buffer.addEventListener(_events2.default.BUFFER_ABORT, onAbort);
-
-      function updateEnd() {
-        try {
-          if (queue.length > 0 && !buffer.updating) {
-            buffer.appendBuffer(queue.shift());
-          }
-        } catch (e) {
-          console.error(mseUtils.errorMsg(e), this.media.error);
-        }
-      }
-
-      function onError() {
-        throw new Error('buffer error: ', arguments);
-      }
-
-      function onAbort() {
-        console.warn('abort buffer');
+      if (!isVideo) {
+        _this6.audioTrackId = id;
+      } else {
+        _this6.videoTrackId = id;
       }
     });
+  };
+
+  MSEPlayer.prototype.createSourceBuffers = function createSourceBuffers(data) {
+    var _this7 = this;
+
+    var sourceBuffer = this.sourceBuffer;
+
+    data.tracks.forEach(function (s) {
+      var isVideo = s.content === _common.VIDEO;
+      var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+
+      var id = s.id;
+
+      sourceBuffer[s.content] = _this7.mediaSource.addSourceBuffer(mimeType);
+      var buffer = sourceBuffer[s.content];
+
+      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, _this7.onSBUpdateEnd);
+    });
+  };
+
+  MSEPlayer.prototype.onSBUpdateEnd = function onSBUpdateEnd() {
+    if (this._needsFlush) {
+      this.doFlush();
+    }
+    if (!this._needsFlush && this.segments.length) {
+      this.doArrayBuffer();
+    }
   };
 
   MSEPlayer.prototype._setTracks = function _setTracks(videoTrack, audioTrack) {
-    var _this7 = this;
-
-    this.onMediaDetaching().then(function () {
-      _this7.onAttachMedia({ media: _this7.media });
-      _this7.onsoa = _this7._play.bind(_this7, null, videoTrack, audioTrack);
-      _this7.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this7.onsoa);
-    });
-  };
-
-  MSEPlayer.prototype.setBufferMode = function setBufferMode(optsOrBufferModeValue) {
-    if ((typeof optsOrBufferModeValue === 'undefined' ? 'undefined' : _typeof(optsOrBufferModeValue)) === 'object') {
-      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE;
-    }
-
-    if (typeof optsOrBufferModeValue === 'string') {
-      this.opts.bufferMode = optsOrBufferModeValue;
-    }
-
-    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
-      throw new Error('invalid bufferMode param, should be undefined or ' + BUFFER_MODE_SEGMENTS + ' or ' + BUFFER_MODE_SEQUENCE + '.');
-    }
+    this.websocket.send('set_tracks=' + videoTrack + audioTrack);
+    this._setTracksFlag = true;
+    this.waitForInitFrame = true;
   };
 
   return MSEPlayer;
@@ -915,7 +1220,7 @@ exports.default = MSEPlayer;
 module.exports = exports['default'];
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -928,7 +1233,20 @@ var MSE_INIT_SEGMENT = exports.MSE_INIT_SEGMENT = 'mse_init_segment';
 var MSE_MEDIA_SEGMENT = exports.MSE_MEDIA_SEGMENT = 'mse_media_segment';
 
 /***/ }),
-/* 15 */
+/* 16 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var VIDEO = exports.VIDEO = 'video';
+var AUDIO = exports.AUDIO = 'audio';
+
+/***/ }),
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -945,7 +1263,7 @@ exports.default = MSG;
 module.exports = exports['default'];
 
 /***/ }),
-/* 16 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -966,14 +1284,18 @@ exports.doArrayBuffer = doArrayBuffer;
 exports.debugData = debugData;
 exports.getWSURL = getWSURL;
 exports.startWebSocket = startWebSocket;
+exports.pad2 = pad2;
+exports.humanTime = humanTime;
 
-var _parseurl = __webpack_require__(17);
+var _parseurl = __webpack_require__(19);
 
 var _parseurl2 = _interopRequireDefault(_parseurl);
 
 var _events = __webpack_require__(5);
 
 var _events2 = _interopRequireDefault(_events);
+
+var _logger = __webpack_require__(6);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -1026,12 +1348,14 @@ function getRealUtcFromData(view) {
   return realUtc;
 }
 
-function doArrayBuffer(rawData, mbAppend) {
-  var view = RawDataToUint8Array(rawData);
-  var trackId = getTrackId(view);
-  this.utc = getRealUtcFromData(view);
+function doArrayBuffer() {
+  var segment = this.segments.shift();
 
-  mbAppend(trackId, view);
+  if (!segment.isInit) {
+    this.utc = getRealUtcFromData(segment.data);
+  }
+
+  this.maybeAppend(segment);
 }
 
 function debugData(rawData) {
@@ -1065,7 +1389,7 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
       return kv.join('=');
     }).join('&');
 
-    console.log(othersParams);
+    _logger.logger.log(othersParams);
   }
 
   var cleanUrl = parsedUrl.protocol + '//' + parsedUrl.host + parsedUrl.pathname + '?';
@@ -1098,8 +1422,8 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       return;
     }
 
-    console.log('nudge', ct, '->', l ? endTime : '-', evt);
-    media.currentTime = endTime - 0.2;
+    _logger.logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime); //evt, )
+    media.currentTime = endTime - 0.2; // (Math.abs(ct - endTime)) //
   };
 };
 
@@ -1128,8 +1452,34 @@ var errorMsg = exports.errorMsg = function errorMsg(e) {
   return 'Error ' + e.name + ': ' + e.message + '\n' + e.stack;
 };
 
+function pad2(n) {
+  return n <= 9 ? '0' + n : '' + n;
+}
+
+function humanTime(utcOrLive) {
+  var lt = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+
+  // $FlowFixMe: string > 0 is always false
+  if (!(utcOrLive > 0)) {
+    return '';
+  }
+
+  // $FlowFixMe: just for flow
+  var utc = utcOrLive;
+
+  var d = new Date();
+  d.setTime(utc * 1000);
+  var localTime = !(lt === false);
+
+  var h = localTime ? d.getHours() : d.getUTCHours();
+  var m = localTime ? d.getMinutes() : d.getUTCMinutes();
+  var s = localTime ? d.getSeconds() : d.getUTCSeconds();
+
+  return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
+}
+
 /***/ }),
-/* 17 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1147,7 +1497,7 @@ var errorMsg = exports.errorMsg = function errorMsg(e) {
  * @private
  */
 
-var url = __webpack_require__(18)
+var url = __webpack_require__(20)
 var parse = url.parse
 var Url = url.Url
 
@@ -1290,7 +1640,7 @@ function fresh (url, parsedUrl) {
 
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1317,8 +1667,8 @@ function fresh (url, parsedUrl) {
 
 
 
-var punycode = __webpack_require__(19);
-var util = __webpack_require__(22);
+var punycode = __webpack_require__(21);
+var util = __webpack_require__(24);
 
 exports.parse = urlParse;
 exports.resolve = urlResolve;
@@ -1393,7 +1743,7 @@ var protocolPattern = /^([a-z0-9.+-]+:)/i,
       'gopher:': true,
       'file:': true
     },
-    querystring = __webpack_require__(23);
+    querystring = __webpack_require__(25);
 
 function urlParse(url, parseQueryString, slashesDenoteHost) {
   if (url && util.isObject(url) && url instanceof Url) return url;
@@ -2029,7 +2379,7 @@ Url.prototype.parseHost = function() {
 
 
 /***/ }),
-/* 19 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module, global) {var __WEBPACK_AMD_DEFINE_RESULT__;/*! https://mths.be/punycode v1.4.1 by @mathias */
@@ -2565,10 +2915,10 @@ Url.prototype.parseHost = function() {
 
 }(this));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(20)(module), __webpack_require__(21)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(22)(module), __webpack_require__(23)))
 
 /***/ }),
-/* 20 */
+/* 22 */
 /***/ (function(module, exports) {
 
 module.exports = function(module) {
@@ -2596,7 +2946,7 @@ module.exports = function(module) {
 
 
 /***/ }),
-/* 21 */
+/* 23 */
 /***/ (function(module, exports) {
 
 var g;
@@ -2623,7 +2973,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 22 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2646,18 +2996,18 @@ module.exports = {
 
 
 /***/ }),
-/* 23 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-exports.decode = exports.parse = __webpack_require__(24);
-exports.encode = exports.stringify = __webpack_require__(25);
+exports.decode = exports.parse = __webpack_require__(26);
+exports.encode = exports.stringify = __webpack_require__(27);
 
 
 /***/ }),
-/* 24 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2748,7 +3098,7 @@ var isArray = Array.isArray || function (xs) {
 
 
 /***/ }),
-/* 25 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2840,22 +3190,43 @@ var objectKeys = Object.keys || function (obj) {
 
 
 /***/ }),
-/* 26 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
-__webpack_require__(27);
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.getSelfScope = getSelfScope;
+function getSelfScope() {
+  // see https://stackoverflow.com/a/11237259/589493
+  if (typeof window === 'undefined') {
+    /* eslint-disable-next-line no-undef */
+    return self;
+  } else {
+    return window;
+  }
+}
+
+/***/ }),
+/* 29 */
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(30);
 module.exports = __webpack_require__(2).Array.find;
 
 
 /***/ }),
-/* 27 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 // 22.1.3.8 Array.prototype.find(predicate, thisArg = undefined)
-var $export = __webpack_require__(28);
-var $find = __webpack_require__(38)(5);
+var $export = __webpack_require__(31);
+var $find = __webpack_require__(41)(5);
 var KEY = 'find';
 var forced = true;
 // Shouldn't skip holes
@@ -2865,18 +3236,18 @@ $export($export.P + $export.F * forced, 'Array', {
     return $find(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
   }
 });
-__webpack_require__(48)(KEY);
+__webpack_require__(51)(KEY);
 
 
 /***/ }),
-/* 28 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
 var core = __webpack_require__(2);
 var hide = __webpack_require__(3);
-var redefine = __webpack_require__(35);
-var ctx = __webpack_require__(8);
+var redefine = __webpack_require__(38);
+var ctx = __webpack_require__(9);
 var PROTOTYPE = 'prototype';
 
 var $export = function (type, name, source) {
@@ -2918,12 +3289,12 @@ module.exports = $export;
 
 
 /***/ }),
-/* 29 */
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var anObject = __webpack_require__(30);
-var IE8_DOM_DEFINE = __webpack_require__(31);
-var toPrimitive = __webpack_require__(33);
+var anObject = __webpack_require__(33);
+var IE8_DOM_DEFINE = __webpack_require__(34);
+var toPrimitive = __webpack_require__(36);
 var dP = Object.defineProperty;
 
 exports.f = __webpack_require__(4) ? Object.defineProperty : function defineProperty(O, P, Attributes) {
@@ -2940,7 +3311,7 @@ exports.f = __webpack_require__(4) ? Object.defineProperty : function defineProp
 
 
 /***/ }),
-/* 30 */
+/* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var isObject = __webpack_require__(1);
@@ -2951,16 +3322,16 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 31 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = !__webpack_require__(4) && !__webpack_require__(6)(function () {
-  return Object.defineProperty(__webpack_require__(32)('div'), 'a', { get: function () { return 7; } }).a != 7;
+module.exports = !__webpack_require__(4) && !__webpack_require__(7)(function () {
+  return Object.defineProperty(__webpack_require__(35)('div'), 'a', { get: function () { return 7; } }).a != 7;
 });
 
 
 /***/ }),
-/* 32 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var isObject = __webpack_require__(1);
@@ -2973,7 +3344,7 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 33 */
+/* 36 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.1 ToPrimitive(input [, PreferredType])
@@ -2991,7 +3362,7 @@ module.exports = function (it, S) {
 
 
 /***/ }),
-/* 34 */
+/* 37 */
 /***/ (function(module, exports) {
 
 module.exports = function (bitmap, value) {
@@ -3005,13 +3376,13 @@ module.exports = function (bitmap, value) {
 
 
 /***/ }),
-/* 35 */
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
 var hide = __webpack_require__(3);
-var has = __webpack_require__(36);
-var SRC = __webpack_require__(7)('src');
+var has = __webpack_require__(39);
+var SRC = __webpack_require__(8)('src');
 var TO_STRING = 'toString';
 var $toString = Function[TO_STRING];
 var TPL = ('' + $toString).split(TO_STRING);
@@ -3042,7 +3413,7 @@ __webpack_require__(2).inspectSource = function (it) {
 
 
 /***/ }),
-/* 36 */
+/* 39 */
 /***/ (function(module, exports) {
 
 var hasOwnProperty = {}.hasOwnProperty;
@@ -3052,7 +3423,7 @@ module.exports = function (it, key) {
 
 
 /***/ }),
-/* 37 */
+/* 40 */
 /***/ (function(module, exports) {
 
 module.exports = function (it) {
@@ -3062,7 +3433,7 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 38 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 0 -> Array#forEach
@@ -3072,11 +3443,11 @@ module.exports = function (it) {
 // 4 -> Array#every
 // 5 -> Array#find
 // 6 -> Array#findIndex
-var ctx = __webpack_require__(8);
-var IObject = __webpack_require__(39);
-var toObject = __webpack_require__(40);
-var toLength = __webpack_require__(42);
-var asc = __webpack_require__(44);
+var ctx = __webpack_require__(9);
+var IObject = __webpack_require__(42);
+var toObject = __webpack_require__(43);
+var toLength = __webpack_require__(45);
+var asc = __webpack_require__(47);
 module.exports = function (TYPE, $create) {
   var IS_MAP = TYPE == 1;
   var IS_FILTER = TYPE == 2;
@@ -3112,11 +3483,11 @@ module.exports = function (TYPE, $create) {
 
 
 /***/ }),
-/* 39 */
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // fallback for non-array-like ES3 and non-enumerable old V8 strings
-var cof = __webpack_require__(9);
+var cof = __webpack_require__(10);
 // eslint-disable-next-line no-prototype-builtins
 module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
   return cof(it) == 'String' ? it.split('') : Object(it);
@@ -3124,18 +3495,18 @@ module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
 
 
 /***/ }),
-/* 40 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.13 ToObject(argument)
-var defined = __webpack_require__(41);
+var defined = __webpack_require__(44);
 module.exports = function (it) {
   return Object(defined(it));
 };
 
 
 /***/ }),
-/* 41 */
+/* 44 */
 /***/ (function(module, exports) {
 
 // 7.2.1 RequireObjectCoercible(argument)
@@ -3146,11 +3517,11 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 42 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.15 ToLength
-var toInteger = __webpack_require__(43);
+var toInteger = __webpack_require__(46);
 var min = Math.min;
 module.exports = function (it) {
   return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
@@ -3158,7 +3529,7 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 43 */
+/* 46 */
 /***/ (function(module, exports) {
 
 // 7.1.4 ToInteger
@@ -3170,11 +3541,11 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 44 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 9.4.2.3 ArraySpeciesCreate(originalArray, length)
-var speciesConstructor = __webpack_require__(45);
+var speciesConstructor = __webpack_require__(48);
 
 module.exports = function (original, length) {
   return new (speciesConstructor(original))(length);
@@ -3182,12 +3553,12 @@ module.exports = function (original, length) {
 
 
 /***/ }),
-/* 45 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var isObject = __webpack_require__(1);
-var isArray = __webpack_require__(46);
-var SPECIES = __webpack_require__(10)('species');
+var isArray = __webpack_require__(49);
+var SPECIES = __webpack_require__(11)('species');
 
 module.exports = function (original) {
   var C;
@@ -3204,18 +3575,18 @@ module.exports = function (original) {
 
 
 /***/ }),
-/* 46 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.2.2 IsArray(argument)
-var cof = __webpack_require__(9);
+var cof = __webpack_require__(10);
 module.exports = Array.isArray || function isArray(arg) {
   return cof(arg) == 'Array';
 };
 
 
 /***/ }),
-/* 47 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
@@ -3227,11 +3598,11 @@ module.exports = function (key) {
 
 
 /***/ }),
-/* 48 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 22.1.3.31 Array.prototype[@@unscopables]
-var UNSCOPABLES = __webpack_require__(10)('unscopables');
+var UNSCOPABLES = __webpack_require__(11)('unscopables');
 var ArrayProto = Array.prototype;
 if (ArrayProto[UNSCOPABLES] == undefined) __webpack_require__(3)(ArrayProto, UNSCOPABLES, {});
 module.exports = function (key) {
