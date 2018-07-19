@@ -1,6 +1,7 @@
 import parseUrl from 'parseurl'
 
 import EVENTS from '../enums/events'
+import {logger} from '../utils/logger'
 
 export function getMediaSource() {
   if (typeof window !== 'undefined') {
@@ -56,12 +57,14 @@ export function getRealUtcFromData(view) {
   return realUtc
 }
 
-export function doArrayBuffer(rawData, mbAppend) {
-  const view = RawDataToUint8Array(rawData)
-  const trackId = getTrackId(view)
-  this.utc = getRealUtcFromData(view)
+export function doArrayBuffer() {
+  const segment = this.segments.shift()
 
-  mbAppend(trackId, view)
+  if (!segment.isInit) {
+    this.utc = getRealUtcFromData(segment.data)
+  }
+
+  this.maybeAppend(segment)
 }
 
 export function debugData(rawData) {
@@ -92,7 +95,7 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
       .map(kv => kv.join('='))
       .join('&')
 
-    console.log(othersParams)
+    logger.log(othersParams)
   }
 
   const cleanUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}?`
@@ -124,8 +127,8 @@ export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
     return
   }
 
-  console.log('nudge', ct, '->', l ? endTime : '-', evt)
-  media.currentTime = endTime - 0.2
+  logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
+  media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
 }
 
 export function startWebSocket(url, time, videoTrack = '', audioTack = '') {
@@ -145,3 +148,27 @@ export function startWebSocket(url, time, videoTrack = '', audioTack = '') {
 export const replaceHttpByWS = url => url.replace(/^http/, 'ws')
 
 export const errorMsg = e => `Error ${e.name}: ${e.message}\n${e.stack}`
+
+export function pad2(n) {
+  return n <= 9 ? '0' + n : '' + n
+}
+
+export function humanTime(utcOrLive, lt = true) {
+  // $FlowFixMe: string > 0 is always false
+  if (!(utcOrLive > 0)) {
+    return ''
+  }
+
+  // $FlowFixMe: just for flow
+  const utc = utcOrLive
+
+  var d = new Date()
+  d.setTime(utc * 1000)
+  var localTime = !(lt === false)
+
+  var h = localTime ? d.getHours() : d.getUTCHours()
+  var m = localTime ? d.getMinutes() : d.getUTCMinutes()
+  var s = localTime ? d.getSeconds() : d.getUTCSeconds()
+
+  return pad2(h) + ':' + pad2(m) + ':' + pad2(s)
+}
