@@ -40,25 +40,28 @@ export default class MSEPlayer {
    *
    */
   constructor(media, urlStream, opts) {
-    enableLogs(true)
-    this._missedData = []
+
+    if (opts.debug) {
+      enableLogs(true)
+      window.humanTime = mseUtils.humanTime
+    }
+
     if (!(media instanceof HTMLMediaElement)) {
       throw new Error(MSG.NOT_HTML_MEDIA_ELEMENT)
     }
 
     this.media = media
 
-    // TODO: debug
-    this.media.muted = true
-
     this.url = urlStream
     this.opts = opts || {}
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE
-    // this.setBufferMode(this.opts)
 
-    this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
+    this.opts.errorsBeforeStop = this.opts.errorsBeforeStop
+      ? this.opts.errorsBeforeStop
+      : DEFAULT_ERRORS_BEFORE_STOP
 
-    if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
+    if (typeof this.opts.errorsBeforeStop !== 'number'
+        || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
 
@@ -69,7 +72,6 @@ export default class MSEPlayer {
     this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
 
-
     this.init()
 
     this.onAttachMedia({media})
@@ -78,7 +80,7 @@ export default class MSEPlayer {
 
   play(time, videoTrack, audioTack) {
     if (this.opts.debug) {
-      console.log('FlussonicMsePlayer: play()')
+      logger.log('FlussonicMsePlayer: play()')
     }
     return this._play(time, videoTrack, audioTack)
   }
@@ -95,22 +97,21 @@ export default class MSEPlayer {
       const commandStr = utc === LIVE
         ? WS_COMMAND_SEEK_LIVE
         : WS_COMMAND_SEEK
-      console.log(`${commandStr}${utc}`)
+      logger.log(`${commandStr}${utc}`)
       this.websocket.send(`${commandStr}${utc}`)
-      this.seekValue = utc
-      this.afterSeekFlag = true
-      if (this.afterSeekFlag) {
-        for(let k in this.sourceBuffer) {
-          this.sourceBuffer[k].abort()
-          this.sourceBuffer[k].mode = 'sequence'
-        }
 
-        this.afterSeekFlag = false
+      // need for determine old frames
+      this.seekValue = utc
+
+      for(let k in this.sourceBuffer) {
+        this.sourceBuffer[k].abort()
+        this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
       }
-      this._missedData = []
+
+      this.segments = []
 
     } catch (err) {
-      console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
+      logger.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
     }
   }
 
@@ -138,7 +139,7 @@ export default class MSEPlayer {
         try {
           this.onPause()
         } catch (e) {
-          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
+          logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
         }
       }
     }
@@ -146,12 +147,12 @@ export default class MSEPlayer {
 
   setTracks(tracks) {
     if (!this.mediaInfo) {
-      console.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
+      logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
     }
 
     if (!Array.isArray(tracks)) {
-      console.error('tracks should be an Array instance: ["v1", "a1"]')
+      logger.error('tracks should be an Array instance: ["v1", "a1"]')
     }
 
     const videoTracksStr = tracks
@@ -176,22 +177,17 @@ export default class MSEPlayer {
    *  Private members
    *
    */
-  _log(msg) {
-    if (this.opts.debug) {
-      console.log(msg)
-    }
-  }
 
   _play(time, videoTrack, audioTack) {
     return new Promise((resolve, reject) => {
       if (this.playing) {
-        this._log('_play: terminate because already has been playing')
+        logger.log('_play: terminate because already has been playing')
         return resolve()
       }
 
       if (this._pause && !this.afterSeekFlag) {
         this._resume()
-        this._log('_play: terminate because _paused and should resume')
+        logger.log('_play: terminate because _paused and should resume')
         return resolve()
       }
 
@@ -200,7 +196,7 @@ export default class MSEPlayer {
         this.onAttachMedia({media: this.media})
         this.onsoa = this._play.bind(this, time, videoTrack, audioTack)
         this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
-        console.warn('mediaSource did not create')
+        logger.warn('mediaSource did not create')
         this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen
           ? this.resolveThenMediaSourceOpen
           : resolve
@@ -216,7 +212,7 @@ export default class MSEPlayer {
 
       // deferring execution
       if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-        console.warn('readyState is not "open"')
+        logger.warn('readyState is not "open"')
         this.shouldPlay = true
         this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen
           ? this.resolveThenMediaSourceOpen
@@ -258,6 +254,7 @@ export default class MSEPlayer {
 
   init() {
     // start new implementation
+    this.segments = []
     this.sourceBuffer = {}
     this.flushRange = [];
     this.appended = 0;
@@ -287,7 +284,7 @@ export default class MSEPlayer {
 
   onMediaDetaching() {
     if (this.stopRunning) {
-      console.log('stop is running.')
+      logger.warn('stop is running.')
       return
     }
     this.stopRunning = true
@@ -305,7 +302,7 @@ export default class MSEPlayer {
   }
 
   handlerMediaDetaching() {
-    console.info('media source detaching')
+    logger.info('media source detaching')
 
     let mediaEmptyPromise
 
@@ -342,7 +339,7 @@ export default class MSEPlayer {
           // let's just avoid this exception to propagate
           ms.endOfStream()
         } catch (err) {
-          console.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
+          logger.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
         }
       }
 
@@ -405,7 +402,7 @@ export default class MSEPlayer {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      console.info(
+      logger.info(
         `readyState now is ${this.mediaSource.readyState}, and will be played`,
         this.playTime,
         this.audioTack,
@@ -431,100 +428,49 @@ export default class MSEPlayer {
   }
 
   dispatchMessage(e) {
-    // !!!
-    if (this.stopRunning) {
+    if (this.stopRunning || this._pause || !this.playing) {
       return
     }
+
+    const rawData = e.data
+    const isDataAB = rawData instanceof ArrayBuffer
+
     try {
-      if (this._pause || !this.playing) {
-        return
-      }
+      // after seek can receive old frames, it should be filtered
+      if (this.isOldFrameAfterSeek(rawData)) {return}
 
-      const rawData = e.data
-      let isDataAB = rawData instanceof ArrayBuffer
 
-      if (this.seekValue) {
-        let cUtc = 0
-        if (isDataAB) {
-          cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
-        } else {
-          console.log('not Attay buffer')
-        }
-        //
-        if (Math.abs(cUtc - this.seekValue) > 20) {
-          console.warn(
-            'skip old frame',
-            window.humanTime(cUtc),
-            window.humanTime(this.seekValue),
-            cUtc, this.seekValue,
-            cUtc - this.seekValue
-          )
-          return
-        } else {
-            this.seekNormCount = this.seekNormCount
-              ? this.seekNormCount + 1
-              : 1
-        }
-
-        if (this.seekNormCount > 10) {
-          this.seekValue = void 0
-        }
-      }
-
-      // смена треков
+      // wait for MSE_INIT_SEGMENT
       if (this.waitForInitFrame && isDataAB) {
         return logger.log('old frames')
       }
-      //
-      // if (this.waitForInitFrame && !isDataAB) { //
-      //   this.waitForInitFrame = false
-      //   this._missedData.push(rawData)
-      //   return
-      // }
-      //
-      // if (this._setTracksFlag && !this.waitForInitFrame && isDataAB) {
-      //   this._missedData.push(rawData)
-      //   return
-      // }
+
+      // MSE_INIT_SEGMENT
       if (!isDataAB) {
         this.procInitSegment(rawData)
         return
       }
 
+      // ArrayBuffer data
       if (isDataAB) {
-        const view = mseUtils.RawDataToUint8Array(rawData)
-        const trackId = mseUtils.getTrackId(view)
-        const trackType = this.getTypeBytrackId(trackId)
-        this._missedData.push({type: trackType, data: view})
+        const segment = this.rawDataToSegmnet(rawData)
+        this.segments.push(segment)
         this.doArrayBuffer()
       }
 
-      // let shiftedData = rawData
-      // если были пропущенные данные
-      // if (this._missedData && this._missedData.length) {
-        // shiftedData = this._missedData.shift()
-        // isDataAB = shiftedData instanceof ArrayBuffer
-      // }
-
-      // if (isDataAB) {
-      //   this.doArrayBuffer()
-      //   // shiftedData, this.maybeAppend
-      // } else {
-      //   this.procInitSegment(shiftedData)
-      // }
-
     } catch (err) {
-      console.error(mseUtils.errorMsg(e), err)
+      logger.error(mseUtils.errorMsg(e), err)
 
       if (this.media && this.media.error) {
-        console.error('MediaError:', this.media.error)
+        logger.error('MediaError:', this.media.error)
       }
 
-      if (e.data instanceof ArrayBuffer) {
-        console.error('Data:', mseUtils.debugData(e.data))
+      if (isDataAB) {
+        logger.error('Data:', mseUtils.debugData(e.data))
       }
       errorsCount++
       if (errorsCount >= this.opts.errorsBeforeStop) {
+        errorsCount = 0
         this.stopPromise = this.stop()
       }
 
@@ -533,14 +479,49 @@ export default class MSEPlayer {
       }
     }
   }
+
+  isOldFrameAfterSeek(rawData) {
+    if (this.seekValue) {
+      let cUtc = 0
+      let isDataAB = rawData instanceof ArrayBuffer
+      if (isDataAB) {
+        cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
+      } else {
+        logger.log('not Array buffer')
+      }
+
+      if (Math.abs(cUtc - this.seekValue) > 20) {
+        logger.warn('skip old frame',
+          mseUtils.humanTime(cUtc), mseUtils.humanTime(this.seekValue),
+          cUtc, this.seekValue, cUtc - this.seekValue)
+        return true
+      } else {
+        this.seekNormCount = this.seekNormCount
+          ? this.seekNormCount + 1
+          : 1
+      }
+
+      if (this.seekNormCount > 10) {
+        this.seekValue = void 0
+        this.seekNormCount = 0
+      }
+    }
+    return false
+  }
+
+  rawDataToSegmnet(rawData) {
+    const view = mseUtils.RawDataToUint8Array(rawData)
+    const trackId = mseUtils.getTrackId(view)
+    const trackType = this.getTypeBytrackId(trackId)
+    return {type: trackType, data: view}
+  }
+
   getTypeBytrackId(id) {
     return this.audioTrackId === id
       ? AUDIO
       : VIDEO
   }
-  // there are two cases
-  // 1. this.mediaSource is already exists
-  // 2. this.meidaSource is undefined
+
   procInitSegment(rawData) {
     const data = JSON.parse(rawData)
     if (data.type !== segmentsTypes.MSE_INIT_SEGMENT) {
@@ -552,16 +533,13 @@ export default class MSEPlayer {
     }
 
     this.doMediaInfo(data.metadata)
-    console.log(data)
+    logger.log(data)
 
-    // Hack
     if (this.isBuffered()) {
-      debugger
       this.media.pause()
       this.previouslyPaused = false
       this._setTracksFlag = true
       this.immediateSwitch = true
-      // this._missedData = [rawData]
       const startOffset = 0
       const endOffset = Infinity
       // TODO: should invoke remove method of SourceBuffer's
@@ -569,11 +547,11 @@ export default class MSEPlayer {
       // attempt flush immediately
       this.flushBufferCounter = 0;
       this.doFlush()
-      // return
     }
 
+    // calc this.audioTrackId this.videoTrackId
     this.setTracksByType(data)
-    // 1. нет sourceBuffer's
+
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.createSourceBuffers(data)
     }
@@ -633,7 +611,6 @@ export default class MSEPlayer {
       }
       this.appended = appended;
       this._setTracksFlag = false
-      // this.hls.trigger(Event.BUFFER_FLUSHED);
     }
   }
 
@@ -704,13 +681,13 @@ export default class MSEPlayer {
   }
 
   doMediaInfo(metadata) {
-    console.log(metadata)
+    logger.log(metadata)
     if (this.onMediaInfo) {
       this.mediaInfo = metadata
       try {
         this.onMediaInfo(metadata)
       } catch (e) {
-        console.error(mseUtils.errorMsg(e))
+        logger.error(mseUtils.errorMsg(e))
       }
     }
   }
@@ -730,28 +707,20 @@ export default class MSEPlayer {
   }
 
   maybeAppend(segment) {
-    // !!!!
-    // let buffer
-
-    // const trackIdByType = trackId === this.audioTrackId ? this.audioTrackId : this.videoTrackId
-
-    // const trackType = trackId === this.audioTrackId
-      // ? AUDIO
-      // : VIDEO
 
     if (this._needsFlush) {
-      this._missedData.unshift(segment)
+      this.segments.unshift(segment)
       return
     }
 
     const buffer = this.sourceBuffer[segment.type]
 
     if (buffer.updating) {
-      this._missedData.unshift(segment)
+      this.segments.unshift(segment)
     } else {
       buffer.appendBuffer(segment.data)
       this.appended++
-      // где выключается?
+      // TODO: find where switch off
       this.appending = true
     }
   }
@@ -800,16 +769,16 @@ export default class MSEPlayer {
     try {
       this.onProgress(this.utc)
     } catch (e) {
-      console.error(mseUtils.errorMsg(e))
+      logger.error(mseUtils.errorMsg(e))
     }
   }
 
   onMediaSourceEnded() {
-    console.log('media source ended')
+    logger.log('media source ended')
   }
 
   onMediaSourceClose() {
-    console.log('media source closed')
+    logger.log('media source closed')
   }
 
   setTracksByType(data) {
@@ -841,23 +810,6 @@ export default class MSEPlayer {
       const buffer = sourceBuffer[s.content]
 
       buffer.addEventListener(EVENTS.BUFFER_UPDATE_END, this.onSBUpdateEnd)
-
-      // this._queues[id] = []
-      // const queue = this._queues[id]
-
-      // function updateEnd() {
-      //   if (this._needsFlush) {
-      //     this.doFlush()
-      //   }
-      //   try {
-      //     if (queue.length > 0 && !buffer.updating) {
-      //       buffer.appendBuffer(queue.shift())
-      //     }
-      //   } catch (e) {
-      //     console.error(mseUtils.errorMsg(e), this.media.error)
-      //   }
-      // }
-
     })
 
   }
@@ -866,46 +818,14 @@ export default class MSEPlayer {
     if (this._needsFlush) {
       this.doFlush()
     }
-    if (!this._needsFlush && this._missedData.length) {
+    if (!this._needsFlush && this.segments.length) {
       this.doArrayBuffer()
     }
   }
 
   _setTracks(videoTrack, audioTrack) {
-    // this.media.pause()
-    // this.previouslyPaused = false
     this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
-    // this._setTracksAttachMediaFlag = true
     this._setTracksFlag = true
-    // this.immediateSwitch = true
-    // this._missedData = []
     this.waitForInitFrame = true
-    // TODO: перенести логику в _setTracks метод
-
-    // const startOffset = 0
-    // const endOffset = Infinity
-    // TODO: should invoke remove method of SourceBuffer's
-    // this.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
-    // attempt flush immediately
-    // this.flushBufferCounter = 0;
-    // this.doFlush()
-
-    debugger
-  }
-
-  setBufferMode(optsOrBufferModeValue) {
-    if (typeof optsOrBufferModeValue === 'object') {
-      this.opts.bufferMode = optsOrBufferModeValue.bufferMode ? optsOrBufferModeValue.bufferMode : DEFAULT_BUFFER_MODE
-    }
-
-    if (typeof optsOrBufferModeValue === 'string') {
-      this.opts.bufferMode = optsOrBufferModeValue
-    }
-
-    if (this.opts.bufferMode !== BUFFER_MODE_SEGMENTS && this.opts.bufferMode !== BUFFER_MODE_SEQUENCE) {
-      throw new Error(
-        `invalid bufferMode param, should be undefined or ${BUFFER_MODE_SEGMENTS} or ${BUFFER_MODE_SEQUENCE}.`
-      )
-    }
   }
 }

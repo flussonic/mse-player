@@ -1,6 +1,7 @@
 import parseUrl from 'parseurl'
 
 import EVENTS from '../enums/events'
+import {logger} from '../utils/logger'
 
 export function getMediaSource() {
   if (typeof window !== 'undefined') {
@@ -57,14 +58,12 @@ export function getRealUtcFromData(view) {
 }
 
 export function doArrayBuffer() {
-  const segment = this._missedData.shift()
+  const segment = this.segments.shift()
 
   if (!segment.isInit) {
     this.utc = getRealUtcFromData(segment.data)
   }
-  if (this.afterSeekFlag) {
-    console.log('first frame UTC:', window.humanTime(this.utc))
-  }
+
   this.maybeAppend(segment)
 }
 
@@ -96,7 +95,7 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
       .map(kv => kv.join('='))
       .join('&')
 
-    console.log(othersParams)
+    logger.log(othersParams)
   }
 
   const cleanUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}?`
@@ -128,7 +127,7 @@ export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
     return
   }
 
-  console.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
+  logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
   media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
 }
 
@@ -151,7 +150,7 @@ export const replaceHttpByWS = url => url.replace(/^http/, 'ws')
 export const errorMsg = e => `Error ${e.name}: ${e.message}\n${e.stack}`
 
 export function pad2(n) {
-  return n <= 9 ? '0!' + n : '' + n
+  return n <= 9 ? '0' + n : '' + n
 }
 
 export function humanTime(utcOrLive, lt = true) {
@@ -173,5 +172,3 @@ export function humanTime(utcOrLive, lt = true) {
 
   return pad2(h) + ':' + pad2(m) + ':' + pad2(s)
 }
-
-window.humanTime = humanTime
