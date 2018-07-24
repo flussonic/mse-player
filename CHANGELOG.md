@@ -2,7 +2,7 @@
 
 - MediaInfo include active streams information
 - add transform-object-rest-spread babel plugin
-- documentation: `opts:debug`, `MediaInfo`, `TrackId`,. Remove/mark as deprecated `opts:bufferMode`
+- documentation: `opts:debug`, `opts:progressUpdateTime`, `MediaInfo`, `TrackId`,. Remove/mark as deprecated `opts:bufferMode`
 
 18.07
 

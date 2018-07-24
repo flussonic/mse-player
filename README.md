@@ -54,9 +54,11 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 `opts` is plain object it can include methods:
 
-  - `debug: boolean` - if `true` then enable logs in browser console. And export methods humanTime, humanDate to window.
+  - `debug?: boolean` - if `true` then enable logs in browser console. And export methods humanTime, humanDate to window.
 
-  - `onProgress(utc: number)` - triggered every 100ms while a stream is playing and gives current playback time
+  - `progressUpdateTime?: number` - time period for invoking `onProgress`.
+
+  - `onProgress(utc: number)` - triggered every 100ms(progressUpdateTime) while a stream is playing and gives current playback time
 
   - `onMediaInfo(info: MediaInfo)` - triggered then metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
 
