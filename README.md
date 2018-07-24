@@ -54,11 +54,13 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 `opts` is plain object it can include methods:
 
+  - `debug: boolean` - if `true` then enable logs in browser console. And export methods humanTime, humanDate to window.
+
   - `onProgress(utc: number)` - triggered every 100ms while a stream is playing and gives current playback time
 
   - `onMediaInfo(info: MediaInfo)` - triggered then metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
 
-  - `bufferMode: 'segments'|'sequence'` - [SourceBuffer Object Append Mode](https://www.w3.org/TR/media-source/#h-sourcebuffer). Default value is `'sequence'`.
+  - **•••DEPRECATED•••** `bufferMode: 'segments'|'sequence'` - [SourceBuffer Object Append Mode](https://www.w3.org/TR/media-source/#h-sourcebuffer). Default value is `'sequence'`.
 
   - `errorsBeforeStop: number` - Amount of errors will be happened before invoke the *stop()* method.
 
@@ -78,18 +80,19 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 - **seek(utc: number)** - send `seek` command by websocket
 
-- **setTracks(tracks: Array<Track>)** -
+- **setTracks(tracks: Array<TrackId>)** -
 
 ### Types:
 
-```javascript
-MediaInfo {
+```flow
+type MediaInfo = {
   height: number,
   width: number,
   streams: Array<StreamInfo>,
+  activeStreams: ActiveStreams,
 }
 
-StreamInfo {
+type StreamInfo = {
   bitrate: number,
   codec: string,
   content: string,
@@ -103,12 +106,23 @@ StreamInfo {
   sar_height: number,
   sar_width: number,
   size: string,
-  track_id: string,
+  track_id: TrackId,
   width: number
 }
 
-Track: string
+type ActiveStreams = {
+  video: TrackId,
+  audio: TrackId,
+}
+
+type TrackId = 'a1'|'a2'|'a3'| ... 'aN'|'v1'|'v2'|'v3'| ... 'vN'
 
 type UtcOrLive = number | 'live'
 
 ```
+
+## TODO
+
+
+
+## CHANGELOG

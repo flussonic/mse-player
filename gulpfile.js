@@ -8,7 +8,7 @@ const mseDepsList = [
 
 const mseDepsOutput = '../flussonic/wwwroot/flu/reactapp/lib/';
 
-gulp.task('cp', function() {
+gulp.task('cp:flu', function() {
   return gulp.src(mseDepsList)
     .pipe(gulp.dest(mseDepsOutput));
 });
@@ -20,4 +20,6 @@ gulp.task('cp:webrtc', function() {
     .pipe(gulp.dest(webrtcOutput));
 });
 
-gulp.watch('dist/**/*', gulp.parallel('cp', 'cp:webrtc'))
+gulp.task('cp', gulp.parallel('cp:flu', 'cp:webrtc'))
+
+gulp.watch('dist/**/*', gulp.series('cp'))

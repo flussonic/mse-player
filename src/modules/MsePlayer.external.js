@@ -12,13 +12,11 @@ import 'core-js/fn/array/find'
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 
-const BUFFER_MODE_SEGMENTS = 'segments'
-const BUFFER_MODE_SEQUENCE = 'sequence'
+const BUFFER_MODE_SEQUENCE = 'sequence' // segments
 
 const LIVE = 'live'
 const WS_COMMAND_SEEK_LIVE = ''
 const WS_COMMAND_SEEK = 'play_from='
-const DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
 
@@ -37,7 +35,7 @@ export default class MSEPlayer {
    *
    * @param media HTMLMediaElement
    * @param urlStream
-   *
+   * @param opts
    */
   constructor(media, urlStream, opts) {
 
@@ -532,9 +530,6 @@ export default class MSEPlayer {
       this.waitForInitFrame = false
     }
 
-    this.doMediaInfo(data.metadata)
-    logger.log(data)
-
     if (this.isBuffered()) {
       this.media.pause()
       this.previouslyPaused = false
@@ -551,6 +546,19 @@ export default class MSEPlayer {
 
     // calc this.audioTrackId this.videoTrackId
     this.setTracksByType(data)
+
+
+
+    const metadata = data.metadata
+    const streams = data.metadata.streams
+
+    const activeStreams = {
+      video: streams[this.videoTrackId - 1]['track_id'],
+      audio: streams[this.audioTrackId - 1]['track_id'],
+    }
+
+    this.doMediaInfo({...metadata, activeStreams})
+    logger.log(data)
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.createSourceBuffers(data)
