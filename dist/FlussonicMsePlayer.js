@@ -89,17 +89,17 @@ if (typeof __g == 'number') __g = global; // eslint-disable-line no-undef
 /* 1 */
 /***/ (function(module, exports) {
 
-module.exports = function (it) {
-  return typeof it === 'object' ? it !== null : typeof it === 'function';
-};
+var core = module.exports = { version: '2.5.7' };
+if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
 
 
 /***/ }),
 /* 2 */
 /***/ (function(module, exports) {
 
-var core = module.exports = { version: '2.5.1' };
-if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
+module.exports = function (it) {
+  return typeof it === 'object' ? it !== null : typeof it === 'function';
+};
 
 
 /***/ }),
@@ -368,6 +368,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var _segments = __webpack_require__(15);
 
 var segmentsTypes = _interopRequireWildcard(_segments);
@@ -399,13 +401,11 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
 
-var BUFFER_MODE_SEGMENTS = 'segments';
-var BUFFER_MODE_SEQUENCE = 'sequence';
+var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
 
 var LIVE = 'live';
 var WS_COMMAND_SEEK_LIVE = '';
 var WS_COMMAND_SEEK = 'play_from=';
-var DEFAULT_BUFFER_MODE = BUFFER_MODE_SEQUENCE;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
 
@@ -423,7 +423,7 @@ var MSEPlayer = function () {
    *
    * @param media HTMLMediaElement
    * @param urlStream
-   *
+   * @param opts
    */
 
 
@@ -901,9 +901,6 @@ var MSEPlayer = function () {
       this.waitForInitFrame = false;
     }
 
-    this.doMediaInfo(data.metadata);
-    _logger.logger.log(data);
-
     if (this.isBuffered()) {
       this.media.pause();
       this.previouslyPaused = false;
@@ -920,6 +917,17 @@ var MSEPlayer = function () {
 
     // calc this.audioTrackId this.videoTrackId
     this.setTracksByType(data);
+
+    var metadata = data.metadata;
+    var streams = data.metadata.streams;
+
+    var activeStreams = {
+      video: streams[this.videoTrackId - 1]['track_id'],
+      audio: streams[this.audioTrackId - 1]['track_id']
+    };
+
+    this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams }));
+    _logger.logger.log(data);
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.createSourceBuffers(data);
@@ -3215,7 +3223,7 @@ function getSelfScope() {
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(30);
-module.exports = __webpack_require__(2).Array.find;
+module.exports = __webpack_require__(1).Array.find;
 
 
 /***/ }),
@@ -3236,7 +3244,7 @@ $export($export.P + $export.F * forced, 'Array', {
     return $find(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
   }
 });
-__webpack_require__(51)(KEY);
+__webpack_require__(52)(KEY);
 
 
 /***/ }),
@@ -3244,7 +3252,7 @@ __webpack_require__(51)(KEY);
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
-var core = __webpack_require__(2);
+var core = __webpack_require__(1);
 var hide = __webpack_require__(3);
 var redefine = __webpack_require__(38);
 var ctx = __webpack_require__(9);
@@ -3314,7 +3322,7 @@ exports.f = __webpack_require__(4) ? Object.defineProperty : function defineProp
 /* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var isObject = __webpack_require__(1);
+var isObject = __webpack_require__(2);
 module.exports = function (it) {
   if (!isObject(it)) throw TypeError(it + ' is not an object!');
   return it;
@@ -3334,7 +3342,7 @@ module.exports = !__webpack_require__(4) && !__webpack_require__(7)(function () 
 /* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var isObject = __webpack_require__(1);
+var isObject = __webpack_require__(2);
 var document = __webpack_require__(0).document;
 // typeof document.createElement is 'object' in old IE
 var is = isObject(document) && isObject(document.createElement);
@@ -3348,7 +3356,7 @@ module.exports = function (it) {
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.1 ToPrimitive(input [, PreferredType])
-var isObject = __webpack_require__(1);
+var isObject = __webpack_require__(2);
 // instead of the ES6 spec version, we didn't implement @@toPrimitive case
 // and the second argument - flag - preferred type is a string
 module.exports = function (it, S) {
@@ -3387,7 +3395,7 @@ var TO_STRING = 'toString';
 var $toString = Function[TO_STRING];
 var TPL = ('' + $toString).split(TO_STRING);
 
-__webpack_require__(2).inspectSource = function (it) {
+__webpack_require__(1).inspectSource = function (it) {
   return $toString.call(it);
 };
 
@@ -3556,7 +3564,7 @@ module.exports = function (original, length) {
 /* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var isObject = __webpack_require__(1);
+var isObject = __webpack_require__(2);
 var isArray = __webpack_require__(49);
 var SPECIES = __webpack_require__(11)('species');
 
@@ -3589,16 +3597,29 @@ module.exports = Array.isArray || function isArray(arg) {
 /* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
+var core = __webpack_require__(1);
 var global = __webpack_require__(0);
 var SHARED = '__core-js_shared__';
 var store = global[SHARED] || (global[SHARED] = {});
-module.exports = function (key) {
-  return store[key] || (store[key] = {});
-};
+
+(module.exports = function (key, value) {
+  return store[key] || (store[key] = value !== undefined ? value : {});
+})('versions', []).push({
+  version: core.version,
+  mode: __webpack_require__(51) ? 'pure' : 'global',
+  copyright: '© 2018 Denis Pushkarev (zloirock.ru)'
+});
 
 
 /***/ }),
 /* 51 */
+/***/ (function(module, exports) {
+
+module.exports = false;
+
+
+/***/ }),
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 22.1.3.31 Array.prototype[@@unscopables]
