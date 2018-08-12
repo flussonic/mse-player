@@ -1,3 +1,8 @@
+18.08
+
+- incapsulate websocket logic to separate module
+- 
+
 18.07.02
 
 - MediaInfo include active streams information

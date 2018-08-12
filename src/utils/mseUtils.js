@@ -75,45 +75,12 @@ export function debugData(rawData) {
   return {trackId, utc, view}
 }
 
-// TODO
-export function getWSURL(url, utc, videoTrack, audioTrack) {
-  // TODO: then use @param time it prevent to wrong data from ws(trackID view[47] for example is 100)
-  const time = utc
-
-  if (!time && !videoTrack && !audioTrack) {
-    return url
-  }
-
-  const parsedUrl = parseUrl({url})
-  let othersParams = ''
-
-  if (parsedUrl.query) {
-    const currentParamsKeysValues = parsedUrl.query.split('&').map(keyValue => keyValue.split('='))
-
-    othersParams = currentParamsKeysValues
-      .filter(p => p[0] !== 'from' && p[0] !== 'tracks')
-      .map(kv => kv.join('='))
-      .join('&')
-
-    logger.log(othersParams)
-  }
-
-  const cleanUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}?`
-  const tracksExists = !!videoTrack || !!audioTrack
-
-  const resultUrl =
-    `${cleanUrl}${tracksExists ? `tracks=${videoTrack}${audioTrack}` : ''}` +
-    `${tracksExists && !!time ? '&' : ''}${!!time ? `from=${Math.floor(time)}` : ''}` +
-    `${(tracksExists || !!time) && !!othersParams ? '&' : ''}${othersParams}`
-  return resultUrl
-}
-
 const ua = navigator.userAgent
 export const MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)
   ? 10 // very slow buffers in Edge
   : 2
 
-export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
+export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt => {
   const {currentTime: ct, buffered, buffered: {length: l}} = media
 
   if (!l) {
@@ -123,6 +90,13 @@ export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
   const endTime = buffered.end(l - 1)
   const delay = Math.abs(endTime - ct)
 
+  if (media.paused && !player._pause && player.playing) {
+    media.play()
+    if (player.onEndStalling) {
+      player.onEndStalling()
+    }
+  }
+
   if (delay <= maxDelay) {
     return
   }
@@ -131,19 +105,7 @@ export const checkVideoProgress = (media, maxDelay = MAX_DELAY) => evt => {
   media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
 }
 
-export function startWebSocket(url, time, videoTrack = '', audioTack = '') {
-  return function() {
-    const wsURL = getWSURL(url, time, videoTrack, audioTack)
 
-    this.websocket = new WebSocket(wsURL)
-    this.websocket.binaryType = 'arraybuffer'
-    // do that for remove event method
-    this.onwso = this.onWebsocketOpen.bind(this)
-    this.onwsdm = this.dispatchMessage.bind(this)
-    this.websocket.addEventListener(EVENTS.WS_OPEN, this.onwso)
-    this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.onwsdm)
-  }
-}
 
 export const replaceHttpByWS = url => url.replace(/^http/, 'ws')
 
