@@ -61,7 +61,9 @@ export function doArrayBuffer() {
   const segment = this.segments.shift()
 
   if (!segment.isInit) {
+    // last loaded frame's utc
     this.utc = getRealUtcFromData(segment.data)
+    this.lastLoadedUTC = this.utc
   }
 
   this.maybeAppend(segment)
@@ -100,7 +102,7 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
   if (delay <= maxDelay) {
     return
   }
-
+  debugger
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
   media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
 }
