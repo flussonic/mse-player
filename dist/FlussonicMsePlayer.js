@@ -70,7 +70,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 12);
+/******/ 	return __webpack_require__(__webpack_require__.s = 14);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -89,45 +89,13 @@ if (typeof __g == 'number') __g = global; // eslint-disable-line no-undef
 /* 1 */
 /***/ (function(module, exports) {
 
-var core = module.exports = { version: '2.5.7' };
-if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
-
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports) {
-
 module.exports = function (it) {
   return typeof it === 'object' ? it !== null : typeof it === 'function';
 };
 
 
 /***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var dP = __webpack_require__(32);
-var createDesc = __webpack_require__(37);
-module.exports = __webpack_require__(4) ? function (object, key, value) {
-  return dP.f(object, key, createDesc(1, value));
-} : function (object, key, value) {
-  object[key] = value;
-  return object;
-};
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// Thank's IE8 for his funny defineProperty
-module.exports = !__webpack_require__(7)(function () {
-  return Object.defineProperty({}, 'a', { get: function () { return 7; } }).a != 7;
-});
-
-
-/***/ }),
-/* 5 */
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -160,7 +128,7 @@ exports.default = EVENTS;
 module.exports = exports['default'];
 
 /***/ }),
-/* 6 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -173,7 +141,7 @@ exports.logger = exports.enableLogs = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _getSelfScope = __webpack_require__(28);
+var _getSelfScope = __webpack_require__(41);
 
 function noop() {}
 
@@ -253,6 +221,38 @@ var enableLogs = exports.enableLogs = function enableLogs(debugConfig) {
 var logger = exports.logger = exportedLogger;
 
 /***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+var core = module.exports = { version: '2.5.1' };
+if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var dP = __webpack_require__(20);
+var createDesc = __webpack_require__(25);
+module.exports = __webpack_require__(6) ? function (object, key, value) {
+  return dP.f(object, key, createDesc(1, value));
+} : function (object, key, value) {
+  object[key] = value;
+  return object;
+};
+
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// Thank's IE8 for his funny defineProperty
+module.exports = !__webpack_require__(7)(function () {
+  return Object.defineProperty({}, 'a', { get: function () { return 7; } }).a != 7;
+});
+
+
+/***/ }),
 /* 7 */
 /***/ (function(module, exports) {
 
@@ -281,7 +281,7 @@ module.exports = function (key) {
 /***/ (function(module, exports, __webpack_require__) {
 
 // optional / simple context binding
-var aFunction = __webpack_require__(40);
+var aFunction = __webpack_require__(28);
 module.exports = function (fn, that, length) {
   aFunction(fn);
   if (that === undefined) return fn;
@@ -317,7 +317,7 @@ module.exports = function (it) {
 /* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var store = __webpack_require__(50)('wks');
+var store = __webpack_require__(38)('wks');
 var uid = __webpack_require__(8);
 var Symbol = __webpack_require__(0).Symbol;
 var USE_SYMBOL = typeof Symbol == 'function';
@@ -334,8 +334,175 @@ $exports.store = store;
 /* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(13);
+"use strict";
 
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = exports.MAX_DELAY = undefined;
+exports.getMediaSource = getMediaSource;
+exports.isAndroid = isAndroid;
+exports.isSupportedMSE = isSupportedMSE;
+exports.base64ToArrayBuffer = base64ToArrayBuffer;
+exports.RawDataToUint8Array = RawDataToUint8Array;
+exports.getTrackId = getTrackId;
+exports.getRealUtcFromData = getRealUtcFromData;
+exports.doArrayBuffer = doArrayBuffer;
+exports.debugData = debugData;
+exports.pad2 = pad2;
+exports.humanTime = humanTime;
+
+var _parseurl = __webpack_require__(43);
+
+var _parseurl2 = _interopRequireDefault(_parseurl);
+
+var _events = __webpack_require__(2);
+
+var _events2 = _interopRequireDefault(_events);
+
+var _logger = __webpack_require__(3);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function getMediaSource() {
+  if (typeof window !== 'undefined') {
+    return window.MediaSource || window.WebKitMediaSource;
+  }
+}
+
+function isAndroid() {
+  var ua = navigator.userAgent;
+  return ua.indexOf('Android') !== -1;
+}
+
+function isSupportedMSE() {
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=539707
+  if (isAndroid()) {
+    return false;
+  }
+  var mediaSource = getMediaSource();
+  var sourceBuffer = window.SourceBuffer || window.WebKitSourceBuffer;
+  var isTypeSupported = mediaSource && typeof mediaSource.isTypeSupported === 'function' && mediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f,mp4a.40.2"');
+
+  // if SourceBuffer is exposed ensure its API is valid
+  // safari and old version of Chrome doe not expose SourceBuffer globally so checking SourceBuffer.prototype is impossible
+  var sourceBufferValidAPI = !sourceBuffer || sourceBuffer.prototype && typeof sourceBuffer.prototype.appendBuffer === 'function' && typeof sourceBuffer.prototype.remove === 'function';
+  return !!isTypeSupported && !!sourceBufferValidAPI;
+}
+
+function base64ToArrayBuffer(base64) {
+  return Uint8Array.from(atob(base64), function (c) {
+    return c.charCodeAt(0);
+  });
+}
+
+function RawDataToUint8Array(rawData) {
+  // 12,4 = mfhd;20,4 slice - segment.id;36,4 = tfhd;44,4 slice - track.id;64,4 = tfdt
+  // 72,8 slice - prestime;84,4 = futc;92,8 slice - real utc;104,4 = trun
+  var result = new Uint8Array(rawData);
+  return result;
+}
+function getTrackId(data) {
+  return data[47];
+}
+
+function getRealUtcFromData(view) {
+  var pts1 = view[92] << 24 | view[93] << 16 | view[94] << 8 | view[95];
+  var pts2 = view[96] << 24 | view[97] << 16 | view[98] << 8 | view[99];
+  var realUtc = pts1 + pts2 / 1000000;
+  return realUtc;
+}
+
+function doArrayBuffer() {
+  var segment = this.segments.shift();
+
+  if (!segment.isInit) {
+    // last loaded frame's utc
+    this.utc = getRealUtcFromData(segment.data);
+    this.lastLoadedUTC = this.utc;
+  }
+
+  this.maybeAppend(segment);
+}
+
+function debugData(rawData) {
+  var view = RawDataToUint8Array(rawData);
+  var trackId = getTrackId(view);
+  var utc = getRealUtcFromData(view);
+
+  return { trackId: trackId, utc: utc, view: view };
+}
+
+var ua = navigator.userAgent;
+var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua) ? 10 // very slow buffers in Edge
+: 2;
+
+var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media, player) {
+  var maxDelay = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : MAX_DELAY;
+  return function (evt) {
+    var ct = media.currentTime,
+        buffered = media.buffered,
+        l = media.buffered.length;
+
+
+    if (!l) {
+      return;
+    }
+
+    var endTime = buffered.end(l - 1);
+    var delay = Math.abs(endTime - ct);
+    if (player._stalling) {
+      player.onEndStalling();
+      // если поставелна пауза
+      if (media.paused && !player._pause && player.playing) {
+        media.currentTime = endTime - 0.0001;
+        media.play();
+      }
+    }
+
+    if (delay <= maxDelay) {
+      return;
+    }
+
+    _logger.logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime); //evt, )
+    media.currentTime = endTime - 0.2; // (Math.abs(ct - endTime)) //
+  };
+};
+
+var replaceHttpByWS = exports.replaceHttpByWS = function replaceHttpByWS(url) {
+  return url.replace(/^http/, 'ws');
+};
+
+var errorMsg = exports.errorMsg = function errorMsg(e) {
+  return 'Error ' + e.name + ': ' + e.message + '\n' + e.stack;
+};
+
+function pad2(n) {
+  return n <= 9 ? '0' + n : '' + n;
+}
+
+function humanTime(utcOrLive) {
+  var lt = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+
+  // $FlowFixMe: string > 0 is always false
+  if (!(utcOrLive > 0)) {
+    return '';
+  }
+
+  // $FlowFixMe: just for flow
+  var utc = utcOrLive;
+
+  var d = new Date();
+  d.setTime(utc * 1000);
+  var localTime = !(lt === false);
+
+  var h = localTime ? d.getHours() : d.getUTCHours();
+  var m = localTime ? d.getMinutes() : d.getUTCMinutes();
+  var s = localTime ? d.getSeconds() : d.getUTCSeconds();
+
+  return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
+}
 
 /***/ }),
 /* 13 */
@@ -347,8 +514,28 @@ module.exports = __webpack_require__(13);
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+var VIDEO = exports.VIDEO = 'video';
+var AUDIO = exports.AUDIO = 'audio';
 
-var _MsePlayer = __webpack_require__(14);
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__(15);
+
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _MsePlayer = __webpack_require__(16);
 
 var _MsePlayer2 = _interopRequireDefault(_MsePlayer);
 
@@ -358,7 +545,7 @@ exports.default = _MsePlayer2.default;
 module.exports = exports['default'];
 
 /***/ }),
-/* 14 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -370,45 +557,48 @@ Object.defineProperty(exports, "__esModule", {
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
-var _segments = __webpack_require__(15);
+__webpack_require__(17);
 
-var segmentsTypes = _interopRequireWildcard(_segments);
+var _ws = __webpack_require__(40);
 
-var _common = __webpack_require__(16);
+var _ws2 = _interopRequireDefault(_ws);
 
-var _events = __webpack_require__(5);
+var _buffers = __webpack_require__(42);
 
-var _events2 = _interopRequireDefault(_events);
+var _buffers2 = _interopRequireDefault(_buffers);
 
-var _messages = __webpack_require__(17);
-
-var _messages2 = _interopRequireDefault(_messages);
-
-var _mseUtils = __webpack_require__(18);
+var _mseUtils = __webpack_require__(12);
 
 var mseUtils = _interopRequireWildcard(_mseUtils);
 
-var _logger = __webpack_require__(6);
+var _logger = __webpack_require__(3);
 
-__webpack_require__(29);
+var _segments = __webpack_require__(52);
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+var _common = __webpack_require__(13);
+
+var _events = __webpack_require__(2);
+
+var _events2 = _interopRequireDefault(_events);
+
+var _messages = __webpack_require__(53);
+
+var _messages2 = _interopRequireDefault(_messages);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+// import MediaSourceController from '../controllers/mediaSource'
+
+var WS_EVENT_PAUSED = 'paused';
+var WS_EVENT_RESUMED = 'resumed';
+var WS_EVENT_SEEKED = 'seeked';
 var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
-
-var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
-
-var LIVE = 'live';
-var WS_COMMAND_SEEK_LIVE = '';
-var WS_COMMAND_SEEK = 'play_from=';
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
-
 var errorsCount = 0;
 
 var MSEPlayer = function () {
@@ -427,22 +617,21 @@ var MSEPlayer = function () {
    */
 
 
-  function MSEPlayer(media, urlStream, opts) {
+  function MSEPlayer(media, urlStream) {
+    var opts = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
     _classCallCheck(this, MSEPlayer);
 
-    if (opts.debug) {
+    this.opts = opts || {};
+    if (this.opts.debug) {
       (0, _logger.enableLogs)(true);
       window.humanTime = mseUtils.humanTime;
-    }
-
-    if (!(media instanceof HTMLMediaElement)) {
-      throw new Error(_messages2.default.NOT_HTML_MEDIA_ELEMENT);
     }
 
     this.media = media;
 
     this.url = urlStream;
-    this.opts = opts || {};
+
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
@@ -455,19 +644,25 @@ var MSEPlayer = function () {
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
 
-    this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this);
-    this.maybeAppend = this.maybeAppend.bind(this);
-
     this.init();
 
-    this.onAttachMedia({ media: media });
-    this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this);
+    if (media instanceof HTMLMediaElement) {
+      this.onAttachMedia({ media: media });
+    }
+
+    this.ws = new _ws2.default({
+      message: this.dispatchMessage.bind(this)
+    });
+
+    /*
+     * SourceBuffers Controller
+     */
+
+    this.sb = new _buffers2.default({ media: media });
   }
 
   MSEPlayer.prototype.play = function play(time, videoTrack, audioTack) {
-    if (this.opts.debug) {
-      _logger.logger.log('FlussonicMsePlayer: play()');
-    }
+    _logger.logger.log('[mse-player]: play()');
     return this._play(time, videoTrack, audioTack);
   };
 
@@ -480,34 +675,27 @@ var MSEPlayer = function () {
       if (!utc) {
         throw new Error('utc should be "live" or UTC value');
       }
-      var commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK;
-      _logger.logger.log('' + commandStr + utc);
-      this.websocket.send('' + commandStr + utc);
-
+      this.ws.seek(utc);
+      this.sb.seek();
+      this.onStartStalling();
       // need for determine old frames
       this.seekValue = utc;
-
-      for (var k in this.sourceBuffer) {
-        this.sourceBuffer[k].abort();
-        this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
-      }
-
-      this.segments = [];
+      this.media.pause();
     } catch (err) {
-      _logger.logger.warn('onMediaDetaching:' + err.message + ' while calling endOfStream');
+      _logger.logger.warn('seek:' + err.message);
     }
   };
 
   MSEPlayer.prototype.pause = function pause() {
-    if (this._pause || !this.media || !this.websocket || !this.mediaSource || this.mediaSource && this.mediaSource.readyState !== 'open' || !this.playPromise) {
-      return;
+    if (!canPause.bind(this)()) {
+      return _logger.logger.log('[dispatchMessage] can not do pause');
     }
 
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     this.playPromise.then(pause.bind(this));
     function pause() {
       this.media.pause();
-      this.websocket.send('pause');
+      this.ws.pause();
       this._pause = true;
       this.playing = false;
 
@@ -518,6 +706,13 @@ var MSEPlayer = function () {
           _logger.logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
         }
       }
+    }
+
+    function canPause() {
+      if (this._pause || !this.media || !this.ws || !this.mediaSource || this.mediaSource && this.mediaSource.readyState !== 'open' || !this.playPromise) {
+        return false;
+      }
+      return true;
     }
   };
 
@@ -547,7 +742,14 @@ var MSEPlayer = function () {
       return !!stream && stream.content === TYPE_CONTENT_AUDIO;
     }).join('');
 
-    return this._setTracks(videoTracksStr, audioTracksStr);
+    this.onStartStalling();
+    this.ws.setTracks(videoTracksStr, audioTracksStr);
+
+    this.videoTrack = videoTracksStr;
+    this.audioTrack = audioTracksStr;
+    // ?
+    this._setTracksFlag = true;
+    this.waitForInitFrame = true;
   };
 
   /**
@@ -556,13 +758,15 @@ var MSEPlayer = function () {
    *
    */
 
-  MSEPlayer.prototype._play = function _play(time, videoTrack, audioTack) {
+  MSEPlayer.prototype._play = function _play(from, videoTrack, audioTack) {
     var _this2 = this;
 
     return new Promise(function (resolve, reject) {
+      _this2.onStartStalling(); // switch off at progress checker
       if (_this2.playing) {
-        _logger.logger.log('_play: terminate because already has been playing');
-        return resolve();
+        var message = '[mse-player] _play: terminate because already has been playing';
+        _logger.logger.log(message);
+        return resolve({ message: message });
       }
 
       if (_this2._pause && !_this2.afterSeekFlag) {
@@ -574,17 +778,13 @@ var MSEPlayer = function () {
       // TODO: to observe this case, I have no idea when it fired
       if (!_this2.mediaSource) {
         _this2.onAttachMedia({ media: _this2.media });
-        _this2.onsoa = _this2._play.bind(_this2, time, videoTrack, audioTack);
+        _this2.onsoa = _this2._play.bind(_this2, from, videoTrack, audioTack);
         _this2.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this2.onsoa);
         _logger.logger.warn('mediaSource did not create');
         _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
         _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
         return;
       }
-
-      _this2.playTime = time;
-      _this2.videoTrack = videoTrack;
-      _this2.audioTack = audioTack;
 
       // deferring execution
       if (_this2.mediaSource && _this2.mediaSource.readyState !== 'open') {
@@ -595,26 +795,27 @@ var MSEPlayer = function () {
         return;
       }
 
+      _this2.playTime = from;
+      _this2.videoTrack = videoTrack;
+      _this2.audioTack = audioTack;
       _this2._pause = false;
-      _this2.playing = true;
 
-      var startWS = mseUtils.startWebSocket(_this2.url, time, videoTrack, audioTack);
-
-      startWS.bind(_this2)();
+      _this2.ws.start(_this2.url, _this2.playTime, _this2.videoTrack, _this2.audioTack);
 
       // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
       _this2.playPromise = _this2.media.play();
       _this2.startProgressTimer();
-      _this2.playing = true;
 
       _this2.playPromise.then(function () {
         if (_this2.resolveThenMediaSourceOpen) {
+          _this2.playing = true;
           _this2.resolveThenMediaSourceOpen();
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
         }
       }, function () {
         if (_this2.rejectThenMediaSourceOpen) {
+          _this2.playing = false;
           _this2.rejectThenMediaSourceOpen();
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
@@ -625,21 +826,10 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.init = function init() {
-    // start new implementation
-    this.segments = [];
-    this.sourceBuffer = {};
-    this.flushRange = [];
-    this.appended = 0;
-    this._missed = 0;
-    // end new inplementation
-
-    this._buffers = {};
-    this._queues = {};
+    this._pause = false;
     this.playing = false;
-
     // flag to pending execution(true)
     this.shouldPlay = false;
-
     // store to execute pended method play
     this.playTime = void 0;
     this.audioTack = '';
@@ -648,10 +838,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype._resume = function _resume() {
-    this.websocket.send('resume');
-    this.playPromise = this.media.play();
-    this._pause = false;
-    this.playing = true;
+    this.ws.resume();
   };
 
   MSEPlayer.prototype.onMediaDetaching = function onMediaDetaching() {
@@ -699,7 +886,7 @@ var MSEPlayer = function () {
     this.mediaSource = null;
 
     this.init();
-    this.destroyWebsocket();
+    this.ws.destroy();
 
     return mediaEmptyPromise;
   };
@@ -747,6 +934,9 @@ var MSEPlayer = function () {
 
     this.media = data.media;
     var media = this.media;
+    if (!(media instanceof HTMLMediaElement)) {
+      throw new Error(_messages2.default.NOT_HTML_MEDIA_ELEMENT);
+    }
     if (media) {
       // setup the media source
       var ms = this.mediaSource = new MediaSource();
@@ -760,7 +950,7 @@ var MSEPlayer = function () {
       // link video and media Source
       media.src = URL.createObjectURL(ms);
 
-      this.oncvp = mseUtils.checkVideoProgress(media).bind(this);
+      this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
       return new Promise(function (resolve) {
         _this4.onmso = _this4.onMediaSourceOpen.bind(_this4, resolve);
@@ -786,32 +976,54 @@ var MSEPlayer = function () {
     }
   };
 
-  MSEPlayer.prototype.destroyWebsocket = function destroyWebsocket() {
-    if (this.websocket) {
-      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsdm);
-      this.websocket.onclose = function () {}; // disable onclose handler first
-      this.websocket.close();
-      this.onwsdm = null;
-    }
-  };
-
-  MSEPlayer.prototype.onWebsocketOpen = function onWebsocketOpen() {
-    this.websocket.send('resume');
-    this.websocket.removeEventListener(_events2.default.WS_OPEN, this.onwso);
-  };
-
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
-    if (this.stopRunning || this._pause || !this.playing) {
+    if (this.stopRunning) {
       return;
     }
 
     var rawData = e.data;
     var isDataAB = rawData instanceof ArrayBuffer;
+    var parsedData = !isDataAB ? JSON.parse(rawData) : void 0;
 
     try {
-      // after seek can receive old frames, it should be filtered
-      if (this.isOldFrameAfterSeek(rawData)) {
+      if (!isDataAB && parsedData.type === _segments.EVENT_SEGMENT && parsedData[_segments.EVENT_SEGMENT] === WS_EVENT_RESUMED) {
+        _logger.logger.log('%cEvent ' + parsedData.event, 'background: purple;', parsedData);
+        if (this._pause && !this.playing) {
+          this._pause = false;
+          this.playing = true;
+          // wait for "progress" event, for shift currentTime and
+          // start playing
+          if (this.onStartStalling) {
+            this.onStartStalling();
+          }
+        }
         return;
+      }
+
+      if (!isDataAB && parsedData.type === _segments.EVENT_SEGMENT && parsedData[_segments.EVENT_SEGMENT] === WS_EVENT_PAUSED) {
+        _logger.logger.log('%cEvent ' + parsedData.event, 'background: purple;', parsedData);
+        return;
+      }
+
+      if (this._pause && isDataAB) {
+        count < 10 && _logger.logger.log('[dispatchMessage] frames after pause');
+        return;
+      }
+
+      if (!isDataAB && parsedData.type === _segments.EVENT_SEGMENT) {
+        _logger.logger.log('%cEvent ' + parsedData.event, 'background: purple;', parsedData);
+      }
+
+      if (this.seekValue && parsedData && parsedData.type === _segments.EVENT_SEGMENT && parsedData[_segments.EVENT_SEGMENT] === WS_EVENT_SEEKED) {
+        this.seekValue = void 0;
+        _logger.logger.log('event:seeked receive');
+        if (this.opts.onSeeked) {
+          try {
+            this.opts.onSeeked();
+          } catch (err) {
+            _logger.logger.error(err);
+          }
+        }
       }
 
       // wait for MSE_INIT_SEGMENT
@@ -820,16 +1032,15 @@ var MSEPlayer = function () {
       }
 
       // MSE_INIT_SEGMENT
-      if (!isDataAB) {
+      if (!isDataAB && parsedData.type === _segments.MSE_INIT_SEGMENT) {
+        _logger.logger.log('%c' + _segments.MSE_INIT_SEGMENT, 'background: aqua;', parsedData);
         this.procInitSegment(rawData);
         return;
       }
 
       // ArrayBuffer data
       if (isDataAB) {
-        var segment = this.rawDataToSegmnet(rawData);
-        this.segments.push(segment);
-        this.doArrayBuffer();
+        this.sb.procArrayBuffer(rawData);
       }
     } catch (err) {
       _logger.logger.error(mseUtils.errorMsg(e), err);
@@ -853,55 +1064,17 @@ var MSEPlayer = function () {
     }
   };
 
-  MSEPlayer.prototype.isOldFrameAfterSeek = function isOldFrameAfterSeek(rawData) {
-    if (this.seekValue) {
-      var cUtc = 0;
-      var isDataAB = rawData instanceof ArrayBuffer;
-      if (isDataAB) {
-        cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData));
-      } else {
-        _logger.logger.log('not Array buffer');
-      }
-
-      if (Math.abs(cUtc - this.seekValue) > 20) {
-        _logger.logger.warn('skip old frame', mseUtils.humanTime(cUtc), mseUtils.humanTime(this.seekValue), cUtc, this.seekValue, cUtc - this.seekValue);
-        return true;
-      } else {
-        this.seekNormCount = this.seekNormCount ? this.seekNormCount + 1 : 1;
-      }
-
-      if (this.seekNormCount > 10) {
-        this.seekValue = void 0;
-        this.seekNormCount = 0;
-      }
-    }
-    return false;
-  };
-
-  MSEPlayer.prototype.rawDataToSegmnet = function rawDataToSegmnet(rawData) {
-    var view = mseUtils.RawDataToUint8Array(rawData);
-    var trackId = mseUtils.getTrackId(view);
-    var trackType = this.getTypeBytrackId(trackId);
-    return { type: trackType, data: view };
-  };
-
-  MSEPlayer.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
-    return this.audioTrackId === id ? _common.AUDIO : _common.VIDEO;
-  };
-
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
-    var _this5 = this;
-
     var data = JSON.parse(rawData);
-    if (data.type !== segmentsTypes.MSE_INIT_SEGMENT) {
-      return _logger.logger.warn('type is not MSE_INIT_SEGMENT');
+    if (data.type !== _segments.MSE_INIT_SEGMENT) {
+      return _logger.logger.warn('type is not ' + _segments.MSE_INIT_SEGMENT);
     }
 
     if (this.waitForInitFrame) {
       this.waitForInitFrame = false;
     }
 
-    if (this.isBuffered()) {
+    if (this.sb.isBuffered()) {
       this.media.pause();
       this.previouslyPaused = false;
       this._setTracksFlag = true;
@@ -909,43 +1082,829 @@ var MSEPlayer = function () {
       var startOffset = 0;
       var endOffset = Infinity;
       // TODO: should invoke remove method of SourceBuffer's
-      this.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
+      this.sb.flushRange.push({ start: startOffset, end: endOffset, type: void 0 });
       // attempt flush immediately
-      this.flushBufferCounter = 0;
-      this.doFlush();
+      this.sb.flushBufferCounter = 0;
+      this.sb.doFlush();
     }
 
     // calc this.audioTrackId this.videoTrackId
-    this.setTracksByType(data);
+    this.sb.setTracksByType(data);
 
     var metadata = data.metadata;
     var streams = data.metadata.streams;
 
     var activeStreams = {
-      video: streams[this.videoTrackId - 1]['track_id'],
-      audio: streams[this.audioTrackId - 1]['track_id']
+      video: streams[this.sb.videoTrackId - 1]['track_id'],
+      audio: streams[this.sb.audioTrackId - 1]['track_id']
     };
 
     this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams }));
     _logger.logger.log(data);
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
-      this.createSourceBuffers(data);
+      this.sb.setMediaSource(this.mediaSource);
+      this.sb.createSourceBuffers(data);
     }
+    this.sb.createTracks(data.tracks);
+  };
 
-    // TODO: describe cases
-    data.tracks.forEach(function (track) {
-      var view = mseUtils.base64ToArrayBuffer(track.payload);
-      var segment = {
-        type: _this5.getTypeBytrackId(track.id),
-        isInit: true,
-        data: view
-      };
-      _this5.maybeAppend(segment);
+  MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
+    _logger.logger.log(metadata);
+    if (this.onMediaInfo) {
+      this.mediaInfo = metadata;
+      try {
+        this.onMediaInfo(metadata);
+      } catch (e) {
+        _logger.logger.error(mseUtils.errorMsg(e));
+      }
+    }
+  };
+
+  MSEPlayer.prototype.getVideoTracks = function getVideoTracks() {
+    if (!this.mediaInfo) {
+      return;
+    }
+    return this.mediaInfo.streams.filter(function (s) {
+      return s.content === TYPE_CONTENT_VIDEO;
     });
   };
 
-  MSEPlayer.prototype.isBuffered = function isBuffered() {
+  MSEPlayer.prototype.getAudioTracks = function getAudioTracks() {
+    if (!this.mediaInfo) {
+      return;
+    }
+    return this.mediaInfo.streams.filter(function (s) {
+      return s.content === TYPE_CONTENT_AUDIO;
+    });
+  };
+
+  /**
+   * on immediate level switch end, after new fragment has been buffered:
+   * - nudge video decoder by slightly adjusting video currentTime (if currentTime buffered)
+   * - resume the playback if needed
+   */
+
+
+  MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
+    var media = this.media;
+    if (media && media.buffered.length) {
+      this.immediateSwitch = false;
+      // if (BufferHelper.isBuffered(media, media.currentTime)) {
+      // only nudge if currentTime is buffered
+      // media.currentTime -= 0.0001;
+      // }
+      if (!this.previouslyPaused) {
+        media.play();
+      }
+    }
+  };
+
+  MSEPlayer.prototype.onStartStalling = function onStartStalling() {
+    if (this.opts.onStartStalling) {
+      this.opts.onStartStalling();
+    }
+    this._stalling = true;
+    _logger.logger.log('[dispatchMessage] onStartStalling');
+  };
+
+  MSEPlayer.prototype.onEndStalling = function onEndStalling() {
+    if (this.opts.onEndStalling) {
+      this.opts.onEndStalling();
+    }
+    this._stalling = false;
+    _logger.logger.log('[dispatchMessage] onEndStalling');
+  };
+
+  MSEPlayer.prototype.startProgressTimer = function startProgressTimer() {
+    this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime);
+  };
+
+  MSEPlayer.prototype.endProgressTimer = function endProgressTimer() {
+    clearInterval(this.timer);
+    this.timer = void 0;
+  };
+
+  MSEPlayer.prototype.onTimer = function onTimer() {
+    if (!this.playing && this._pause) {
+      _logger.logger.log('[dispatchMessage] onTimer');
+    }
+
+    // #TODO explain
+    if (this.immediateSwitch) {
+      this.immediateLevelSwitchEnd();
+    }
+
+    if (this.sb.lastLoadedUTC === this.utcPrev) {
+      _logger.logger.log('%c!!!!', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling);
+      return;
+    }
+
+    if (this._stalling) {
+      _logger.logger.log('%c[dispatchMessage] •••Stalling•••', 'background: lightred;');
+      return;
+    }
+
+    this.utcPrev = this.sb.lastLoadedUTC;
+
+    if (!this.onProgress) {
+      return;
+    }
+    try {
+      this.onProgress(this.sb.lastLoadedUTC);
+    } catch (e) {
+      _logger.logger.error(mseUtils.errorMsg(e));
+    }
+  };
+
+  MSEPlayer.prototype.onMediaSourceEnded = function onMediaSourceEnded() {
+    _logger.logger.log('media source ended');
+  };
+
+  MSEPlayer.prototype.onMediaSourceClose = function onMediaSourceClose() {
+    _logger.logger.log('media source closed');
+  };
+
+  return MSEPlayer;
+}();
+
+exports.default = MSEPlayer;
+module.exports = exports['default'];
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(18);
+module.exports = __webpack_require__(4).Array.find;
+
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+// 22.1.3.8 Array.prototype.find(predicate, thisArg = undefined)
+var $export = __webpack_require__(19);
+var $find = __webpack_require__(29)(5);
+var KEY = 'find';
+var forced = true;
+// Shouldn't skip holes
+if (KEY in []) Array(1)[KEY](function () { forced = false; });
+$export($export.P + $export.F * forced, 'Array', {
+  find: function find(callbackfn /* , that = undefined */) {
+    return $find(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
+  }
+});
+__webpack_require__(39)(KEY);
+
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var global = __webpack_require__(0);
+var core = __webpack_require__(4);
+var hide = __webpack_require__(5);
+var redefine = __webpack_require__(26);
+var ctx = __webpack_require__(9);
+var PROTOTYPE = 'prototype';
+
+var $export = function (type, name, source) {
+  var IS_FORCED = type & $export.F;
+  var IS_GLOBAL = type & $export.G;
+  var IS_STATIC = type & $export.S;
+  var IS_PROTO = type & $export.P;
+  var IS_BIND = type & $export.B;
+  var target = IS_GLOBAL ? global : IS_STATIC ? global[name] || (global[name] = {}) : (global[name] || {})[PROTOTYPE];
+  var exports = IS_GLOBAL ? core : core[name] || (core[name] = {});
+  var expProto = exports[PROTOTYPE] || (exports[PROTOTYPE] = {});
+  var key, own, out, exp;
+  if (IS_GLOBAL) source = name;
+  for (key in source) {
+    // contains in native
+    own = !IS_FORCED && target && target[key] !== undefined;
+    // export native or passed
+    out = (own ? target : source)[key];
+    // bind timers to global for call from export context
+    exp = IS_BIND && own ? ctx(out, global) : IS_PROTO && typeof out == 'function' ? ctx(Function.call, out) : out;
+    // extend global
+    if (target) redefine(target, key, out, type & $export.U);
+    // export
+    if (exports[key] != out) hide(exports, key, exp);
+    if (IS_PROTO && expProto[key] != out) expProto[key] = out;
+  }
+};
+global.core = core;
+// type bitmap
+$export.F = 1;   // forced
+$export.G = 2;   // global
+$export.S = 4;   // static
+$export.P = 8;   // proto
+$export.B = 16;  // bind
+$export.W = 32;  // wrap
+$export.U = 64;  // safe
+$export.R = 128; // real proto method for `library`
+module.exports = $export;
+
+
+/***/ }),
+/* 20 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var anObject = __webpack_require__(21);
+var IE8_DOM_DEFINE = __webpack_require__(22);
+var toPrimitive = __webpack_require__(24);
+var dP = Object.defineProperty;
+
+exports.f = __webpack_require__(6) ? Object.defineProperty : function defineProperty(O, P, Attributes) {
+  anObject(O);
+  P = toPrimitive(P, true);
+  anObject(Attributes);
+  if (IE8_DOM_DEFINE) try {
+    return dP(O, P, Attributes);
+  } catch (e) { /* empty */ }
+  if ('get' in Attributes || 'set' in Attributes) throw TypeError('Accessors not supported!');
+  if ('value' in Attributes) O[P] = Attributes.value;
+  return O;
+};
+
+
+/***/ }),
+/* 21 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var isObject = __webpack_require__(1);
+module.exports = function (it) {
+  if (!isObject(it)) throw TypeError(it + ' is not an object!');
+  return it;
+};
+
+
+/***/ }),
+/* 22 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = !__webpack_require__(6) && !__webpack_require__(7)(function () {
+  return Object.defineProperty(__webpack_require__(23)('div'), 'a', { get: function () { return 7; } }).a != 7;
+});
+
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var isObject = __webpack_require__(1);
+var document = __webpack_require__(0).document;
+// typeof document.createElement is 'object' in old IE
+var is = isObject(document) && isObject(document.createElement);
+module.exports = function (it) {
+  return is ? document.createElement(it) : {};
+};
+
+
+/***/ }),
+/* 24 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 7.1.1 ToPrimitive(input [, PreferredType])
+var isObject = __webpack_require__(1);
+// instead of the ES6 spec version, we didn't implement @@toPrimitive case
+// and the second argument - flag - preferred type is a string
+module.exports = function (it, S) {
+  if (!isObject(it)) return it;
+  var fn, val;
+  if (S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it))) return val;
+  if (typeof (fn = it.valueOf) == 'function' && !isObject(val = fn.call(it))) return val;
+  if (!S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it))) return val;
+  throw TypeError("Can't convert object to primitive value");
+};
+
+
+/***/ }),
+/* 25 */
+/***/ (function(module, exports) {
+
+module.exports = function (bitmap, value) {
+  return {
+    enumerable: !(bitmap & 1),
+    configurable: !(bitmap & 2),
+    writable: !(bitmap & 4),
+    value: value
+  };
+};
+
+
+/***/ }),
+/* 26 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var global = __webpack_require__(0);
+var hide = __webpack_require__(5);
+var has = __webpack_require__(27);
+var SRC = __webpack_require__(8)('src');
+var TO_STRING = 'toString';
+var $toString = Function[TO_STRING];
+var TPL = ('' + $toString).split(TO_STRING);
+
+__webpack_require__(4).inspectSource = function (it) {
+  return $toString.call(it);
+};
+
+(module.exports = function (O, key, val, safe) {
+  var isFunction = typeof val == 'function';
+  if (isFunction) has(val, 'name') || hide(val, 'name', key);
+  if (O[key] === val) return;
+  if (isFunction) has(val, SRC) || hide(val, SRC, O[key] ? '' + O[key] : TPL.join(String(key)));
+  if (O === global) {
+    O[key] = val;
+  } else if (!safe) {
+    delete O[key];
+    hide(O, key, val);
+  } else if (O[key]) {
+    O[key] = val;
+  } else {
+    hide(O, key, val);
+  }
+// add fake Function#toString for correct work wrapped methods / constructors with methods like LoDash isNative
+})(Function.prototype, TO_STRING, function toString() {
+  return typeof this == 'function' && this[SRC] || $toString.call(this);
+});
+
+
+/***/ }),
+/* 27 */
+/***/ (function(module, exports) {
+
+var hasOwnProperty = {}.hasOwnProperty;
+module.exports = function (it, key) {
+  return hasOwnProperty.call(it, key);
+};
+
+
+/***/ }),
+/* 28 */
+/***/ (function(module, exports) {
+
+module.exports = function (it) {
+  if (typeof it != 'function') throw TypeError(it + ' is not a function!');
+  return it;
+};
+
+
+/***/ }),
+/* 29 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 0 -> Array#forEach
+// 1 -> Array#map
+// 2 -> Array#filter
+// 3 -> Array#some
+// 4 -> Array#every
+// 5 -> Array#find
+// 6 -> Array#findIndex
+var ctx = __webpack_require__(9);
+var IObject = __webpack_require__(30);
+var toObject = __webpack_require__(31);
+var toLength = __webpack_require__(33);
+var asc = __webpack_require__(35);
+module.exports = function (TYPE, $create) {
+  var IS_MAP = TYPE == 1;
+  var IS_FILTER = TYPE == 2;
+  var IS_SOME = TYPE == 3;
+  var IS_EVERY = TYPE == 4;
+  var IS_FIND_INDEX = TYPE == 6;
+  var NO_HOLES = TYPE == 5 || IS_FIND_INDEX;
+  var create = $create || asc;
+  return function ($this, callbackfn, that) {
+    var O = toObject($this);
+    var self = IObject(O);
+    var f = ctx(callbackfn, that, 3);
+    var length = toLength(self.length);
+    var index = 0;
+    var result = IS_MAP ? create($this, length) : IS_FILTER ? create($this, 0) : undefined;
+    var val, res;
+    for (;length > index; index++) if (NO_HOLES || index in self) {
+      val = self[index];
+      res = f(val, index, O);
+      if (TYPE) {
+        if (IS_MAP) result[index] = res;   // map
+        else if (res) switch (TYPE) {
+          case 3: return true;             // some
+          case 5: return val;              // find
+          case 6: return index;            // findIndex
+          case 2: result.push(val);        // filter
+        } else if (IS_EVERY) return false; // every
+      }
+    }
+    return IS_FIND_INDEX ? -1 : IS_SOME || IS_EVERY ? IS_EVERY : result;
+  };
+};
+
+
+/***/ }),
+/* 30 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// fallback for non-array-like ES3 and non-enumerable old V8 strings
+var cof = __webpack_require__(10);
+// eslint-disable-next-line no-prototype-builtins
+module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
+  return cof(it) == 'String' ? it.split('') : Object(it);
+};
+
+
+/***/ }),
+/* 31 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 7.1.13 ToObject(argument)
+var defined = __webpack_require__(32);
+module.exports = function (it) {
+  return Object(defined(it));
+};
+
+
+/***/ }),
+/* 32 */
+/***/ (function(module, exports) {
+
+// 7.2.1 RequireObjectCoercible(argument)
+module.exports = function (it) {
+  if (it == undefined) throw TypeError("Can't call method on  " + it);
+  return it;
+};
+
+
+/***/ }),
+/* 33 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 7.1.15 ToLength
+var toInteger = __webpack_require__(34);
+var min = Math.min;
+module.exports = function (it) {
+  return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
+};
+
+
+/***/ }),
+/* 34 */
+/***/ (function(module, exports) {
+
+// 7.1.4 ToInteger
+var ceil = Math.ceil;
+var floor = Math.floor;
+module.exports = function (it) {
+  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
+};
+
+
+/***/ }),
+/* 35 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 9.4.2.3 ArraySpeciesCreate(originalArray, length)
+var speciesConstructor = __webpack_require__(36);
+
+module.exports = function (original, length) {
+  return new (speciesConstructor(original))(length);
+};
+
+
+/***/ }),
+/* 36 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var isObject = __webpack_require__(1);
+var isArray = __webpack_require__(37);
+var SPECIES = __webpack_require__(11)('species');
+
+module.exports = function (original) {
+  var C;
+  if (isArray(original)) {
+    C = original.constructor;
+    // cross-realm fallback
+    if (typeof C == 'function' && (C === Array || isArray(C.prototype))) C = undefined;
+    if (isObject(C)) {
+      C = C[SPECIES];
+      if (C === null) C = undefined;
+    }
+  } return C === undefined ? Array : C;
+};
+
+
+/***/ }),
+/* 37 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 7.2.2 IsArray(argument)
+var cof = __webpack_require__(10);
+module.exports = Array.isArray || function isArray(arg) {
+  return cof(arg) == 'Array';
+};
+
+
+/***/ }),
+/* 38 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var global = __webpack_require__(0);
+var SHARED = '__core-js_shared__';
+var store = global[SHARED] || (global[SHARED] = {});
+module.exports = function (key) {
+  return store[key] || (store[key] = {});
+};
+
+
+/***/ }),
+/* 39 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// 22.1.3.31 Array.prototype[@@unscopables]
+var UNSCOPABLES = __webpack_require__(11)('unscopables');
+var ArrayProto = Array.prototype;
+if (ArrayProto[UNSCOPABLES] == undefined) __webpack_require__(5)(ArrayProto, UNSCOPABLES, {});
+module.exports = function (key) {
+  ArrayProto[UNSCOPABLES][key] = true;
+};
+
+
+/***/ }),
+/* 40 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.getWSURL = getWSURL;
+
+var _events = __webpack_require__(2);
+
+var _events2 = _interopRequireDefault(_events);
+
+var _logger = __webpack_require__(3);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var WS_COMMAND_SEEK_LIVE = '';
+var WS_COMMAND_SEEK = 'play_from=';
+var LIVE = 'live';
+
+var WS1 = function () {
+  function WS1(opts) {
+    _classCallCheck(this, WS1);
+
+    this.opts = opts;
+    this.onwso = this.open.bind(this);
+  }
+
+  WS1.prototype.start = function start(url, time) {
+    var videoTrack = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
+    var audioTack = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
+
+    var wsURL = getWSURL(url, time, videoTrack, audioTack);
+
+    this.websocket = new WebSocket(wsURL);
+    this.websocket.binaryType = 'arraybuffer';
+    // do that for remove event method
+    this.websocket.addEventListener(_events2.default.WS_OPEN, this.onwso);
+    this.websocket.addEventListener(_events2.default.WS_MESSAGE, this.opts.message);
+  };
+
+  WS1.prototype.open = function open() {
+    this.resume();
+    this.websocket.removeEventListener(_events2.default.WS_OPEN, this.onwso);
+  };
+
+  WS1.prototype.send = function send(cmd) {
+    this.websocket.send(cmd);
+  };
+
+  WS1.prototype.resume = function resume() {
+    this.websocket.send('resume');
+  };
+
+  WS1.prototype.pause = function pause() {
+    this.websocket.send('pause');
+  };
+
+  WS1.prototype.seek = function seek(utc) {
+    var commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK;
+    _logger.logger.log('' + commandStr + utc);
+    this.websocket.send('' + commandStr + utc);
+    debugger;
+  };
+
+  WS1.prototype.setTracks = function setTracks(videoTrack, audioTrack) {
+    this.websocket.send('set_tracks=' + videoTrack + audioTrack);
+  };
+
+  WS1.prototype.destroy = function destroy() {
+    if (this.websocket) {
+      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsdm);
+      this.websocket.onclose = function () {}; // disable onclose handler first
+      this.websocket.close();
+      this.onwsdm = null;
+    }
+  };
+
+  return WS1;
+}();
+
+// TODO
+
+
+exports.default = WS1;
+function getWSURL(url, utc, videoTrack, audioTrack) {
+  // TODO: then use @param time it prevent to wrong data from ws(trackID view[47] for example is 100)
+  var time = utc;
+
+  if (!time && !videoTrack && !audioTrack) {
+    return url;
+  }
+
+  var parsedUrl = parseUrl({ url: url });
+  var othersParams = '';
+
+  if (parsedUrl.query) {
+    var currentParamsKeysValues = parsedUrl.query.split('&').map(function (keyValue) {
+      return keyValue.split('=');
+    });
+
+    othersParams = currentParamsKeysValues.filter(function (p) {
+      return p[0] !== 'from' && p[0] !== 'tracks';
+    }).map(function (kv) {
+      return kv.join('=');
+    }).join('&');
+
+    _logger.logger.log(othersParams);
+  }
+
+  var cleanUrl = parsedUrl.protocol + '//' + parsedUrl.host + parsedUrl.pathname + '?';
+  var tracksExists = !!videoTrack || !!audioTrack;
+
+  var resultUrl = '' + cleanUrl + (tracksExists ? 'tracks=' + videoTrack + audioTrack : '') + ('' + (tracksExists && !!time ? '&' : '') + (!!time ? 'from=' + Math.floor(time) : '')) + ('' + ((tracksExists || !!time) && !!othersParams ? '&' : '') + othersParams);
+  return resultUrl;
+}
+
+/***/ }),
+/* 41 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.getSelfScope = getSelfScope;
+function getSelfScope() {
+  // see https://stackoverflow.com/a/11237259/589493
+  if (typeof window === 'undefined') {
+    /* eslint-disable-next-line no-undef */
+    return self;
+  } else {
+    return window;
+  }
+}
+
+/***/ }),
+/* 42 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _mseUtils = __webpack_require__(12);
+
+var _logger = __webpack_require__(3);
+
+var _common = __webpack_require__(13);
+
+var _events = __webpack_require__(2);
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
+
+var BuffersController = function () {
+  function BuffersController() {
+    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    _classCallCheck(this, BuffersController);
+
+    _logger.logger.log('create BuffersController');
+    this.flushRange = [];
+    this.appended = 0;
+    this.media = opts.media;
+    this.mediaSource = opts.mediaSource;
+    this.segments = [];
+    this.sourceBuffer = {};
+
+    this.doArrayBuffer = _mseUtils.doArrayBuffer.bind(this);
+    this.maybeAppend = this.maybeAppend.bind(this);
+    this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this);
+  }
+
+  BuffersController.prototype.setMediaSource = function setMediaSource(ms) {
+    this.mediaSource = ms;
+  };
+
+  BuffersController.prototype.createSourceBuffers = function createSourceBuffers(data) {
+    var _this = this;
+
+    var sb = this.sourceBuffer;
+
+    data.tracks.forEach(function (s) {
+      var isVideo = s.content === _common.VIDEO;
+      var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+
+      sb[s.content] = _this.mediaSource.addSourceBuffer(mimeType);
+      var buffer = sb[s.content];
+
+      buffer.addEventListener(_events.BUFFER_UPDATE_END, _this.onSBUpdateEnd);
+    });
+  };
+
+  BuffersController.prototype.onSBUpdateEnd = function onSBUpdateEnd() {
+    if (this._needsFlush) {
+      this.doFlush();
+    }
+    if (!this._needsFlush && this.segments.length) {
+      this.doArrayBuffer();
+    }
+  };
+
+  BuffersController.prototype.createTracks = function createTracks(tracks) {
+    var _this2 = this;
+
+    tracks.forEach(function (track) {
+      var view = (0, _mseUtils.base64ToArrayBuffer)(track.payload);
+      var segment = {
+        type: _this2.getTypeBytrackId(track.id),
+        isInit: true,
+        data: view
+      };
+      _this2.maybeAppend(segment);
+    });
+  };
+
+  BuffersController.prototype.maybeAppend = function maybeAppend(segment) {
+
+    if (this._needsFlush) {
+      this.segments.unshift(segment);
+      return;
+    }
+
+    var buffer = this.sourceBuffer[segment.type];
+
+    if (buffer.updating) {
+      this.segments.unshift(segment);
+    } else {
+      buffer.appendBuffer(segment.data);
+      this.appended++;
+    }
+  };
+
+  BuffersController.prototype.setTracksByType = function setTracksByType(data) {
+    var _this3 = this;
+
+    data.tracks.forEach(function (s) {
+      _this3[s.content === _common.VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id;
+    });
+  };
+
+  BuffersController.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
+    return this.audioTrackId === id ? _common.AUDIO : _common.VIDEO;
+  };
+
+  BuffersController.prototype.procArrayBuffer = function procArrayBuffer(rawData) {
+    var segment = this.rawDataToSegmnet(rawData);
+    this.segments.push(segment);
+    this.doArrayBuffer();
+  };
+
+  BuffersController.prototype.seek = function seek() {
+    for (var k in this.sourceBuffer) {
+      this.sourceBuffer[k].abort();
+      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
+    }
+
+    this.segments = [];
+  };
+
+  BuffersController.prototype.isBuffered = function isBuffered() {
     var appended = 0;
     var sourceBuffer = this.sourceBuffer;
     for (var type in sourceBuffer) {
@@ -954,7 +1913,7 @@ var MSEPlayer = function () {
     return appended > 0;
   };
 
-  MSEPlayer.prototype.doFlush = function doFlush() {
+  BuffersController.prototype.doFlush = function doFlush() {
     // loop through all buffer ranges to flush
     while (this.flushRange.length) {
       var range = this.flushRange[0];
@@ -997,7 +1956,7 @@ var MSEPlayer = function () {
   */
 
 
-  MSEPlayer.prototype.flushBuffer = function flushBuffer(startOffset, endOffset, typeIn) {
+  BuffersController.prototype.flushBuffer = function flushBuffer(startOffset, endOffset, typeIn) {
     var sb = void 0,
         i = void 0,
         bufStart = void 0,
@@ -1064,430 +2023,21 @@ var MSEPlayer = function () {
     return true;
   };
 
-  MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
-    _logger.logger.log(metadata);
-    if (this.onMediaInfo) {
-      this.mediaInfo = metadata;
-      try {
-        this.onMediaInfo(metadata);
-      } catch (e) {
-        _logger.logger.error(mseUtils.errorMsg(e));
-      }
-    }
+  BuffersController.prototype.rawDataToSegmnet = function rawDataToSegmnet(rawData) {
+    var view = (0, _mseUtils.RawDataToUint8Array)(rawData);
+    var trackId = (0, _mseUtils.getTrackId)(view);
+    var trackType = this.getTypeBytrackId(trackId);
+    return { type: trackType, data: view };
   };
 
-  MSEPlayer.prototype.getVideoTracks = function getVideoTracks() {
-    if (!this.mediaInfo) {
-      return;
-    }
-    return this.mediaInfo.streams.filter(function (s) {
-      return s.content === TYPE_CONTENT_VIDEO;
-    });
-  };
-
-  MSEPlayer.prototype.getAudioTracks = function getAudioTracks() {
-    if (!this.mediaInfo) {
-      return;
-    }
-    return this.mediaInfo.streams.filter(function (s) {
-      return s.content === TYPE_CONTENT_AUDIO;
-    });
-  };
-
-  MSEPlayer.prototype.maybeAppend = function maybeAppend(segment) {
-
-    if (this._needsFlush) {
-      this.segments.unshift(segment);
-      return;
-    }
-
-    var buffer = this.sourceBuffer[segment.type];
-
-    if (buffer.updating) {
-      this.segments.unshift(segment);
-    } else {
-      buffer.appendBuffer(segment.data);
-      this.appended++;
-      // TODO: find where switch off
-      this.appending = true;
-    }
-  };
-
-  MSEPlayer.prototype.startProgressTimer = function startProgressTimer() {
-    this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime);
-  };
-
-  /**
-   * on immediate level switch end, after new fragment has been buffered:
-   * - nudge video decoder by slightly adjusting video currentTime (if currentTime buffered)
-   * - resume the playback if needed
-   */
-
-
-  MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var media = this.media;
-    if (media && media.buffered.length) {
-      this.immediateSwitch = false;
-      // if (BufferHelper.isBuffered(media, media.currentTime)) {
-      // only nudge if currentTime is buffered
-      // media.currentTime -= 0.0001;
-      // }
-      if (!this.previouslyPaused) {
-        media.play();
-      }
-    }
-  };
-
-  MSEPlayer.prototype.endProgressTimer = function endProgressTimer() {
-    clearInterval(this.timer);
-    this.timer = void 0;
-  };
-
-  MSEPlayer.prototype.onTimer = function onTimer() {
-    // #TODO explain
-    if (this.immediateSwitch) {
-      this.immediateLevelSwitchEnd();
-    }
-
-    if (!(this.utc && this.utc != this.utcPrev)) {
-      return;
-    }
-
-    this.utcPrev = this.utc;
-
-    if (!this.onProgress) {
-      return;
-    }
-    try {
-      this.onProgress(this.utc);
-    } catch (e) {
-      _logger.logger.error(mseUtils.errorMsg(e));
-    }
-  };
-
-  MSEPlayer.prototype.onMediaSourceEnded = function onMediaSourceEnded() {
-    _logger.logger.log('media source ended');
-  };
-
-  MSEPlayer.prototype.onMediaSourceClose = function onMediaSourceClose() {
-    _logger.logger.log('media source closed');
-  };
-
-  MSEPlayer.prototype.setTracksByType = function setTracksByType(data) {
-    var _this6 = this;
-
-    data.tracks.forEach(function (s) {
-      var isVideo = s.content === _common.VIDEO;
-      var id = s.id;
-
-      if (!isVideo) {
-        _this6.audioTrackId = id;
-      } else {
-        _this6.videoTrackId = id;
-      }
-    });
-  };
-
-  MSEPlayer.prototype.createSourceBuffers = function createSourceBuffers(data) {
-    var _this7 = this;
-
-    var sourceBuffer = this.sourceBuffer;
-
-    data.tracks.forEach(function (s) {
-      var isVideo = s.content === _common.VIDEO;
-      var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
-
-      var id = s.id;
-
-      sourceBuffer[s.content] = _this7.mediaSource.addSourceBuffer(mimeType);
-      var buffer = sourceBuffer[s.content];
-
-      buffer.addEventListener(_events2.default.BUFFER_UPDATE_END, _this7.onSBUpdateEnd);
-    });
-  };
-
-  MSEPlayer.prototype.onSBUpdateEnd = function onSBUpdateEnd() {
-    if (this._needsFlush) {
-      this.doFlush();
-    }
-    if (!this._needsFlush && this.segments.length) {
-      this.doArrayBuffer();
-    }
-  };
-
-  MSEPlayer.prototype._setTracks = function _setTracks(videoTrack, audioTrack) {
-    this.websocket.send('set_tracks=' + videoTrack + audioTrack);
-    this._setTracksFlag = true;
-    this.waitForInitFrame = true;
-  };
-
-  return MSEPlayer;
+  return BuffersController;
 }();
 
-exports.default = MSEPlayer;
+exports.default = BuffersController;
 module.exports = exports['default'];
 
 /***/ }),
-/* 15 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-var MSE_INIT_SEGMENT = exports.MSE_INIT_SEGMENT = 'mse_init_segment';
-var MSE_MEDIA_SEGMENT = exports.MSE_MEDIA_SEGMENT = 'mse_media_segment';
-
-/***/ }),
-/* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-var VIDEO = exports.VIDEO = 'video';
-var AUDIO = exports.AUDIO = 'audio';
-
-/***/ }),
-/* 17 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-var MSG = {
-  NOT_HTML_MEDIA_ELEMENT: 'media should be an HTMLMediaElement instance'
-};
-
-exports.default = MSG;
-module.exports = exports['default'];
-
-/***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = exports.MAX_DELAY = undefined;
-exports.getMediaSource = getMediaSource;
-exports.isAndroid = isAndroid;
-exports.isSupportedMSE = isSupportedMSE;
-exports.base64ToArrayBuffer = base64ToArrayBuffer;
-exports.RawDataToUint8Array = RawDataToUint8Array;
-exports.getTrackId = getTrackId;
-exports.getRealUtcFromData = getRealUtcFromData;
-exports.doArrayBuffer = doArrayBuffer;
-exports.debugData = debugData;
-exports.getWSURL = getWSURL;
-exports.startWebSocket = startWebSocket;
-exports.pad2 = pad2;
-exports.humanTime = humanTime;
-
-var _parseurl = __webpack_require__(19);
-
-var _parseurl2 = _interopRequireDefault(_parseurl);
-
-var _events = __webpack_require__(5);
-
-var _events2 = _interopRequireDefault(_events);
-
-var _logger = __webpack_require__(6);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function getMediaSource() {
-  if (typeof window !== 'undefined') {
-    return window.MediaSource || window.WebKitMediaSource;
-  }
-}
-
-function isAndroid() {
-  var ua = navigator.userAgent;
-  return ua.indexOf('Android') !== -1;
-}
-
-function isSupportedMSE() {
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=539707
-  if (isAndroid()) {
-    return false;
-  }
-  var mediaSource = getMediaSource();
-  var sourceBuffer = window.SourceBuffer || window.WebKitSourceBuffer;
-  var isTypeSupported = mediaSource && typeof mediaSource.isTypeSupported === 'function' && mediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f,mp4a.40.2"');
-
-  // if SourceBuffer is exposed ensure its API is valid
-  // safari and old version of Chrome doe not expose SourceBuffer globally so checking SourceBuffer.prototype is impossible
-  var sourceBufferValidAPI = !sourceBuffer || sourceBuffer.prototype && typeof sourceBuffer.prototype.appendBuffer === 'function' && typeof sourceBuffer.prototype.remove === 'function';
-  return !!isTypeSupported && !!sourceBufferValidAPI;
-}
-
-function base64ToArrayBuffer(base64) {
-  return Uint8Array.from(atob(base64), function (c) {
-    return c.charCodeAt(0);
-  });
-}
-
-function RawDataToUint8Array(rawData) {
-  // 12,4 = mfhd;20,4 slice - segment.id;36,4 = tfhd;44,4 slice - track.id;64,4 = tfdt
-  // 72,8 slice - prestime;84,4 = futc;92,8 slice - real utc;104,4 = trun
-  var result = new Uint8Array(rawData);
-  return result;
-}
-function getTrackId(data) {
-  return data[47];
-}
-
-function getRealUtcFromData(view) {
-  var pts1 = view[92] << 24 | view[93] << 16 | view[94] << 8 | view[95];
-  var pts2 = view[96] << 24 | view[97] << 16 | view[98] << 8 | view[99];
-  var realUtc = pts1 + pts2 / 1000000;
-  return realUtc;
-}
-
-function doArrayBuffer() {
-  var segment = this.segments.shift();
-
-  if (!segment.isInit) {
-    this.utc = getRealUtcFromData(segment.data);
-  }
-
-  this.maybeAppend(segment);
-}
-
-function debugData(rawData) {
-  var view = RawDataToUint8Array(rawData);
-  var trackId = getTrackId(view);
-  var utc = getRealUtcFromData(view);
-
-  return { trackId: trackId, utc: utc, view: view };
-}
-
-// TODO
-function getWSURL(url, utc, videoTrack, audioTrack) {
-  // TODO: then use @param time it prevent to wrong data from ws(trackID view[47] for example is 100)
-  var time = utc;
-
-  if (!time && !videoTrack && !audioTrack) {
-    return url;
-  }
-
-  var parsedUrl = (0, _parseurl2.default)({ url: url });
-  var othersParams = '';
-
-  if (parsedUrl.query) {
-    var currentParamsKeysValues = parsedUrl.query.split('&').map(function (keyValue) {
-      return keyValue.split('=');
-    });
-
-    othersParams = currentParamsKeysValues.filter(function (p) {
-      return p[0] !== 'from' && p[0] !== 'tracks';
-    }).map(function (kv) {
-      return kv.join('=');
-    }).join('&');
-
-    _logger.logger.log(othersParams);
-  }
-
-  var cleanUrl = parsedUrl.protocol + '//' + parsedUrl.host + parsedUrl.pathname + '?';
-  var tracksExists = !!videoTrack || !!audioTrack;
-
-  var resultUrl = '' + cleanUrl + (tracksExists ? 'tracks=' + videoTrack + audioTrack : '') + ('' + (tracksExists && !!time ? '&' : '') + (!!time ? 'from=' + Math.floor(time) : '')) + ('' + ((tracksExists || !!time) && !!othersParams ? '&' : '') + othersParams);
-  return resultUrl;
-}
-
-var ua = navigator.userAgent;
-var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua) ? 10 // very slow buffers in Edge
-: 2;
-
-var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media) {
-  var maxDelay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : MAX_DELAY;
-  return function (evt) {
-    var ct = media.currentTime,
-        buffered = media.buffered,
-        l = media.buffered.length;
-
-
-    if (!l) {
-      return;
-    }
-
-    var endTime = buffered.end(l - 1);
-    var delay = Math.abs(endTime - ct);
-
-    if (delay <= maxDelay) {
-      return;
-    }
-
-    _logger.logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime); //evt, )
-    media.currentTime = endTime - 0.2; // (Math.abs(ct - endTime)) //
-  };
-};
-
-function startWebSocket(url, time) {
-  var videoTrack = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
-  var audioTack = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
-
-  return function () {
-    var wsURL = getWSURL(url, time, videoTrack, audioTack);
-
-    this.websocket = new WebSocket(wsURL);
-    this.websocket.binaryType = 'arraybuffer';
-    // do that for remove event method
-    this.onwso = this.onWebsocketOpen.bind(this);
-    this.onwsdm = this.dispatchMessage.bind(this);
-    this.websocket.addEventListener(_events2.default.WS_OPEN, this.onwso);
-    this.websocket.addEventListener(_events2.default.WS_MESSAGE, this.onwsdm);
-  };
-}
-
-var replaceHttpByWS = exports.replaceHttpByWS = function replaceHttpByWS(url) {
-  return url.replace(/^http/, 'ws');
-};
-
-var errorMsg = exports.errorMsg = function errorMsg(e) {
-  return 'Error ' + e.name + ': ' + e.message + '\n' + e.stack;
-};
-
-function pad2(n) {
-  return n <= 9 ? '0' + n : '' + n;
-}
-
-function humanTime(utcOrLive) {
-  var lt = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
-
-  // $FlowFixMe: string > 0 is always false
-  if (!(utcOrLive > 0)) {
-    return '';
-  }
-
-  // $FlowFixMe: just for flow
-  var utc = utcOrLive;
-
-  var d = new Date();
-  d.setTime(utc * 1000);
-  var localTime = !(lt === false);
-
-  var h = localTime ? d.getHours() : d.getUTCHours();
-  var m = localTime ? d.getMinutes() : d.getUTCMinutes();
-  var s = localTime ? d.getSeconds() : d.getUTCSeconds();
-
-  return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
-}
-
-/***/ }),
-/* 19 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1505,7 +2055,7 @@ function humanTime(utcOrLive) {
  * @private
  */
 
-var url = __webpack_require__(20)
+var url = __webpack_require__(44)
 var parse = url.parse
 var Url = url.Url
 
@@ -1648,7 +2198,7 @@ function fresh (url, parsedUrl) {
 
 
 /***/ }),
-/* 20 */
+/* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1675,8 +2225,8 @@ function fresh (url, parsedUrl) {
 
 
 
-var punycode = __webpack_require__(21);
-var util = __webpack_require__(24);
+var punycode = __webpack_require__(45);
+var util = __webpack_require__(48);
 
 exports.parse = urlParse;
 exports.resolve = urlResolve;
@@ -1751,7 +2301,7 @@ var protocolPattern = /^([a-z0-9.+-]+:)/i,
       'gopher:': true,
       'file:': true
     },
-    querystring = __webpack_require__(25);
+    querystring = __webpack_require__(49);
 
 function urlParse(url, parseQueryString, slashesDenoteHost) {
   if (url && util.isObject(url) && url instanceof Url) return url;
@@ -2387,7 +2937,7 @@ Url.prototype.parseHost = function() {
 
 
 /***/ }),
-/* 21 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module, global) {var __WEBPACK_AMD_DEFINE_RESULT__;/*! https://mths.be/punycode v1.4.1 by @mathias */
@@ -2923,10 +3473,10 @@ Url.prototype.parseHost = function() {
 
 }(this));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(22)(module), __webpack_require__(23)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(46)(module), __webpack_require__(47)))
 
 /***/ }),
-/* 22 */
+/* 46 */
 /***/ (function(module, exports) {
 
 module.exports = function(module) {
@@ -2954,7 +3504,7 @@ module.exports = function(module) {
 
 
 /***/ }),
-/* 23 */
+/* 47 */
 /***/ (function(module, exports) {
 
 var g;
@@ -2981,7 +3531,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 24 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3004,18 +3554,18 @@ module.exports = {
 
 
 /***/ }),
-/* 25 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-exports.decode = exports.parse = __webpack_require__(26);
-exports.encode = exports.stringify = __webpack_require__(27);
+exports.decode = exports.parse = __webpack_require__(50);
+exports.encode = exports.stringify = __webpack_require__(51);
 
 
 /***/ }),
-/* 26 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3106,7 +3656,7 @@ var isArray = Array.isArray || function (xs) {
 
 
 /***/ }),
-/* 27 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3198,7 +3748,7 @@ var objectKeys = Object.keys || function (obj) {
 
 
 /***/ }),
-/* 28 */
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3207,429 +3757,26 @@ var objectKeys = Object.keys || function (obj) {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.getSelfScope = getSelfScope;
-function getSelfScope() {
-  // see https://stackoverflow.com/a/11237259/589493
-  if (typeof window === 'undefined') {
-    /* eslint-disable-next-line no-undef */
-    return self;
-  } else {
-    return window;
-  }
-}
+var EVENT_SEGMENT = exports.EVENT_SEGMENT = 'event';
+var MSE_INIT_SEGMENT = exports.MSE_INIT_SEGMENT = 'mse_init_segment';
+var MSE_MEDIA_SEGMENT = exports.MSE_MEDIA_SEGMENT = 'mse_media_segment';
 
 /***/ }),
-/* 29 */
-/***/ (function(module, exports, __webpack_require__) {
-
-__webpack_require__(30);
-module.exports = __webpack_require__(1).Array.find;
-
-
-/***/ }),
-/* 30 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-// 22.1.3.8 Array.prototype.find(predicate, thisArg = undefined)
-var $export = __webpack_require__(31);
-var $find = __webpack_require__(41)(5);
-var KEY = 'find';
-var forced = true;
-// Shouldn't skip holes
-if (KEY in []) Array(1)[KEY](function () { forced = false; });
-$export($export.P + $export.F * forced, 'Array', {
-  find: function find(callbackfn /* , that = undefined */) {
-    return $find(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
-  }
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
 });
-__webpack_require__(52)(KEY);
-
-
-/***/ }),
-/* 31 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var global = __webpack_require__(0);
-var core = __webpack_require__(1);
-var hide = __webpack_require__(3);
-var redefine = __webpack_require__(38);
-var ctx = __webpack_require__(9);
-var PROTOTYPE = 'prototype';
-
-var $export = function (type, name, source) {
-  var IS_FORCED = type & $export.F;
-  var IS_GLOBAL = type & $export.G;
-  var IS_STATIC = type & $export.S;
-  var IS_PROTO = type & $export.P;
-  var IS_BIND = type & $export.B;
-  var target = IS_GLOBAL ? global : IS_STATIC ? global[name] || (global[name] = {}) : (global[name] || {})[PROTOTYPE];
-  var exports = IS_GLOBAL ? core : core[name] || (core[name] = {});
-  var expProto = exports[PROTOTYPE] || (exports[PROTOTYPE] = {});
-  var key, own, out, exp;
-  if (IS_GLOBAL) source = name;
-  for (key in source) {
-    // contains in native
-    own = !IS_FORCED && target && target[key] !== undefined;
-    // export native or passed
-    out = (own ? target : source)[key];
-    // bind timers to global for call from export context
-    exp = IS_BIND && own ? ctx(out, global) : IS_PROTO && typeof out == 'function' ? ctx(Function.call, out) : out;
-    // extend global
-    if (target) redefine(target, key, out, type & $export.U);
-    // export
-    if (exports[key] != out) hide(exports, key, exp);
-    if (IS_PROTO && expProto[key] != out) expProto[key] = out;
-  }
-};
-global.core = core;
-// type bitmap
-$export.F = 1;   // forced
-$export.G = 2;   // global
-$export.S = 4;   // static
-$export.P = 8;   // proto
-$export.B = 16;  // bind
-$export.W = 32;  // wrap
-$export.U = 64;  // safe
-$export.R = 128; // real proto method for `library`
-module.exports = $export;
-
-
-/***/ }),
-/* 32 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var anObject = __webpack_require__(33);
-var IE8_DOM_DEFINE = __webpack_require__(34);
-var toPrimitive = __webpack_require__(36);
-var dP = Object.defineProperty;
-
-exports.f = __webpack_require__(4) ? Object.defineProperty : function defineProperty(O, P, Attributes) {
-  anObject(O);
-  P = toPrimitive(P, true);
-  anObject(Attributes);
-  if (IE8_DOM_DEFINE) try {
-    return dP(O, P, Attributes);
-  } catch (e) { /* empty */ }
-  if ('get' in Attributes || 'set' in Attributes) throw TypeError('Accessors not supported!');
-  if ('value' in Attributes) O[P] = Attributes.value;
-  return O;
+var MSG = {
+  NOT_HTML_MEDIA_ELEMENT: 'media should be an HTMLMediaElement instance'
 };
 
-
-/***/ }),
-/* 33 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var isObject = __webpack_require__(2);
-module.exports = function (it) {
-  if (!isObject(it)) throw TypeError(it + ' is not an object!');
-  return it;
-};
-
-
-/***/ }),
-/* 34 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = !__webpack_require__(4) && !__webpack_require__(7)(function () {
-  return Object.defineProperty(__webpack_require__(35)('div'), 'a', { get: function () { return 7; } }).a != 7;
-});
-
-
-/***/ }),
-/* 35 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var isObject = __webpack_require__(2);
-var document = __webpack_require__(0).document;
-// typeof document.createElement is 'object' in old IE
-var is = isObject(document) && isObject(document.createElement);
-module.exports = function (it) {
-  return is ? document.createElement(it) : {};
-};
-
-
-/***/ }),
-/* 36 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 7.1.1 ToPrimitive(input [, PreferredType])
-var isObject = __webpack_require__(2);
-// instead of the ES6 spec version, we didn't implement @@toPrimitive case
-// and the second argument - flag - preferred type is a string
-module.exports = function (it, S) {
-  if (!isObject(it)) return it;
-  var fn, val;
-  if (S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it))) return val;
-  if (typeof (fn = it.valueOf) == 'function' && !isObject(val = fn.call(it))) return val;
-  if (!S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it))) return val;
-  throw TypeError("Can't convert object to primitive value");
-};
-
-
-/***/ }),
-/* 37 */
-/***/ (function(module, exports) {
-
-module.exports = function (bitmap, value) {
-  return {
-    enumerable: !(bitmap & 1),
-    configurable: !(bitmap & 2),
-    writable: !(bitmap & 4),
-    value: value
-  };
-};
-
-
-/***/ }),
-/* 38 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var global = __webpack_require__(0);
-var hide = __webpack_require__(3);
-var has = __webpack_require__(39);
-var SRC = __webpack_require__(8)('src');
-var TO_STRING = 'toString';
-var $toString = Function[TO_STRING];
-var TPL = ('' + $toString).split(TO_STRING);
-
-__webpack_require__(1).inspectSource = function (it) {
-  return $toString.call(it);
-};
-
-(module.exports = function (O, key, val, safe) {
-  var isFunction = typeof val == 'function';
-  if (isFunction) has(val, 'name') || hide(val, 'name', key);
-  if (O[key] === val) return;
-  if (isFunction) has(val, SRC) || hide(val, SRC, O[key] ? '' + O[key] : TPL.join(String(key)));
-  if (O === global) {
-    O[key] = val;
-  } else if (!safe) {
-    delete O[key];
-    hide(O, key, val);
-  } else if (O[key]) {
-    O[key] = val;
-  } else {
-    hide(O, key, val);
-  }
-// add fake Function#toString for correct work wrapped methods / constructors with methods like LoDash isNative
-})(Function.prototype, TO_STRING, function toString() {
-  return typeof this == 'function' && this[SRC] || $toString.call(this);
-});
-
-
-/***/ }),
-/* 39 */
-/***/ (function(module, exports) {
-
-var hasOwnProperty = {}.hasOwnProperty;
-module.exports = function (it, key) {
-  return hasOwnProperty.call(it, key);
-};
-
-
-/***/ }),
-/* 40 */
-/***/ (function(module, exports) {
-
-module.exports = function (it) {
-  if (typeof it != 'function') throw TypeError(it + ' is not a function!');
-  return it;
-};
-
-
-/***/ }),
-/* 41 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 0 -> Array#forEach
-// 1 -> Array#map
-// 2 -> Array#filter
-// 3 -> Array#some
-// 4 -> Array#every
-// 5 -> Array#find
-// 6 -> Array#findIndex
-var ctx = __webpack_require__(9);
-var IObject = __webpack_require__(42);
-var toObject = __webpack_require__(43);
-var toLength = __webpack_require__(45);
-var asc = __webpack_require__(47);
-module.exports = function (TYPE, $create) {
-  var IS_MAP = TYPE == 1;
-  var IS_FILTER = TYPE == 2;
-  var IS_SOME = TYPE == 3;
-  var IS_EVERY = TYPE == 4;
-  var IS_FIND_INDEX = TYPE == 6;
-  var NO_HOLES = TYPE == 5 || IS_FIND_INDEX;
-  var create = $create || asc;
-  return function ($this, callbackfn, that) {
-    var O = toObject($this);
-    var self = IObject(O);
-    var f = ctx(callbackfn, that, 3);
-    var length = toLength(self.length);
-    var index = 0;
-    var result = IS_MAP ? create($this, length) : IS_FILTER ? create($this, 0) : undefined;
-    var val, res;
-    for (;length > index; index++) if (NO_HOLES || index in self) {
-      val = self[index];
-      res = f(val, index, O);
-      if (TYPE) {
-        if (IS_MAP) result[index] = res;   // map
-        else if (res) switch (TYPE) {
-          case 3: return true;             // some
-          case 5: return val;              // find
-          case 6: return index;            // findIndex
-          case 2: result.push(val);        // filter
-        } else if (IS_EVERY) return false; // every
-      }
-    }
-    return IS_FIND_INDEX ? -1 : IS_SOME || IS_EVERY ? IS_EVERY : result;
-  };
-};
-
-
-/***/ }),
-/* 42 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// fallback for non-array-like ES3 and non-enumerable old V8 strings
-var cof = __webpack_require__(10);
-// eslint-disable-next-line no-prototype-builtins
-module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
-  return cof(it) == 'String' ? it.split('') : Object(it);
-};
-
-
-/***/ }),
-/* 43 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 7.1.13 ToObject(argument)
-var defined = __webpack_require__(44);
-module.exports = function (it) {
-  return Object(defined(it));
-};
-
-
-/***/ }),
-/* 44 */
-/***/ (function(module, exports) {
-
-// 7.2.1 RequireObjectCoercible(argument)
-module.exports = function (it) {
-  if (it == undefined) throw TypeError("Can't call method on  " + it);
-  return it;
-};
-
-
-/***/ }),
-/* 45 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 7.1.15 ToLength
-var toInteger = __webpack_require__(46);
-var min = Math.min;
-module.exports = function (it) {
-  return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
-};
-
-
-/***/ }),
-/* 46 */
-/***/ (function(module, exports) {
-
-// 7.1.4 ToInteger
-var ceil = Math.ceil;
-var floor = Math.floor;
-module.exports = function (it) {
-  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
-};
-
-
-/***/ }),
-/* 47 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 9.4.2.3 ArraySpeciesCreate(originalArray, length)
-var speciesConstructor = __webpack_require__(48);
-
-module.exports = function (original, length) {
-  return new (speciesConstructor(original))(length);
-};
-
-
-/***/ }),
-/* 48 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var isObject = __webpack_require__(2);
-var isArray = __webpack_require__(49);
-var SPECIES = __webpack_require__(11)('species');
-
-module.exports = function (original) {
-  var C;
-  if (isArray(original)) {
-    C = original.constructor;
-    // cross-realm fallback
-    if (typeof C == 'function' && (C === Array || isArray(C.prototype))) C = undefined;
-    if (isObject(C)) {
-      C = C[SPECIES];
-      if (C === null) C = undefined;
-    }
-  } return C === undefined ? Array : C;
-};
-
-
-/***/ }),
-/* 49 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 7.2.2 IsArray(argument)
-var cof = __webpack_require__(10);
-module.exports = Array.isArray || function isArray(arg) {
-  return cof(arg) == 'Array';
-};
-
-
-/***/ }),
-/* 50 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var core = __webpack_require__(1);
-var global = __webpack_require__(0);
-var SHARED = '__core-js_shared__';
-var store = global[SHARED] || (global[SHARED] = {});
-
-(module.exports = function (key, value) {
-  return store[key] || (store[key] = value !== undefined ? value : {});
-})('versions', []).push({
-  version: core.version,
-  mode: __webpack_require__(51) ? 'pure' : 'global',
-  copyright: '© 2018 Denis Pushkarev (zloirock.ru)'
-});
-
-
-/***/ }),
-/* 51 */
-/***/ (function(module, exports) {
-
-module.exports = false;
-
-
-/***/ }),
-/* 52 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// 22.1.3.31 Array.prototype[@@unscopables]
-var UNSCOPABLES = __webpack_require__(11)('unscopables');
-var ArrayProto = Array.prototype;
-if (ArrayProto[UNSCOPABLES] == undefined) __webpack_require__(3)(ArrayProto, UNSCOPABLES, {});
-module.exports = function (key) {
-  ArrayProto[UNSCOPABLES][key] = true;
-};
-
+exports.default = MSG;
+module.exports = exports['default'];
 
 /***/ })
 /******/ ]);
