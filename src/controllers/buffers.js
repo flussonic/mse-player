@@ -4,20 +4,20 @@ import {
   RawDataToUint8Array,
   getTrackId,
 } from '../utils/mseUtils'
-import {logger, enableLogs} from '../utils/logger'
+import {logger} from '../utils/logger'
 
 import {AUDIO, VIDEO} from '../enums/common'
 import {BUFFER_UPDATE_END} from '../enums/events'
-// TODO: ? doArrayBuffer > this.utc
-
 
 const BUFFER_MODE_SEQUENCE = 'sequence' // segments
 
 export default class BuffersController {
+
   constructor(opts = {}) {
     logger.log('create BuffersController')
     this.flushRange = []
     this.appended = 0
+    this.media = opts.media
     this.mediaSource = opts.mediaSource
     this.segments = []
     this.sourceBuffer = {}
@@ -35,12 +35,10 @@ export default class BuffersController {
     const sb = this.sourceBuffer;
 
     data.tracks.forEach((s) => {
-      const isVideo = s.content === VIDEO;
+      const isVideo = s.content === VIDEO
       const mimeType = isVideo
         ? 'video/mp4; codecs="avc1.4d401f"'
         : 'audio/mp4; codecs="mp4a.40.2"'
-
-      const id = s.id
 
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType)
       const buffer = sb[s.content]
@@ -85,22 +83,12 @@ export default class BuffersController {
     } else {
       buffer.appendBuffer(segment.data)
       this.appended++
-      // TODO: find where switch off
-      this.appending = true
     }
   }
 
   setTracksByType(data) {
     data.tracks.forEach((s) => {
-      const isVideo = s.content === VIDEO;
-      const id = s.id
-
-      if (!isVideo) {
-        this.audioTrackId = id
-      } else {
-        this.videoTrackId = id
-      }
-
+      this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
     })
   }
 
@@ -127,9 +115,9 @@ export default class BuffersController {
 
   isBuffered() {
     let appended = 0
-    let sourceBuffer = this.sourceBuffer;
+    let sourceBuffer = this.sourceBuffer
     for (let type in sourceBuffer) {
-      appended += sourceBuffer[type].buffered.length;
+      appended += sourceBuffer[type].buffered.length
     }
     return appended > 0
   }
@@ -137,35 +125,35 @@ export default class BuffersController {
   doFlush () {
     // loop through all buffer ranges to flush
     while (this.flushRange.length) {
-      let range = this.flushRange[0];
+      let range = this.flushRange[0]
       // flushBuffer will abort any buffer append in progress and flush Audio/Video Buffer
       if (this.flushBuffer(range.start, range.end, range.type)) {
         // range flushed, remove from flush array
-        this.flushRange.shift();
-        this.flushBufferCounter = 0;
+        this.flushRange.shift()
+        this.flushBufferCounter = 0
       } else {
-        this._needsFlush = true;
+        this._needsFlush = true
         // avoid looping, wait for SB update end to retrigger a flush
-        return;
+        return
       }
     }
     if (this.flushRange.length === 0) {
       // everything flushed
-      this._needsFlush = false;
+      this._needsFlush = false
 
       // let's recompute this.appended, which is used to avoid flush looping
-      let appended = 0;
-      let sourceBuffer = this.sourceBuffer;
+      let appended = 0
+      let sourceBuffer = this.sourceBuffer
       try {
         for (let type in sourceBuffer) {
-          appended += sourceBuffer[type].buffered.length;
+          appended += sourceBuffer[type].buffered.length
         }
       } catch (error) {
         // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
         // this is harmess at this stage, catch this to avoid reporting an internal exception
-        logger.error('error while accessing sourceBuffer.buffered');
+        logger.error('error while accessing sourceBuffer.buffered')
       }
-      this.appended = appended;
+      this.appended = appended
       this._setTracksFlag = false
     }
   }
@@ -176,33 +164,33 @@ export default class BuffersController {
     as sourceBuffer.remove() is asynchronous, flushBuffer will be retriggered on sourceBuffer update end
   */
   flushBuffer (startOffset, endOffset, typeIn) {
-    let sb, i, bufStart, bufEnd, flushStart, flushEnd, sourceBuffer = this.sourceBuffer;
+    let sb, i, bufStart, bufEnd, flushStart, flushEnd, sourceBuffer = this.sourceBuffer
     if (Object.keys(sourceBuffer).length) {
-      logger.log(`flushBuffer,pos/start/end: ${this.media.currentTime.toFixed(3)}/${startOffset}/${endOffset}`);
+      logger.log(`flushBuffer,pos/start/end: ${this.media.currentTime.toFixed(3)}/${startOffset}/${endOffset}`)
       // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
       if (this.flushBufferCounter < this.appended) {
         for (let type in sourceBuffer) {
           // check if sourcebuffer type is defined (typeIn): if yes, let's only flush this one
           // if no, let's flush all sourcebuffers
           if (typeIn && type !== typeIn) {
-            continue;
+            continue
           }
 
-          sb = sourceBuffer[type];
+          sb = sourceBuffer[type]
           // we are going to flush buffer, mark source buffer as 'not ended'
-          sb.ended = false;
+          sb.ended = false
           if (!sb.updating) {
             try {
               for (i = 0; i < sb.buffered.length; i++) {
-                bufStart = sb.buffered.start(i);
-                bufEnd = sb.buffered.end(i);
+                bufStart = sb.buffered.start(i)
+                bufEnd = sb.buffered.end(i)
                 // workaround firefox not able to properly flush multiple buffered range.
                 if (navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 && endOffset === Number.POSITIVE_INFINITY) {
-                  flushStart = startOffset;
-                  flushEnd = endOffset;
+                  flushStart = startOffset
+                  flushEnd = endOffset
                 } else {
-                  flushStart = Math.max(bufStart, startOffset);
-                  flushEnd = Math.min(bufEnd, endOffset);
+                  flushStart = Math.max(bufStart, startOffset)
+                  flushEnd = Math.min(bufEnd, endOffset)
                 }
                 /* sometimes sourcebuffer.remove() does not flush
                    the exact expected time range.
@@ -210,27 +198,27 @@ export default class BuffersController {
                    only flush buffer range of length greater than 500ms.
                 */
                 if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
-                  this.flushBufferCounter++;
-                  logger.log(`flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${this.media.currentTime}`);
-                  sb.remove(flushStart, flushEnd);
-                  return false;
+                  this.flushBufferCounter++
+                  logger.log(`flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${this.media.currentTime}`)
+                  sb.remove(flushStart, flushEnd)
+                  return false
                 }
               }
             } catch (e) {
-              logger.warn('exception while accessing sourcebuffer, it might have been removed from MediaSource');
+              logger.warn('exception while accessing sourcebuffer, it might have been removed from MediaSource')
             }
           } else {
             // logger.log('abort ' + type + ' append in progress');
             // this will abort any appending in progress
             // sb.abort();
-            logger.warn('cannot flush, sb updating in progress');
-            return false;
+            logger.warn('cannot flush, sb updating in progress')
+            return false
           }
         }
       } else {
-        logger.warn('abort flushing too many retries');
+        logger.warn('abort flushing too many retries')
       }
-      logger.log('buffer flushed');
+      logger.log('buffer flushed')
     }
     // everything flushed !
     return true;

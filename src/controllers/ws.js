@@ -17,7 +17,7 @@ export default class WS1 {
 
     this.websocket = new WebSocket(wsURL)
     this.websocket.binaryType = 'arraybuffer'
-      // do that for remove event method
+    // do that for remove event method
     this.websocket.addEventListener(EVENTS.WS_OPEN, this.onwso)
     this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.opts.message)
   }
@@ -45,9 +45,10 @@ export default class WS1 {
       : WS_COMMAND_SEEK
     logger.log(`${commandStr}${utc}`)
     this.websocket.send(`${commandStr}${utc}`)
+    debugger
   }
 
-  setTracks() {
+  setTracks(videoTrack, audioTrack) {
     this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
   }
 

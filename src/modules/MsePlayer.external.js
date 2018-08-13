@@ -1,6 +1,6 @@
 import WebSocketController from '../controllers/ws'
 import BuffersController from '../controllers/buffers'
-import MediaSourceController from '../controllers/mediaSource'
+// import MediaSourceController from '../controllers/mediaSource'
 
 import {MSE_INIT_SEGMENT, EVENT_SEGMENT} from '../enums/segments'
 
@@ -42,7 +42,6 @@ export default class MSEPlayer {
    * @param opts
    */
   constructor(media, urlStream, opts = {}) {
-    console.log('%constructor Tag', 'background: red;')
     this.opts = opts || {}
     if (this.opts.debug) {
       enableLogs(true)
@@ -68,9 +67,6 @@ export default class MSEPlayer {
     this.onMediaInfo = opts && opts.onMediaInfo
     this.onError = opts && opts.onError
 
-    // this.doArrayBuffer = mseUtils.doArrayBuffer.bind(this)
-    // this.maybeAppend = this.maybeAppend.bind(this)
-
     this.init()
 
     if (media instanceof HTMLMediaElement) {
@@ -85,7 +81,7 @@ export default class MSEPlayer {
      * SourceBuffers Controller
      */
 
-    this.sb = new BuffersController()
+    this.sb = new BuffersController({media})
 
   }
 
@@ -164,6 +160,7 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
+    debugger
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -187,10 +184,12 @@ export default class MSEPlayer {
       })
       .join('')
 
+    this.onStartStalling()
     this.ws.setTracks(videoTracksStr, audioTracksStr)
 
     this.videoTrack = videoTracksStr
     this.audioTrack = audioTracksStr
+    // ?
     this._setTracksFlag = true
     this.waitForInitFrame = true
   }
