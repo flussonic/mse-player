@@ -95,6 +95,7 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
     player.onEndStalling()
     // если поставелна пауза
     if (media.paused && !player._pause && player.playing) {
+      media.currentTime = endTime - 0.0001
       media.play()
     }
   }

@@ -1,30 +1,25 @@
+import 'core-js/fn/array/find'
+
 import WebSocketController from '../controllers/ws'
 import BuffersController from '../controllers/buffers'
 // import MediaSourceController from '../controllers/mediaSource'
 
-import {MSE_INIT_SEGMENT, EVENT_SEGMENT} from '../enums/segments'
-
-import {AUDIO, VIDEO} from '../enums/common'
-
-import EVENTS from '../enums/events'
-const WS_EVENT_PAUSED = 'paused'
-const WS_EVENT_RESUMED = 'resumed'
-import MSG from '../enums/messages'
 import * as mseUtils from '../utils/mseUtils'
 import {logger, enableLogs} from '../utils/logger'
 
-import 'core-js/fn/array/find'
+import {MSE_INIT_SEGMENT, EVENT_SEGMENT} from '../enums/segments'
+import {AUDIO, VIDEO} from '../enums/common'
+import EVENTS from '../enums/events'
+import MSG from '../enums/messages'
 
+const WS_EVENT_PAUSED = 'paused'
+const WS_EVENT_RESUMED = 'resumed'
+const WS_EVENT_SEEKED = 'seeked'
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
-
-
-
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
-
 let errorsCount = 0
-let count = 0
 
 export default class MSEPlayer {
 
@@ -86,9 +81,7 @@ export default class MSEPlayer {
   }
 
   play(time, videoTrack, audioTack) {
-    if (this.opts.debug) {
-      logger.log('[mse-player]: play()')
-    }
+    logger.log('[mse-player]: play()')
     return this._play(time, videoTrack, audioTack)
   }
 
@@ -101,17 +94,14 @@ export default class MSEPlayer {
       if (!utc) {
         throw new Error('utc should be "live" or UTC value')
       }
-      // @TODO // DEBUG:
-      count = 0
-
       this.ws.seek(utc)
       this.sb.seek()
       this.onStartStalling()
       // need for determine old frames
       this.seekValue = utc
-
+      this.media.pause()
     } catch (err) {
-      logger.warn(`onMediaDetaching:${err.message} while calling endOfStream`)
+      logger.warn(`seek:${err.message}`)
     }
   }
 
@@ -120,17 +110,11 @@ export default class MSEPlayer {
       return logger.log('[dispatchMessage] can not do pause')
     }
 
-
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     this.playPromise.then(pause.bind(this))
     function pause() {
-      // DEBUG:
-      count = 0
-
       this.media.pause()
-
       this.ws.pause()
-
       this._pause = true
       this.playing = false
 
@@ -144,23 +128,16 @@ export default class MSEPlayer {
     }
 
     function canPause() {
-      if (
-        this._pause ||
-        !this.media ||
-        !this.ws ||
-        !this.mediaSource ||
+      if (this._pause || !this.media || !this.ws || !this.mediaSource ||
         (this.mediaSource && this.mediaSource.readyState !== 'open') ||
-        !this.playPromise
-      ) {
+        !this.playPromise) {
         return false
       }
-
       return true
     }
   }
 
   setTracks(tracks) {
-    debugger
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -274,19 +251,10 @@ export default class MSEPlayer {
   }
 
   init() {
-    // start new implementation
-    // this.segments = [] // sbc
-    // this.sourceBuffer = {} // sbc
-    // this.flushRange = [];
-    // this.appended = 0;
-    // end new inplementation
-
     this._pause = false
     this.playing = false
-
     // flag to pending execution(true)
     this.shouldPlay = false
-
     // store to execute pended method play
     this.playTime = void 0
     this.audioTack = ''
@@ -294,15 +262,8 @@ export default class MSEPlayer {
     this.endProgressTimer()
   }
 
-
   _resume() {
-    // DEBUG:
-    count = 0
-
     this.ws.resume()
-    // this.playPromise = this.media.play()
-    // this._pause = false
-    // this.playing = true
   }
 
   onMediaDetaching() {
@@ -440,28 +401,11 @@ export default class MSEPlayer {
   }
 
   dispatchMessage(e) {
-    // if (this._pause || !this.playing) {
-    //   debugger
-    // }
-
-    if (this.stopRunning) {
-      return
-    }
+    if (this.stopRunning) {return}
 
     const rawData = e.data
     const isDataAB = rawData instanceof ArrayBuffer
-
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
-
-    // count < 10 && logger.log('%c[dispatchMessage]', 'background: aqua;',
-    //   isDataAB
-    //     ? 'arrayBuffer'
-    //     : `${parsedData.type}`,
-    //   parsedData && parsedData.type === EVENT_SEGMENT
-    //     ? `${parsedData.event}`
-    //     : '-',
-    //
-    // )
 
     try {
       if (!isDataAB && parsedData.type === EVENT_SEGMENT
@@ -475,14 +419,6 @@ export default class MSEPlayer {
           if (this.onStartStalling) {
             this.onStartStalling()
           }
-          // if (this.media.paused) {
-            // this.playPromise = this.media.play()
-            // this.playPromise.then(() => {
-            //   // debugger
-            //   const bufferedEnd = this.media.buffered.end(this.media.buffered.length - 1)
-            //   this.media.currentTime = bufferedEnd
-            // })
-          // }
         }
         return
       }
@@ -502,11 +438,19 @@ export default class MSEPlayer {
         logger.log(`%cEvent ${parsedData.event}`, 'background: purple;', parsedData)
       }
 
-      // after seek can receive old frames, it should be filtered
-      if (this.isOldFrameAfterSeek(rawData)) {
-        return
+      if (this.seekValue && parsedData
+          && parsedData.type === EVENT_SEGMENT
+          && parsedData[EVENT_SEGMENT] === WS_EVENT_SEEKED) {
+        this.seekValue = void 0
+        logger.log('event:seeked receive')
+         if (this.opts.onSeeked) {
+          try {
+            this.opts.onSeeked()
+          } catch (err) {
+            logger.error(err)
+          }
+        }
       }
-
 
       // wait for MSE_INIT_SEGMENT
       if (this.waitForInitFrame && isDataAB) {
@@ -522,13 +466,7 @@ export default class MSEPlayer {
 
       // ArrayBuffer data
       if (isDataAB) {
-        // if (count < 10 && ++count) {
-        //   logger.log(`%cArrayBuffer data`, 'background: burlywood;', parsedData)
-        // }
         this.sb.procArrayBuffer(rawData)
-        // const segment = this.rawDataToSegmnet(rawData)
-        // this.segments.push(segment)
-        // this.doArrayBuffer()
       }
 
     } catch (err) {
@@ -551,37 +489,6 @@ export default class MSEPlayer {
         this.onError(err, e)
       }
     }
-  }
-
-  isOldFrameAfterSeek(rawData) {
-    if (this.seekValue) {
-      let cUtc = 0
-      let isDataAB = rawData instanceof ArrayBuffer
-
-      if (!isDataAB) {
-        logger.log('not Array buffer')
-        return false
-      }
-
-      cUtc = mseUtils.getRealUtcFromData(mseUtils.RawDataToUint8Array(rawData))
-
-      if (Math.abs(cUtc - this.seekValue) > 20) {
-        logger.warn('%cskip old frame', 'background: orange;',
-          mseUtils.humanTime(cUtc), mseUtils.humanTime(this.seekValue),
-          cUtc, this.seekValue, cUtc - this.seekValue)
-        return true
-      } else {
-        this.seekNormCount = this.seekNormCount
-          ? this.seekNormCount + 1
-          : 1
-      }
-
-      if (this.seekNormCount > 10) {
-        this.seekValue = void 0
-        this.seekNormCount = 0
-      }
-    }
-    return false
   }
 
   procInitSegment(rawData) {

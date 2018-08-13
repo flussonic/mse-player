@@ -1,7 +1,7 @@
 18.08
 
 - incapsulate websocket logic to separate module
-- 
+- onStartStalling, onEndStalling, onSeeked callbacks methods
 
 18.07.02
 
