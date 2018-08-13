@@ -10,6 +10,9 @@ import {AUDIO, VIDEO} from '../enums/common'
 import {BUFFER_UPDATE_END} from '../enums/events'
 // TODO: ? doArrayBuffer > this.utc
 
+
+const BUFFER_MODE_SEQUENCE = 'sequence' // segments
+
 export default class BuffersController {
   constructor(opts = {}) {
     logger.log('create BuffersController')

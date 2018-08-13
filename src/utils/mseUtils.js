@@ -91,18 +91,18 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
 
   const endTime = buffered.end(l - 1)
   const delay = Math.abs(endTime - ct)
-
-  if (media.paused && !player._pause && player.playing) {
-    media.play()
-    if (player.onEndStalling) {
-      player.onEndStalling()
+  if (player._stalling) {
+    player.onEndStalling()
+    // если поставелна пауза
+    if (media.paused && !player._pause && player.playing) {
+      media.play()
     }
   }
 
   if (delay <= maxDelay) {
     return
   }
-  debugger
+
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
   media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
 }

@@ -18,7 +18,7 @@ import 'core-js/fn/array/find'
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 
-const BUFFER_MODE_SEQUENCE = 'sequence' // segments
+
 
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
@@ -42,6 +42,7 @@ export default class MSEPlayer {
    * @param opts
    */
   constructor(media, urlStream, opts = {}) {
+    console.log('%constructor Tag', 'background: red;')
     this.opts = opts || {}
     if (this.opts.debug) {
       enableLogs(true)
@@ -108,7 +109,7 @@ export default class MSEPlayer {
       count = 0
 
       this.ws.seek(utc)
-      // this.sourceBuffers.seek()
+      this.sb.seek()
       // need for determine old frames
       this.seekValue = utc
 
@@ -118,7 +119,6 @@ export default class MSEPlayer {
   }
 
   pause() {
-    debugger
     if (!canPause.bind(this)()) {
       return logger.log('[dispatchMessage] can not do pause')
     }
@@ -202,6 +202,7 @@ export default class MSEPlayer {
 
   _play(from, videoTrack, audioTack) {
     return new Promise((resolve, reject) => {
+      this.onStartStalling() // switch off at progress checker
       if (this.playing) {
         const message = '[mse-player] _play: terminate because already has been playing'
         logger.log(message)
@@ -584,7 +585,6 @@ export default class MSEPlayer {
   }
 
   procInitSegment(rawData) {
-    debugger
     const data = JSON.parse(rawData)
     if (data.type !== MSE_INIT_SEGMENT) {
       return logger.warn(`type is not ${MSE_INIT_SEGMENT}`)
@@ -627,18 +627,7 @@ export default class MSEPlayer {
       this.sb.setMediaSource(this.mediaSource)
       this.sb.createSourceBuffers(data)
     }
-
     this.sb.createTracks(data.tracks)
-
-  }
-
-  isBuffered() {
-    let appended = 0
-    let sourceBuffer = this.sourceBuffer;
-    for (let type in sourceBuffer) {
-      appended += sourceBuffer[type].buffered.length;
-    }
-    return appended > 0
   }
 
   doMediaInfo(metadata) {
@@ -654,23 +643,15 @@ export default class MSEPlayer {
   }
 
   getVideoTracks() {
-    if (!this.mediaInfo) {
-      return
-    }
-    return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_VIDEO)
+    if (!this.mediaInfo) {return}
+    return this.mediaInfo.streams
+      .filter(s => s.content === TYPE_CONTENT_VIDEO)
   }
 
   getAudioTracks() {
-    if (!this.mediaInfo) {
-      return
-    }
-    return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_AUDIO)
-  }
-
-
-
-  startProgressTimer() {
-    this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime)
+    if (!this.mediaInfo) {return}
+    return this.mediaInfo.streams
+      .filter(s => s.content === TYPE_CONTENT_AUDIO)
   }
 
   /**
@@ -692,11 +673,6 @@ export default class MSEPlayer {
     }
   }
 
-  endProgressTimer() {
-    clearInterval(this.timer)
-    this.timer = void 0
-  }
-
   onStartStalling() {
     if (this.opts.onStartStalling) {
       this.opts.onStartStalling()
@@ -713,6 +689,15 @@ export default class MSEPlayer {
     logger.log('[dispatchMessage] onEndStalling')
   }
 
+  startProgressTimer() {
+    this.timer = setInterval(this.onTimer.bind(this), this.opts.progressUpdateTime)
+  }
+
+  endProgressTimer() {
+    clearInterval(this.timer)
+    this.timer = void 0
+  }
+
   onTimer() {
     if (!this.playing && this._pause) {
       logger.log('[dispatchMessage] onTimer')
@@ -724,7 +709,7 @@ export default class MSEPlayer {
     }
 
     if (this.sb.lastLoadedUTC === this.utcPrev) {
-      logger.log('%c!!!!', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev)
+      logger.log('%c!!!!', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling)
       return
     }
 
