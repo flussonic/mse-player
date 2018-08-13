@@ -110,6 +110,7 @@ export default class MSEPlayer {
 
       this.ws.seek(utc)
       this.sb.seek()
+      this.onStartStalling()
       // need for determine old frames
       this.seekValue = utc
 
