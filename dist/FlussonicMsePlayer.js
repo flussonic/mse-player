@@ -1699,7 +1699,6 @@ var WS1 = function () {
     var commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK;
     _logger.logger.log('' + commandStr + utc);
     this.websocket.send('' + commandStr + utc);
-    debugger;
   };
 
   WS1.prototype.setTracks = function setTracks(videoTrack, audioTrack) {

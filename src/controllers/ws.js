@@ -45,7 +45,6 @@ export default class WS1 {
       : WS_COMMAND_SEEK
     logger.log(`${commandStr}${utc}`)
     this.websocket.send(`${commandStr}${utc}`)
-    debugger
   }
 
   setTracks(videoTrack, audioTrack) {
