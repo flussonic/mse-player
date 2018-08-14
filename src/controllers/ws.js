@@ -1,3 +1,4 @@
+import parseUrl from 'parseurl'
 import EVENTS from '../enums/events'
 
 const WS_COMMAND_SEEK_LIVE = ''

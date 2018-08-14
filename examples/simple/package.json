@@ -9,9 +9,7 @@
   },
   "author": "Dmitry Trifonov <nindeec@gmail.com> (https://github.com/otmjka)",
   "license": "ISC",
-  "dependencies": {
-    "@flussonic/flussonic-mse-player": "~0.1.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.2",

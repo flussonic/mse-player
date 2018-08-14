@@ -23,6 +23,10 @@ let errorsCount = 0
 
 export default class MSEPlayer {
 
+  static version() {
+    return "18.08.2"
+  }
+
   static replaceHttpByWS(url) {
     return mseUtils.replaceHttpByWS(url)
   }
@@ -192,6 +196,11 @@ export default class MSEPlayer {
         return resolve()
       }
 
+      this.playTime = from
+      this.videoTrack = videoTrack
+      this.audioTack = audioTack
+      this._pause = false
+
       // TODO: to observe this case, I have no idea when it fired
       if (!this.mediaSource) {
         this.onAttachMedia({media: this.media})
@@ -219,11 +228,6 @@ export default class MSEPlayer {
           : reject
         return
       }
-
-      this.playTime = from
-      this.videoTrack = videoTrack
-      this.audioTack = audioTack
-      this._pause = false
 
       this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTack)
 
