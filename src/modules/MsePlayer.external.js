@@ -15,17 +15,16 @@ import MSG from '../enums/messages'
 const WS_EVENT_PAUSED = 'paused'
 const WS_EVENT_RESUMED = 'resumed'
 const WS_EVENT_SEEKED = 'seeked'
+const WS_EVENT_EOS = 'recordings_ended'
+
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
-let errorsCount = 0
 
 export default class MSEPlayer {
 
-  static version() {
-    return "18.08.2"
-  }
+  static get version() {return VERSION}
 
   static replaceHttpByWS(url) {
     return mseUtils.replaceHttpByWS(url)
@@ -41,11 +40,15 @@ export default class MSEPlayer {
    * @param opts
    */
   constructor(media, urlStream, opts = {}) {
-    this.opts = opts || {}
-    if (this.opts.debug) {
+
+    if (opts.debug) {
       enableLogs(true)
       window.humanTime = mseUtils.humanTime
     }
+
+    logger.info('[mse-player]:', VERSION)
+
+    this.opts = opts || {}
 
     this.media = media
 
@@ -111,7 +114,7 @@ export default class MSEPlayer {
 
   pause() {
     if (!canPause.bind(this)()) {
-      return logger.log('[dispatchMessage] can not do pause')
+      return logger.log('[mse:playback] can not do pause')
     }
 
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
@@ -410,88 +413,59 @@ export default class MSEPlayer {
     const rawData = e.data
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
-
+    mseUtils.logDM(isDataAB, parsedData)
     try {
-      if (!isDataAB && parsedData.type === EVENT_SEGMENT
-          && parsedData[EVENT_SEGMENT] === WS_EVENT_RESUMED) {
-        logger.log(`%cEvent ${parsedData.event}`, 'background: purple;', parsedData)
-        if (this._pause && !this.playing) {
-          this._pause = false
-          this.playing = true
-          // wait for "progress" event, for shift currentTime and
-          // start playing
-          if (this.onStartStalling) {
-            this.onStartStalling()
-          }
-        }
-        return
-      }
-
-      if (!isDataAB && parsedData.type === EVENT_SEGMENT
-          && parsedData[EVENT_SEGMENT] === WS_EVENT_PAUSED) {
-        logger.log(`%cEvent ${parsedData.event}`, 'background: purple;', parsedData)
-        return
-      }
-
-      if (this._pause && isDataAB) {
-        count < 10 && logger.log('[dispatchMessage] frames after pause')
-        return
-      }
-
-      if (!isDataAB && parsedData.type === EVENT_SEGMENT) {
-        logger.log(`%cEvent ${parsedData.event}`, 'background: purple;', parsedData)
-      }
-
-      if (this.seekValue && parsedData
-          && parsedData.type === EVENT_SEGMENT
-          && parsedData[EVENT_SEGMENT] === WS_EVENT_SEEKED) {
-        this.seekValue = void 0
-        logger.log('event:seeked receive')
-         if (this.opts.onSeeked) {
-          try {
-            this.opts.onSeeked()
-          } catch (err) {
-            logger.error(err)
-          }
-        }
-      }
-
-      // wait for MSE_INIT_SEGMENT
-      if (this.waitForInitFrame && isDataAB) {
-        return logger.log('old frames')
-      }
-
-      // MSE_INIT_SEGMENT
-      if (!isDataAB && parsedData.type === MSE_INIT_SEGMENT) {
-        logger.log(`%c${MSE_INIT_SEGMENT}`, 'background: aqua;', parsedData)
-        this.procInitSegment(rawData)
-        return
-      }
-
       // ArrayBuffer data
       if (isDataAB) {
+        // wait for MSE_INIT_SEGMENT
+        if (this.waitForInitFrame) {return logger.log('old frames')}
         this.sb.procArrayBuffer(rawData)
       }
 
+      /*
+       * EVENTS
+       */
+
+      if (parsedData && parsedData.type === EVENT_SEGMENT) {
+        const eventType = parsedData[EVENT_SEGMENT]
+        switch (eventType) {
+        case WS_EVENT_RESUMED:
+          if (this._pause && !this.playing) {
+            this._pause = false
+            this.playing = true
+            // wait for "progress" event, for shift currentTime and start playing
+            this.onStartStalling()
+          }
+          break
+        case WS_EVENT_PAUSED:
+          break
+        case WS_EVENT_SEEKED:
+          this.seekValue = void 0
+          if (this.opts.onSeeked) {
+           try {
+             this.opts.onSeeked()
+           } catch (err) {
+             logger.error(err)
+           }
+         }
+          break
+        case WS_EVENT_EOS:
+          debugger
+          this._eos = true
+          this.sb.onBufferEos()
+          break
+        default:
+          logger.warn('unknown type of event', eventType)
+        }
+        return
+      }
+
+      // MSE_INIT_SEGMENT
+      if (parsedData && parsedData.type === MSE_INIT_SEGMENT) {
+        return this.procInitSegment(rawData)
+      }
     } catch (err) {
-      logger.error(mseUtils.errorMsg(e), err)
-
-      if (this.media && this.media.error) {
-        logger.error('MediaError:', this.media.error)
-      }
-
-      if (isDataAB) {
-        logger.error('Data:', mseUtils.debugData(e.data))
-      }
-      errorsCount++
-      if (errorsCount >= this.opts.errorsBeforeStop) {
-        errorsCount = 0
-        this.stopPromise = this.stop()
-      }
-
-      if (this.onError) {
-        this.onError(err, e)
-      }
+      mseUtils.showDispatchError.bind(this)(e, err)
     }
   }
 
@@ -521,7 +495,6 @@ export default class MSEPlayer {
 
     // calc this.audioTrackId this.videoTrackId
     this.sb.setTracksByType(data)
-
 
     const metadata = data.metadata
     const streams = data.metadata.streams
@@ -589,7 +562,7 @@ export default class MSEPlayer {
       this.opts.onStartStalling()
     }
     this._stalling = true
-    logger.log('[dispatchMessage] onStartStalling')
+    logger.log('onStartStalling')
   }
 
   onEndStalling() {
@@ -597,7 +570,7 @@ export default class MSEPlayer {
       this.opts.onEndStalling()
     }
     this._stalling = false
-    logger.log('[dispatchMessage] onEndStalling')
+    logger.log('onEndStalling')
   }
 
   startProgressTimer() {
@@ -610,8 +583,12 @@ export default class MSEPlayer {
   }
 
   onTimer() {
+    if (this._eos) {
+      return logger.log('nothing to play')
+    }
+
     if (!this.playing && this._pause) {
-      logger.log('[dispatchMessage] onTimer')
+      logger.log('onTimer playing false, _pause true')
     }
 
     // #TODO explain
@@ -620,12 +597,12 @@ export default class MSEPlayer {
     }
 
     if (this.sb.lastLoadedUTC === this.utcPrev) {
-      logger.log('%c!!!!', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling)
+      logger.log('%cloaded utc is not change', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling)
       return
     }
 
     if (this._stalling) {
-      logger.log('%c[dispatchMessage] •••Stalling•••', 'background: lightred;')
+      logger.log('%cStalling flag is true', 'background: lightred;')
       return
     }
 
@@ -641,6 +618,13 @@ export default class MSEPlayer {
 
   onMediaSourceEnded() {
     logger.log('media source ended')
+    try {
+      if (this.opts.onEOS) {
+        this.opts.onEOS()
+      }
+    } catch(err) {
+      logger.error('error while proccessing onEOS')
+    }
   }
 
   onMediaSourceClose() {

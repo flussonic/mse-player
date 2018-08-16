@@ -52,6 +52,11 @@ export default class BuffersController {
     if (this._needsFlush) {
       this.doFlush()
     }
+
+    if (this._needsEos) {
+      this.checkEos()
+    }
+
     if (!this._needsFlush && this.segments.length) {
       this.doArrayBuffer()
     }
@@ -229,6 +234,49 @@ export default class BuffersController {
     const trackId = getTrackId(view)
     const trackType = this.getTypeBytrackId(trackId)
     return {type: trackType, data: view}
+  }
+
+  // on BUFFER_EOS mark matching sourcebuffer(s) as ended and trigger checkEos()
+  onBufferEos (data = {}) {
+    let sb = this.sourceBuffer;
+    let dataType = data.type;
+    for (let type in sb) {
+      if (!dataType || type === dataType) {
+        if (!sb[type].ended) {
+          sb[type].ended = true;
+          logger.log(`${type} sourceBuffer now EOS`);
+        }
+      }
+    }
+    this.checkEos();
+  }
+
+  // if all source buffers are marked as ended, signal endOfStream() to MediaSource.
+  checkEos () {
+    let sb = this.sourceBuffer, mediaSource = this.mediaSource;
+    if (!mediaSource || mediaSource.readyState !== 'open') {
+      this._needsEos = false;
+      return;
+    }
+    for (let type in sb) {
+      let sbobj = sb[type];
+      if (!sbobj.ended) {
+        return;
+      }
+
+      if (sbobj.updating) {
+        this._needsEos = true;
+        return;
+      }
+    }
+    logger.log('all media data available, signal endOfStream() to MediaSource and stop loading fragment');
+    // Notify the media element that it now has all of the media data
+    try {
+      mediaSource.endOfStream();
+    } catch (e) {
+      logger.warn('exception while calling mediaSource.endOfStream()');
+    }
+    this._needsEos = false;
   }
 
 }

@@ -1,7 +1,10 @@
 18.08
 
-- incapsulate websocket logic to separate module
+- incapsulation websocket, sourceBuffer logic to separate modules
 - onStartStalling, onEndStalling, onSeeked callbacks methods
+- FlussonicMsePlayer.version return current lib version
+- onEOS callback invoked when recordings are ended
+- 
 
 18.07.02
 

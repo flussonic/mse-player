@@ -88,7 +88,6 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
   if (!l) {
     return
   }
-
   const endTime = buffered.end(l - 1)
   const delay = Math.abs(endTime - ct)
   if (player._stalling) {
@@ -137,3 +136,45 @@ export function humanTime(utcOrLive, lt = true) {
 
   return pad2(h) + ':' + pad2(m) + ':' + pad2(s)
 }
+
+export function logDM(isDataAB, parsedData) {
+  if (parsedData) {
+    logger.log(`%c ${parsedData.type} ${parsedData.type === 'event' ? parsedData.event : 'mse_init_segment'}`,
+      'background: aquamarine;',
+      parsedData)
+  }
+}
+
+let errorsCount = 0
+
+export function showDispatchError(e, err) {
+  const rawData = e.data
+  const isDataAB = rawData instanceof ArrayBuffer
+  logger.error(errorMsg(e), err)
+
+  if (this.media && this.media.error) {
+    logger.error('MediaError:', this.media.error)
+  }
+
+  if (isDataAB) {
+    logger.error('Data:', debugData(e.data))
+  }
+
+  errorsCount++
+
+  if (errorsCount >= this.opts.errorsBeforeStop) {
+    errorsCount = 0
+    this.stopPromise = this.stop()
+  }
+
+  if (this.onError) {
+    this.onError(err, e)
+  }
+}
+
+/*
+ * debug staff, after each operation you should
+ * set count to 0, if you want show info about
+ * ArrayBuffer frames
+ */
+// let count = 0
