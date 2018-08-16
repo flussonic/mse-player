@@ -70,7 +70,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 14);
+/******/ 	return __webpack_require__(__webpack_require__.s = 15);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -141,7 +141,7 @@ exports.logger = exports.enableLogs = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _getSelfScope = __webpack_require__(41);
+var _getSelfScope = __webpack_require__(50);
 
 function noop() {}
 
@@ -232,8 +232,8 @@ if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
 /* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var dP = __webpack_require__(20);
-var createDesc = __webpack_require__(25);
+var dP = __webpack_require__(21);
+var createDesc = __webpack_require__(26);
 module.exports = __webpack_require__(6) ? function (object, key, value) {
   return dP.f(object, key, createDesc(1, value));
 } : function (object, key, value) {
@@ -281,7 +281,7 @@ module.exports = function (key) {
 /***/ (function(module, exports, __webpack_require__) {
 
 // optional / simple context binding
-var aFunction = __webpack_require__(28);
+var aFunction = __webpack_require__(29);
 module.exports = function (fn, that, length) {
   aFunction(fn);
   if (that === undefined) return fn;
@@ -317,7 +317,7 @@ module.exports = function (it) {
 /* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var store = __webpack_require__(38)('wks');
+var store = __webpack_require__(39)('wks');
 var uid = __webpack_require__(8);
 var Symbol = __webpack_require__(0).Symbol;
 var USE_SYMBOL = typeof Symbol == 'function';
@@ -332,6 +332,167 @@ $exports.store = store;
 
 /***/ }),
 /* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * parseurl
+ * Copyright(c) 2014 Jonathan Ong
+ * Copyright(c) 2014-2017 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+
+
+/**
+ * Module dependencies.
+ * @private
+ */
+
+var url = __webpack_require__(42)
+var parse = url.parse
+var Url = url.Url
+
+/**
+ * Module exports.
+ * @public
+ */
+
+module.exports = parseurl
+module.exports.original = originalurl
+
+/**
+ * Parse the `req` url with memoization.
+ *
+ * @param {ServerRequest} req
+ * @return {Object}
+ * @public
+ */
+
+function parseurl (req) {
+  var url = req.url
+
+  if (url === undefined) {
+    // URL is undefined
+    return undefined
+  }
+
+  var parsed = req._parsedUrl
+
+  if (fresh(url, parsed)) {
+    // Return cached URL parse
+    return parsed
+  }
+
+  // Parse the URL
+  parsed = fastparse(url)
+  parsed._raw = url
+
+  return (req._parsedUrl = parsed)
+};
+
+/**
+ * Parse the `req` original url with fallback and memoization.
+ *
+ * @param {ServerRequest} req
+ * @return {Object}
+ * @public
+ */
+
+function originalurl (req) {
+  var url = req.originalUrl
+
+  if (typeof url !== 'string') {
+    // Fallback
+    return parseurl(req)
+  }
+
+  var parsed = req._parsedOriginalUrl
+
+  if (fresh(url, parsed)) {
+    // Return cached URL parse
+    return parsed
+  }
+
+  // Parse the URL
+  parsed = fastparse(url)
+  parsed._raw = url
+
+  return (req._parsedOriginalUrl = parsed)
+};
+
+/**
+ * Parse the `str` url with fast-path short-cut.
+ *
+ * @param {string} str
+ * @return {Object}
+ * @private
+ */
+
+function fastparse (str) {
+  if (typeof str !== 'string' || str.charCodeAt(0) !== 0x2f /* / */) {
+    return parse(str)
+  }
+
+  var pathname = str
+  var query = null
+  var search = null
+
+  // This takes the regexp from https://github.com/joyent/node/pull/7878
+  // Which is /^(\/[^?#\s]*)(\?[^#\s]*)?$/
+  // And unrolls it into a for loop
+  for (var i = 1; i < str.length; i++) {
+    switch (str.charCodeAt(i)) {
+      case 0x3f: /* ?  */
+        if (search === null) {
+          pathname = str.substring(0, i)
+          query = str.substring(i + 1)
+          search = str.substring(i)
+        }
+        break
+      case 0x09: /* \t */
+      case 0x0a: /* \n */
+      case 0x0c: /* \f */
+      case 0x0d: /* \r */
+      case 0x20: /*    */
+      case 0x23: /* #  */
+      case 0xa0:
+      case 0xfeff:
+        return parse(str)
+    }
+  }
+
+  var url = Url !== undefined
+    ? new Url()
+    : {}
+  url.path = str
+  url.href = str
+  url.pathname = pathname
+  url.query = query
+  url.search = search
+
+  return url
+}
+
+/**
+ * Determine if parsed is still fresh for url.
+ *
+ * @param {string} url
+ * @param {object} parsedUrl
+ * @return {boolean}
+ * @private
+ */
+
+function fresh (url, parsedUrl) {
+  return typeof parsedUrl === 'object' &&
+    parsedUrl !== null &&
+    (Url === undefined || parsedUrl instanceof Url) &&
+    parsedUrl._raw === url
+}
+
+
+/***/ }),
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -352,8 +513,10 @@ exports.doArrayBuffer = doArrayBuffer;
 exports.debugData = debugData;
 exports.pad2 = pad2;
 exports.humanTime = humanTime;
+exports.logDM = logDM;
+exports.showDispatchError = showDispatchError;
 
-var _parseurl = __webpack_require__(43);
+var _parseurl = __webpack_require__(12);
 
 var _parseurl2 = _interopRequireDefault(_parseurl);
 
@@ -449,7 +612,6 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
     if (!l) {
       return;
     }
-
     var endTime = buffered.end(l - 1);
     var delay = Math.abs(endTime - ct);
     if (player._stalling) {
@@ -504,8 +666,48 @@ function humanTime(utcOrLive) {
   return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
 }
 
+function logDM(isDataAB, parsedData) {
+  if (parsedData) {
+    _logger.logger.log('%c ' + parsedData.type + ' ' + (parsedData.type === 'event' ? parsedData.event : 'mse_init_segment'), 'background: aquamarine;', parsedData);
+  }
+}
+
+var errorsCount = 0;
+
+function showDispatchError(e, err) {
+  var rawData = e.data;
+  var isDataAB = rawData instanceof ArrayBuffer;
+  _logger.logger.error(errorMsg(e), err);
+
+  if (this.media && this.media.error) {
+    _logger.logger.error('MediaError:', this.media.error);
+  }
+
+  if (isDataAB) {
+    _logger.logger.error('Data:', debugData(e.data));
+  }
+
+  errorsCount++;
+
+  if (errorsCount >= this.opts.errorsBeforeStop) {
+    errorsCount = 0;
+    this.stopPromise = this.stop();
+  }
+
+  if (this.onError) {
+    this.onError(err, e);
+  }
+}
+
+/*
+ * debug staff, after each operation you should
+ * set count to 0, if you want show info about
+ * ArrayBuffer frames
+ */
+// let count = 0
+
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -518,31 +720,11 @@ var VIDEO = exports.VIDEO = 'video';
 var AUDIO = exports.AUDIO = 'audio';
 
 /***/ }),
-/* 14 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = __webpack_require__(15);
-
-
-/***/ }),
 /* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
+module.exports = __webpack_require__(16);
 
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _MsePlayer = __webpack_require__(16);
-
-var _MsePlayer2 = _interopRequireDefault(_MsePlayer);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = _MsePlayer2.default;
-module.exports = exports['default'];
 
 /***/ }),
 /* 16 */
@@ -555,19 +737,42 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _MsePlayer = __webpack_require__(17);
+
+var _MsePlayer2 = _interopRequireDefault(_MsePlayer);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _MsePlayer2.default;
+module.exports = exports['default'];
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
-__webpack_require__(17);
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+// import MediaSourceController from '../controllers/mediaSource'
 
-var _ws = __webpack_require__(40);
+__webpack_require__(18);
+
+var _ws = __webpack_require__(41);
 
 var _ws2 = _interopRequireDefault(_ws);
 
-var _buffers = __webpack_require__(42);
+var _buffers = __webpack_require__(51);
 
 var _buffers2 = _interopRequireDefault(_buffers);
 
-var _mseUtils = __webpack_require__(12);
+var _mseUtils = __webpack_require__(13);
 
 var mseUtils = _interopRequireWildcard(_mseUtils);
 
@@ -575,7 +780,7 @@ var _logger = __webpack_require__(3);
 
 var _segments = __webpack_require__(52);
 
-var _common = __webpack_require__(13);
+var _common = __webpack_require__(14);
 
 var _events = __webpack_require__(2);
 
@@ -590,16 +795,16 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-// import MediaSourceController from '../controllers/mediaSource'
 
 var WS_EVENT_PAUSED = 'paused';
 var WS_EVENT_RESUMED = 'resumed';
 var WS_EVENT_SEEKED = 'seeked';
+var WS_EVENT_EOS = 'recordings_ended';
+
 var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
-var errorsCount = 0;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -617,16 +822,26 @@ var MSEPlayer = function () {
    */
 
 
+  _createClass(MSEPlayer, null, [{
+    key: 'version',
+    get: function get() {
+      return "18.08.3";
+    }
+  }]);
+
   function MSEPlayer(media, urlStream) {
     var opts = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
     _classCallCheck(this, MSEPlayer);
 
-    this.opts = opts || {};
-    if (this.opts.debug) {
+    if (opts.debug) {
       (0, _logger.enableLogs)(true);
       window.humanTime = mseUtils.humanTime;
     }
+
+    _logger.logger.info('[mse-player]:', "18.08.3");
+
+    this.opts = opts || {};
 
     this.media = media;
 
@@ -688,7 +903,7 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.pause = function pause() {
     if (!canPause.bind(this)()) {
-      return _logger.logger.log('[dispatchMessage] can not do pause');
+      return _logger.logger.log('[mse:playback] can not do pause');
     }
 
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
@@ -775,6 +990,11 @@ var MSEPlayer = function () {
         return resolve();
       }
 
+      _this2.playTime = from;
+      _this2.videoTrack = videoTrack;
+      _this2.audioTack = audioTack;
+      _this2._pause = false;
+
       // TODO: to observe this case, I have no idea when it fired
       if (!_this2.mediaSource) {
         _this2.onAttachMedia({ media: _this2.media });
@@ -794,11 +1014,6 @@ var MSEPlayer = function () {
         _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
         return;
       }
-
-      _this2.playTime = from;
-      _this2.videoTrack = videoTrack;
-      _this2.audioTack = audioTack;
-      _this2._pause = false;
 
       _this2.ws.start(_this2.url, _this2.playTime, _this2.videoTrack, _this2.audioTack);
 
@@ -984,83 +1199,61 @@ var MSEPlayer = function () {
     var rawData = e.data;
     var isDataAB = rawData instanceof ArrayBuffer;
     var parsedData = !isDataAB ? JSON.parse(rawData) : void 0;
-
+    mseUtils.logDM(isDataAB, parsedData);
     try {
-      if (!isDataAB && parsedData.type === _segments.EVENT_SEGMENT && parsedData[_segments.EVENT_SEGMENT] === WS_EVENT_RESUMED) {
-        _logger.logger.log('%cEvent ' + parsedData.event, 'background: purple;', parsedData);
-        if (this._pause && !this.playing) {
-          this._pause = false;
-          this.playing = true;
-          // wait for "progress" event, for shift currentTime and
-          // start playing
-          if (this.onStartStalling) {
-            this.onStartStalling();
-          }
+      // ArrayBuffer data
+      if (isDataAB) {
+        // wait for MSE_INIT_SEGMENT
+        if (this.waitForInitFrame) {
+          return _logger.logger.log('old frames');
+        }
+        this.sb.procArrayBuffer(rawData);
+      }
+
+      /*
+       * EVENTS
+       */
+
+      if (parsedData && parsedData.type === _segments.EVENT_SEGMENT) {
+        var eventType = parsedData[_segments.EVENT_SEGMENT];
+        switch (eventType) {
+          case WS_EVENT_RESUMED:
+            if (this._pause && !this.playing) {
+              this._pause = false;
+              this.playing = true;
+              // wait for "progress" event, for shift currentTime and start playing
+              this.onStartStalling();
+            }
+            break;
+          case WS_EVENT_PAUSED:
+            break;
+          case WS_EVENT_SEEKED:
+            this.seekValue = void 0;
+            if (this.opts.onSeeked) {
+              try {
+                this.opts.onSeeked();
+              } catch (err) {
+                _logger.logger.error(err);
+              }
+            }
+            break;
+          case WS_EVENT_EOS:
+            debugger;
+            this._eos = true;
+            this.sb.onBufferEos();
+            break;
+          default:
+            _logger.logger.warn('unknown type of event', eventType);
         }
         return;
-      }
-
-      if (!isDataAB && parsedData.type === _segments.EVENT_SEGMENT && parsedData[_segments.EVENT_SEGMENT] === WS_EVENT_PAUSED) {
-        _logger.logger.log('%cEvent ' + parsedData.event, 'background: purple;', parsedData);
-        return;
-      }
-
-      if (this._pause && isDataAB) {
-        count < 10 && _logger.logger.log('[dispatchMessage] frames after pause');
-        return;
-      }
-
-      if (!isDataAB && parsedData.type === _segments.EVENT_SEGMENT) {
-        _logger.logger.log('%cEvent ' + parsedData.event, 'background: purple;', parsedData);
-      }
-
-      if (this.seekValue && parsedData && parsedData.type === _segments.EVENT_SEGMENT && parsedData[_segments.EVENT_SEGMENT] === WS_EVENT_SEEKED) {
-        this.seekValue = void 0;
-        _logger.logger.log('event:seeked receive');
-        if (this.opts.onSeeked) {
-          try {
-            this.opts.onSeeked();
-          } catch (err) {
-            _logger.logger.error(err);
-          }
-        }
-      }
-
-      // wait for MSE_INIT_SEGMENT
-      if (this.waitForInitFrame && isDataAB) {
-        return _logger.logger.log('old frames');
       }
 
       // MSE_INIT_SEGMENT
-      if (!isDataAB && parsedData.type === _segments.MSE_INIT_SEGMENT) {
-        _logger.logger.log('%c' + _segments.MSE_INIT_SEGMENT, 'background: aqua;', parsedData);
-        this.procInitSegment(rawData);
-        return;
-      }
-
-      // ArrayBuffer data
-      if (isDataAB) {
-        this.sb.procArrayBuffer(rawData);
+      if (parsedData && parsedData.type === _segments.MSE_INIT_SEGMENT) {
+        return this.procInitSegment(rawData);
       }
     } catch (err) {
-      _logger.logger.error(mseUtils.errorMsg(e), err);
-
-      if (this.media && this.media.error) {
-        _logger.logger.error('MediaError:', this.media.error);
-      }
-
-      if (isDataAB) {
-        _logger.logger.error('Data:', mseUtils.debugData(e.data));
-      }
-      errorsCount++;
-      if (errorsCount >= this.opts.errorsBeforeStop) {
-        errorsCount = 0;
-        this.stopPromise = this.stop();
-      }
-
-      if (this.onError) {
-        this.onError(err, e);
-      }
+      mseUtils.showDispatchError.bind(this)(e, err);
     }
   };
 
@@ -1165,7 +1358,7 @@ var MSEPlayer = function () {
       this.opts.onStartStalling();
     }
     this._stalling = true;
-    _logger.logger.log('[dispatchMessage] onStartStalling');
+    _logger.logger.log('onStartStalling');
   };
 
   MSEPlayer.prototype.onEndStalling = function onEndStalling() {
@@ -1173,7 +1366,7 @@ var MSEPlayer = function () {
       this.opts.onEndStalling();
     }
     this._stalling = false;
-    _logger.logger.log('[dispatchMessage] onEndStalling');
+    _logger.logger.log('onEndStalling');
   };
 
   MSEPlayer.prototype.startProgressTimer = function startProgressTimer() {
@@ -1186,8 +1379,12 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onTimer = function onTimer() {
+    if (this._eos) {
+      return _logger.logger.log('nothing to play');
+    }
+
     if (!this.playing && this._pause) {
-      _logger.logger.log('[dispatchMessage] onTimer');
+      _logger.logger.log('onTimer playing false, _pause true');
     }
 
     // #TODO explain
@@ -1196,12 +1393,12 @@ var MSEPlayer = function () {
     }
 
     if (this.sb.lastLoadedUTC === this.utcPrev) {
-      _logger.logger.log('%c!!!!', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling);
+      _logger.logger.log('%cloaded utc is not change', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling);
       return;
     }
 
     if (this._stalling) {
-      _logger.logger.log('%c[dispatchMessage] •••Stalling•••', 'background: lightred;');
+      _logger.logger.log('%cStalling flag is true', 'background: lightred;');
       return;
     }
 
@@ -1219,6 +1416,13 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.onMediaSourceEnded = function onMediaSourceEnded() {
     _logger.logger.log('media source ended');
+    try {
+      if (this.opts.onEOS) {
+        this.opts.onEOS();
+      }
+    } catch (err) {
+      _logger.logger.error('error while proccessing onEOS');
+    }
   };
 
   MSEPlayer.prototype.onMediaSourceClose = function onMediaSourceClose() {
@@ -1232,22 +1436,22 @@ exports.default = MSEPlayer;
 module.exports = exports['default'];
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
-__webpack_require__(18);
+__webpack_require__(19);
 module.exports = __webpack_require__(4).Array.find;
 
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 // 22.1.3.8 Array.prototype.find(predicate, thisArg = undefined)
-var $export = __webpack_require__(19);
-var $find = __webpack_require__(29)(5);
+var $export = __webpack_require__(20);
+var $find = __webpack_require__(30)(5);
 var KEY = 'find';
 var forced = true;
 // Shouldn't skip holes
@@ -1257,17 +1461,17 @@ $export($export.P + $export.F * forced, 'Array', {
     return $find(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
   }
 });
-__webpack_require__(39)(KEY);
+__webpack_require__(40)(KEY);
 
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
 var core = __webpack_require__(4);
 var hide = __webpack_require__(5);
-var redefine = __webpack_require__(26);
+var redefine = __webpack_require__(27);
 var ctx = __webpack_require__(9);
 var PROTOTYPE = 'prototype';
 
@@ -1310,12 +1514,12 @@ module.exports = $export;
 
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var anObject = __webpack_require__(21);
-var IE8_DOM_DEFINE = __webpack_require__(22);
-var toPrimitive = __webpack_require__(24);
+var anObject = __webpack_require__(22);
+var IE8_DOM_DEFINE = __webpack_require__(23);
+var toPrimitive = __webpack_require__(25);
 var dP = Object.defineProperty;
 
 exports.f = __webpack_require__(6) ? Object.defineProperty : function defineProperty(O, P, Attributes) {
@@ -1332,7 +1536,7 @@ exports.f = __webpack_require__(6) ? Object.defineProperty : function defineProp
 
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var isObject = __webpack_require__(1);
@@ -1343,16 +1547,16 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = !__webpack_require__(6) && !__webpack_require__(7)(function () {
-  return Object.defineProperty(__webpack_require__(23)('div'), 'a', { get: function () { return 7; } }).a != 7;
+  return Object.defineProperty(__webpack_require__(24)('div'), 'a', { get: function () { return 7; } }).a != 7;
 });
 
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var isObject = __webpack_require__(1);
@@ -1365,7 +1569,7 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.1 ToPrimitive(input [, PreferredType])
@@ -1383,7 +1587,7 @@ module.exports = function (it, S) {
 
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports) {
 
 module.exports = function (bitmap, value) {
@@ -1397,12 +1601,12 @@ module.exports = function (bitmap, value) {
 
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
 var hide = __webpack_require__(5);
-var has = __webpack_require__(27);
+var has = __webpack_require__(28);
 var SRC = __webpack_require__(8)('src');
 var TO_STRING = 'toString';
 var $toString = Function[TO_STRING];
@@ -1434,7 +1638,7 @@ __webpack_require__(4).inspectSource = function (it) {
 
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ (function(module, exports) {
 
 var hasOwnProperty = {}.hasOwnProperty;
@@ -1444,7 +1648,7 @@ module.exports = function (it, key) {
 
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ (function(module, exports) {
 
 module.exports = function (it) {
@@ -1454,7 +1658,7 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 0 -> Array#forEach
@@ -1465,10 +1669,10 @@ module.exports = function (it) {
 // 5 -> Array#find
 // 6 -> Array#findIndex
 var ctx = __webpack_require__(9);
-var IObject = __webpack_require__(30);
-var toObject = __webpack_require__(31);
-var toLength = __webpack_require__(33);
-var asc = __webpack_require__(35);
+var IObject = __webpack_require__(31);
+var toObject = __webpack_require__(32);
+var toLength = __webpack_require__(34);
+var asc = __webpack_require__(36);
 module.exports = function (TYPE, $create) {
   var IS_MAP = TYPE == 1;
   var IS_FILTER = TYPE == 2;
@@ -1504,7 +1708,7 @@ module.exports = function (TYPE, $create) {
 
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // fallback for non-array-like ES3 and non-enumerable old V8 strings
@@ -1516,18 +1720,18 @@ module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
 
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.13 ToObject(argument)
-var defined = __webpack_require__(32);
+var defined = __webpack_require__(33);
 module.exports = function (it) {
   return Object(defined(it));
 };
 
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(module, exports) {
 
 // 7.2.1 RequireObjectCoercible(argument)
@@ -1538,11 +1742,11 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.1.15 ToLength
-var toInteger = __webpack_require__(34);
+var toInteger = __webpack_require__(35);
 var min = Math.min;
 module.exports = function (it) {
   return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
@@ -1550,7 +1754,7 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports) {
 
 // 7.1.4 ToInteger
@@ -1562,11 +1766,11 @@ module.exports = function (it) {
 
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 9.4.2.3 ArraySpeciesCreate(originalArray, length)
-var speciesConstructor = __webpack_require__(36);
+var speciesConstructor = __webpack_require__(37);
 
 module.exports = function (original, length) {
   return new (speciesConstructor(original))(length);
@@ -1574,11 +1778,11 @@ module.exports = function (original, length) {
 
 
 /***/ }),
-/* 36 */
+/* 37 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var isObject = __webpack_require__(1);
-var isArray = __webpack_require__(37);
+var isArray = __webpack_require__(38);
 var SPECIES = __webpack_require__(11)('species');
 
 module.exports = function (original) {
@@ -1596,7 +1800,7 @@ module.exports = function (original) {
 
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 7.2.2 IsArray(argument)
@@ -1607,7 +1811,7 @@ module.exports = Array.isArray || function isArray(arg) {
 
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var global = __webpack_require__(0);
@@ -1619,7 +1823,7 @@ module.exports = function (key) {
 
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // 22.1.3.31 Array.prototype[@@unscopables]
@@ -1632,7 +1836,7 @@ module.exports = function (key) {
 
 
 /***/ }),
-/* 40 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1642,6 +1846,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.getWSURL = getWSURL;
+
+var _parseurl = __webpack_require__(12);
+
+var _parseurl2 = _interopRequireDefault(_parseurl);
 
 var _events = __webpack_require__(2);
 
@@ -1729,7 +1937,7 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
     return url;
   }
 
-  var parsedUrl = parseUrl({ url: url });
+  var parsedUrl = (0, _parseurl2.default)({ url: url });
   var othersParams = '';
 
   if (parsedUrl.query) {
@@ -1754,450 +1962,7 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
 }
 
 /***/ }),
-/* 41 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.getSelfScope = getSelfScope;
-function getSelfScope() {
-  // see https://stackoverflow.com/a/11237259/589493
-  if (typeof window === 'undefined') {
-    /* eslint-disable-next-line no-undef */
-    return self;
-  } else {
-    return window;
-  }
-}
-
-/***/ }),
 /* 42 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _mseUtils = __webpack_require__(12);
-
-var _logger = __webpack_require__(3);
-
-var _common = __webpack_require__(13);
-
-var _events = __webpack_require__(2);
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
-
-var BuffersController = function () {
-  function BuffersController() {
-    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-    _classCallCheck(this, BuffersController);
-
-    _logger.logger.log('create BuffersController');
-    this.flushRange = [];
-    this.appended = 0;
-    this.media = opts.media;
-    this.mediaSource = opts.mediaSource;
-    this.segments = [];
-    this.sourceBuffer = {};
-
-    this.doArrayBuffer = _mseUtils.doArrayBuffer.bind(this);
-    this.maybeAppend = this.maybeAppend.bind(this);
-    this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this);
-  }
-
-  BuffersController.prototype.setMediaSource = function setMediaSource(ms) {
-    this.mediaSource = ms;
-  };
-
-  BuffersController.prototype.createSourceBuffers = function createSourceBuffers(data) {
-    var _this = this;
-
-    var sb = this.sourceBuffer;
-
-    data.tracks.forEach(function (s) {
-      var isVideo = s.content === _common.VIDEO;
-      var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
-
-      sb[s.content] = _this.mediaSource.addSourceBuffer(mimeType);
-      var buffer = sb[s.content];
-
-      buffer.addEventListener(_events.BUFFER_UPDATE_END, _this.onSBUpdateEnd);
-    });
-  };
-
-  BuffersController.prototype.onSBUpdateEnd = function onSBUpdateEnd() {
-    if (this._needsFlush) {
-      this.doFlush();
-    }
-    if (!this._needsFlush && this.segments.length) {
-      this.doArrayBuffer();
-    }
-  };
-
-  BuffersController.prototype.createTracks = function createTracks(tracks) {
-    var _this2 = this;
-
-    tracks.forEach(function (track) {
-      var view = (0, _mseUtils.base64ToArrayBuffer)(track.payload);
-      var segment = {
-        type: _this2.getTypeBytrackId(track.id),
-        isInit: true,
-        data: view
-      };
-      _this2.maybeAppend(segment);
-    });
-  };
-
-  BuffersController.prototype.maybeAppend = function maybeAppend(segment) {
-
-    if (this._needsFlush) {
-      this.segments.unshift(segment);
-      return;
-    }
-
-    var buffer = this.sourceBuffer[segment.type];
-
-    if (buffer.updating) {
-      this.segments.unshift(segment);
-    } else {
-      buffer.appendBuffer(segment.data);
-      this.appended++;
-    }
-  };
-
-  BuffersController.prototype.setTracksByType = function setTracksByType(data) {
-    var _this3 = this;
-
-    data.tracks.forEach(function (s) {
-      _this3[s.content === _common.VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id;
-    });
-  };
-
-  BuffersController.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
-    return this.audioTrackId === id ? _common.AUDIO : _common.VIDEO;
-  };
-
-  BuffersController.prototype.procArrayBuffer = function procArrayBuffer(rawData) {
-    var segment = this.rawDataToSegmnet(rawData);
-    this.segments.push(segment);
-    this.doArrayBuffer();
-  };
-
-  BuffersController.prototype.seek = function seek() {
-    for (var k in this.sourceBuffer) {
-      this.sourceBuffer[k].abort();
-      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
-    }
-
-    this.segments = [];
-  };
-
-  BuffersController.prototype.isBuffered = function isBuffered() {
-    var appended = 0;
-    var sourceBuffer = this.sourceBuffer;
-    for (var type in sourceBuffer) {
-      appended += sourceBuffer[type].buffered.length;
-    }
-    return appended > 0;
-  };
-
-  BuffersController.prototype.doFlush = function doFlush() {
-    // loop through all buffer ranges to flush
-    while (this.flushRange.length) {
-      var range = this.flushRange[0];
-      // flushBuffer will abort any buffer append in progress and flush Audio/Video Buffer
-      if (this.flushBuffer(range.start, range.end, range.type)) {
-        // range flushed, remove from flush array
-        this.flushRange.shift();
-        this.flushBufferCounter = 0;
-      } else {
-        this._needsFlush = true;
-        // avoid looping, wait for SB update end to retrigger a flush
-        return;
-      }
-    }
-    if (this.flushRange.length === 0) {
-      // everything flushed
-      this._needsFlush = false;
-
-      // let's recompute this.appended, which is used to avoid flush looping
-      var appended = 0;
-      var sourceBuffer = this.sourceBuffer;
-      try {
-        for (var type in sourceBuffer) {
-          appended += sourceBuffer[type].buffered.length;
-        }
-      } catch (error) {
-        // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
-        // this is harmess at this stage, catch this to avoid reporting an internal exception
-        _logger.logger.error('error while accessing sourceBuffer.buffered');
-      }
-      this.appended = appended;
-      this._setTracksFlag = false;
-    }
-  };
-
-  /*
-    flush specified buffered range,
-    return true once range has been flushed.
-    as sourceBuffer.remove() is asynchronous, flushBuffer will be retriggered on sourceBuffer update end
-  */
-
-
-  BuffersController.prototype.flushBuffer = function flushBuffer(startOffset, endOffset, typeIn) {
-    var sb = void 0,
-        i = void 0,
-        bufStart = void 0,
-        bufEnd = void 0,
-        flushStart = void 0,
-        flushEnd = void 0,
-        sourceBuffer = this.sourceBuffer;
-    if (Object.keys(sourceBuffer).length) {
-      _logger.logger.log('flushBuffer,pos/start/end: ' + this.media.currentTime.toFixed(3) + '/' + startOffset + '/' + endOffset);
-      // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
-      if (this.flushBufferCounter < this.appended) {
-        for (var type in sourceBuffer) {
-          // check if sourcebuffer type is defined (typeIn): if yes, let's only flush this one
-          // if no, let's flush all sourcebuffers
-          if (typeIn && type !== typeIn) {
-            continue;
-          }
-
-          sb = sourceBuffer[type];
-          // we are going to flush buffer, mark source buffer as 'not ended'
-          sb.ended = false;
-          if (!sb.updating) {
-            try {
-              for (i = 0; i < sb.buffered.length; i++) {
-                bufStart = sb.buffered.start(i);
-                bufEnd = sb.buffered.end(i);
-                // workaround firefox not able to properly flush multiple buffered range.
-                if (navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 && endOffset === Number.POSITIVE_INFINITY) {
-                  flushStart = startOffset;
-                  flushEnd = endOffset;
-                } else {
-                  flushStart = Math.max(bufStart, startOffset);
-                  flushEnd = Math.min(bufEnd, endOffset);
-                }
-                /* sometimes sourcebuffer.remove() does not flush
-                   the exact expected time range.
-                   to avoid rounding issues/infinite loop,
-                   only flush buffer range of length greater than 500ms.
-                */
-                if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
-                  this.flushBufferCounter++;
-                  _logger.logger.log('flush ' + type + ' [' + flushStart + ',' + flushEnd + '], of [' + bufStart + ',' + bufEnd + '], pos:' + this.media.currentTime);
-                  sb.remove(flushStart, flushEnd);
-                  return false;
-                }
-              }
-            } catch (e) {
-              _logger.logger.warn('exception while accessing sourcebuffer, it might have been removed from MediaSource');
-            }
-          } else {
-            // logger.log('abort ' + type + ' append in progress');
-            // this will abort any appending in progress
-            // sb.abort();
-            _logger.logger.warn('cannot flush, sb updating in progress');
-            return false;
-          }
-        }
-      } else {
-        _logger.logger.warn('abort flushing too many retries');
-      }
-      _logger.logger.log('buffer flushed');
-    }
-    // everything flushed !
-    return true;
-  };
-
-  BuffersController.prototype.rawDataToSegmnet = function rawDataToSegmnet(rawData) {
-    var view = (0, _mseUtils.RawDataToUint8Array)(rawData);
-    var trackId = (0, _mseUtils.getTrackId)(view);
-    var trackType = this.getTypeBytrackId(trackId);
-    return { type: trackType, data: view };
-  };
-
-  return BuffersController;
-}();
-
-exports.default = BuffersController;
-module.exports = exports['default'];
-
-/***/ }),
-/* 43 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/*!
- * parseurl
- * Copyright(c) 2014 Jonathan Ong
- * Copyright(c) 2014-2017 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-
-
-/**
- * Module dependencies.
- * @private
- */
-
-var url = __webpack_require__(44)
-var parse = url.parse
-var Url = url.Url
-
-/**
- * Module exports.
- * @public
- */
-
-module.exports = parseurl
-module.exports.original = originalurl
-
-/**
- * Parse the `req` url with memoization.
- *
- * @param {ServerRequest} req
- * @return {Object}
- * @public
- */
-
-function parseurl (req) {
-  var url = req.url
-
-  if (url === undefined) {
-    // URL is undefined
-    return undefined
-  }
-
-  var parsed = req._parsedUrl
-
-  if (fresh(url, parsed)) {
-    // Return cached URL parse
-    return parsed
-  }
-
-  // Parse the URL
-  parsed = fastparse(url)
-  parsed._raw = url
-
-  return (req._parsedUrl = parsed)
-};
-
-/**
- * Parse the `req` original url with fallback and memoization.
- *
- * @param {ServerRequest} req
- * @return {Object}
- * @public
- */
-
-function originalurl (req) {
-  var url = req.originalUrl
-
-  if (typeof url !== 'string') {
-    // Fallback
-    return parseurl(req)
-  }
-
-  var parsed = req._parsedOriginalUrl
-
-  if (fresh(url, parsed)) {
-    // Return cached URL parse
-    return parsed
-  }
-
-  // Parse the URL
-  parsed = fastparse(url)
-  parsed._raw = url
-
-  return (req._parsedOriginalUrl = parsed)
-};
-
-/**
- * Parse the `str` url with fast-path short-cut.
- *
- * @param {string} str
- * @return {Object}
- * @private
- */
-
-function fastparse (str) {
-  if (typeof str !== 'string' || str.charCodeAt(0) !== 0x2f /* / */) {
-    return parse(str)
-  }
-
-  var pathname = str
-  var query = null
-  var search = null
-
-  // This takes the regexp from https://github.com/joyent/node/pull/7878
-  // Which is /^(\/[^?#\s]*)(\?[^#\s]*)?$/
-  // And unrolls it into a for loop
-  for (var i = 1; i < str.length; i++) {
-    switch (str.charCodeAt(i)) {
-      case 0x3f: /* ?  */
-        if (search === null) {
-          pathname = str.substring(0, i)
-          query = str.substring(i + 1)
-          search = str.substring(i)
-        }
-        break
-      case 0x09: /* \t */
-      case 0x0a: /* \n */
-      case 0x0c: /* \f */
-      case 0x0d: /* \r */
-      case 0x20: /*    */
-      case 0x23: /* #  */
-      case 0xa0:
-      case 0xfeff:
-        return parse(str)
-    }
-  }
-
-  var url = Url !== undefined
-    ? new Url()
-    : {}
-  url.path = str
-  url.href = str
-  url.pathname = pathname
-  url.query = query
-  url.search = search
-
-  return url
-}
-
-/**
- * Determine if parsed is still fresh for url.
- *
- * @param {string} url
- * @param {object} parsedUrl
- * @return {boolean}
- * @private
- */
-
-function fresh (url, parsedUrl) {
-  return typeof parsedUrl === 'object' &&
-    parsedUrl !== null &&
-    (Url === undefined || parsedUrl instanceof Url) &&
-    parsedUrl._raw === url
-}
-
-
-/***/ }),
-/* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2224,8 +1989,8 @@ function fresh (url, parsedUrl) {
 
 
 
-var punycode = __webpack_require__(45);
-var util = __webpack_require__(48);
+var punycode = __webpack_require__(43);
+var util = __webpack_require__(46);
 
 exports.parse = urlParse;
 exports.resolve = urlResolve;
@@ -2300,7 +2065,7 @@ var protocolPattern = /^([a-z0-9.+-]+:)/i,
       'gopher:': true,
       'file:': true
     },
-    querystring = __webpack_require__(49);
+    querystring = __webpack_require__(47);
 
 function urlParse(url, parseQueryString, slashesDenoteHost) {
   if (url && util.isObject(url) && url instanceof Url) return url;
@@ -2936,7 +2701,7 @@ Url.prototype.parseHost = function() {
 
 
 /***/ }),
-/* 45 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module, global) {var __WEBPACK_AMD_DEFINE_RESULT__;/*! https://mths.be/punycode v1.4.1 by @mathias */
@@ -3472,10 +3237,10 @@ Url.prototype.parseHost = function() {
 
 }(this));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(46)(module), __webpack_require__(47)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(44)(module), __webpack_require__(45)))
 
 /***/ }),
-/* 46 */
+/* 44 */
 /***/ (function(module, exports) {
 
 module.exports = function(module) {
@@ -3503,7 +3268,7 @@ module.exports = function(module) {
 
 
 /***/ }),
-/* 47 */
+/* 45 */
 /***/ (function(module, exports) {
 
 var g;
@@ -3530,7 +3295,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 48 */
+/* 46 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3553,18 +3318,18 @@ module.exports = {
 
 
 /***/ }),
-/* 49 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-exports.decode = exports.parse = __webpack_require__(50);
-exports.encode = exports.stringify = __webpack_require__(51);
+exports.decode = exports.parse = __webpack_require__(48);
+exports.encode = exports.stringify = __webpack_require__(49);
 
 
 /***/ }),
-/* 50 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3655,7 +3420,7 @@ var isArray = Array.isArray || function (xs) {
 
 
 /***/ }),
-/* 51 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3745,6 +3510,343 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
+
+/***/ }),
+/* 50 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.getSelfScope = getSelfScope;
+function getSelfScope() {
+  // see https://stackoverflow.com/a/11237259/589493
+  if (typeof window === 'undefined') {
+    /* eslint-disable-next-line no-undef */
+    return self;
+  } else {
+    return window;
+  }
+}
+
+/***/ }),
+/* 51 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _mseUtils = __webpack_require__(13);
+
+var _logger = __webpack_require__(3);
+
+var _common = __webpack_require__(14);
+
+var _events = __webpack_require__(2);
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
+
+var BuffersController = function () {
+  function BuffersController() {
+    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    _classCallCheck(this, BuffersController);
+
+    _logger.logger.log('create BuffersController');
+    this.flushRange = [];
+    this.appended = 0;
+    this.media = opts.media;
+    this.mediaSource = opts.mediaSource;
+    this.segments = [];
+    this.sourceBuffer = {};
+
+    this.doArrayBuffer = _mseUtils.doArrayBuffer.bind(this);
+    this.maybeAppend = this.maybeAppend.bind(this);
+    this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this);
+  }
+
+  BuffersController.prototype.setMediaSource = function setMediaSource(ms) {
+    this.mediaSource = ms;
+  };
+
+  BuffersController.prototype.createSourceBuffers = function createSourceBuffers(data) {
+    var _this = this;
+
+    var sb = this.sourceBuffer;
+
+    data.tracks.forEach(function (s) {
+      var isVideo = s.content === _common.VIDEO;
+      var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+
+      sb[s.content] = _this.mediaSource.addSourceBuffer(mimeType);
+      var buffer = sb[s.content];
+
+      buffer.addEventListener(_events.BUFFER_UPDATE_END, _this.onSBUpdateEnd);
+    });
+  };
+
+  BuffersController.prototype.onSBUpdateEnd = function onSBUpdateEnd() {
+    if (this._needsFlush) {
+      this.doFlush();
+    }
+
+    if (this._needsEos) {
+      this.checkEos();
+    }
+
+    if (!this._needsFlush && this.segments.length) {
+      this.doArrayBuffer();
+    }
+  };
+
+  BuffersController.prototype.createTracks = function createTracks(tracks) {
+    var _this2 = this;
+
+    tracks.forEach(function (track) {
+      var view = (0, _mseUtils.base64ToArrayBuffer)(track.payload);
+      var segment = {
+        type: _this2.getTypeBytrackId(track.id),
+        isInit: true,
+        data: view
+      };
+      _this2.maybeAppend(segment);
+    });
+  };
+
+  BuffersController.prototype.maybeAppend = function maybeAppend(segment) {
+
+    if (this._needsFlush) {
+      this.segments.unshift(segment);
+      return;
+    }
+
+    var buffer = this.sourceBuffer[segment.type];
+
+    if (buffer.updating) {
+      this.segments.unshift(segment);
+    } else {
+      buffer.appendBuffer(segment.data);
+      this.appended++;
+    }
+  };
+
+  BuffersController.prototype.setTracksByType = function setTracksByType(data) {
+    var _this3 = this;
+
+    data.tracks.forEach(function (s) {
+      _this3[s.content === _common.VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id;
+    });
+  };
+
+  BuffersController.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
+    return this.audioTrackId === id ? _common.AUDIO : _common.VIDEO;
+  };
+
+  BuffersController.prototype.procArrayBuffer = function procArrayBuffer(rawData) {
+    var segment = this.rawDataToSegmnet(rawData);
+    this.segments.push(segment);
+    this.doArrayBuffer();
+  };
+
+  BuffersController.prototype.seek = function seek() {
+    for (var k in this.sourceBuffer) {
+      this.sourceBuffer[k].abort();
+      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
+    }
+
+    this.segments = [];
+  };
+
+  BuffersController.prototype.isBuffered = function isBuffered() {
+    var appended = 0;
+    var sourceBuffer = this.sourceBuffer;
+    for (var type in sourceBuffer) {
+      appended += sourceBuffer[type].buffered.length;
+    }
+    return appended > 0;
+  };
+
+  BuffersController.prototype.doFlush = function doFlush() {
+    // loop through all buffer ranges to flush
+    while (this.flushRange.length) {
+      var range = this.flushRange[0];
+      // flushBuffer will abort any buffer append in progress and flush Audio/Video Buffer
+      if (this.flushBuffer(range.start, range.end, range.type)) {
+        // range flushed, remove from flush array
+        this.flushRange.shift();
+        this.flushBufferCounter = 0;
+      } else {
+        this._needsFlush = true;
+        // avoid looping, wait for SB update end to retrigger a flush
+        return;
+      }
+    }
+    if (this.flushRange.length === 0) {
+      // everything flushed
+      this._needsFlush = false;
+
+      // let's recompute this.appended, which is used to avoid flush looping
+      var appended = 0;
+      var sourceBuffer = this.sourceBuffer;
+      try {
+        for (var type in sourceBuffer) {
+          appended += sourceBuffer[type].buffered.length;
+        }
+      } catch (error) {
+        // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
+        // this is harmess at this stage, catch this to avoid reporting an internal exception
+        _logger.logger.error('error while accessing sourceBuffer.buffered');
+      }
+      this.appended = appended;
+      this._setTracksFlag = false;
+    }
+  };
+
+  /*
+    flush specified buffered range,
+    return true once range has been flushed.
+    as sourceBuffer.remove() is asynchronous, flushBuffer will be retriggered on sourceBuffer update end
+  */
+
+
+  BuffersController.prototype.flushBuffer = function flushBuffer(startOffset, endOffset, typeIn) {
+    var sb = void 0,
+        i = void 0,
+        bufStart = void 0,
+        bufEnd = void 0,
+        flushStart = void 0,
+        flushEnd = void 0,
+        sourceBuffer = this.sourceBuffer;
+    if (Object.keys(sourceBuffer).length) {
+      _logger.logger.log('flushBuffer,pos/start/end: ' + this.media.currentTime.toFixed(3) + '/' + startOffset + '/' + endOffset);
+      // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
+      if (this.flushBufferCounter < this.appended) {
+        for (var type in sourceBuffer) {
+          // check if sourcebuffer type is defined (typeIn): if yes, let's only flush this one
+          // if no, let's flush all sourcebuffers
+          if (typeIn && type !== typeIn) {
+            continue;
+          }
+
+          sb = sourceBuffer[type];
+          // we are going to flush buffer, mark source buffer as 'not ended'
+          sb.ended = false;
+          if (!sb.updating) {
+            try {
+              for (i = 0; i < sb.buffered.length; i++) {
+                bufStart = sb.buffered.start(i);
+                bufEnd = sb.buffered.end(i);
+                // workaround firefox not able to properly flush multiple buffered range.
+                if (navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 && endOffset === Number.POSITIVE_INFINITY) {
+                  flushStart = startOffset;
+                  flushEnd = endOffset;
+                } else {
+                  flushStart = Math.max(bufStart, startOffset);
+                  flushEnd = Math.min(bufEnd, endOffset);
+                }
+                /* sometimes sourcebuffer.remove() does not flush
+                   the exact expected time range.
+                   to avoid rounding issues/infinite loop,
+                   only flush buffer range of length greater than 500ms.
+                */
+                if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
+                  this.flushBufferCounter++;
+                  _logger.logger.log('flush ' + type + ' [' + flushStart + ',' + flushEnd + '], of [' + bufStart + ',' + bufEnd + '], pos:' + this.media.currentTime);
+                  sb.remove(flushStart, flushEnd);
+                  return false;
+                }
+              }
+            } catch (e) {
+              _logger.logger.warn('exception while accessing sourcebuffer, it might have been removed from MediaSource');
+            }
+          } else {
+            // logger.log('abort ' + type + ' append in progress');
+            // this will abort any appending in progress
+            // sb.abort();
+            _logger.logger.warn('cannot flush, sb updating in progress');
+            return false;
+          }
+        }
+      } else {
+        _logger.logger.warn('abort flushing too many retries');
+      }
+      _logger.logger.log('buffer flushed');
+    }
+    // everything flushed !
+    return true;
+  };
+
+  BuffersController.prototype.rawDataToSegmnet = function rawDataToSegmnet(rawData) {
+    var view = (0, _mseUtils.RawDataToUint8Array)(rawData);
+    var trackId = (0, _mseUtils.getTrackId)(view);
+    var trackType = this.getTypeBytrackId(trackId);
+    return { type: trackType, data: view };
+  };
+
+  // on BUFFER_EOS mark matching sourcebuffer(s) as ended and trigger checkEos()
+
+
+  BuffersController.prototype.onBufferEos = function onBufferEos() {
+    var data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    var sb = this.sourceBuffer;
+    var dataType = data.type;
+    for (var type in sb) {
+      if (!dataType || type === dataType) {
+        if (!sb[type].ended) {
+          sb[type].ended = true;
+          _logger.logger.log(type + ' sourceBuffer now EOS');
+        }
+      }
+    }
+    this.checkEos();
+  };
+
+  // if all source buffers are marked as ended, signal endOfStream() to MediaSource.
+
+
+  BuffersController.prototype.checkEos = function checkEos() {
+    var sb = this.sourceBuffer,
+        mediaSource = this.mediaSource;
+    if (!mediaSource || mediaSource.readyState !== 'open') {
+      this._needsEos = false;
+      return;
+    }
+    for (var type in sb) {
+      var sbobj = sb[type];
+      if (!sbobj.ended) {
+        return;
+      }
+
+      if (sbobj.updating) {
+        this._needsEos = true;
+        return;
+      }
+    }
+    _logger.logger.log('all media data available, signal endOfStream() to MediaSource and stop loading fragment');
+    // Notify the media element that it now has all of the media data
+    try {
+      mediaSource.endOfStream();
+    } catch (e) {
+      _logger.logger.warn('exception while calling mediaSource.endOfStream()');
+    }
+    this._needsEos = false;
+  };
+
+  return BuffersController;
+}();
+
+exports.default = BuffersController;
+module.exports = exports['default'];
 
 /***/ }),
 /* 52 */
