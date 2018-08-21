@@ -12,6 +12,9 @@ module.exports = {
       VERSION: JSON.stringify(require('./package.json').version),
     }),
   ],
+  externals: {
+    'FlussonicMsePlayer': 'FlussonicMsePlayer',
+  },
   module: {
     loaders: [
       {

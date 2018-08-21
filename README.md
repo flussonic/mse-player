@@ -60,7 +60,13 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
   - `onProgress(utc: number)` - triggered every 100ms(progressUpdateTime) while a stream is playing and gives current playback time
 
-  - `onMediaInfo(info: MediaInfo)` - triggered then metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
+  - `onMediaInfo(info: MediaInfo)` - triggered when metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
+
+  - `onSeeked()` - triggered when process of seeking is finished
+
+  - `onStartStalling()` - triggered when playing is stalled
+
+  - `onEndStalling()` - triggered when the video tag is progressed(start playing). `onStartStalling()/onEndStalling()` useful callback for implementation loading-spinner.
 
   - **•••DEPRECATED•••** `bufferMode: 'segments'|'sequence'` - [SourceBuffer Object Append Mode](https://www.w3.org/TR/media-source/#h-sourcebuffer). Default value is `'sequence'`.
 

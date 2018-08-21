@@ -46,7 +46,7 @@ export default class MSEPlayer {
       window.humanTime = mseUtils.humanTime
     }
 
-    logger.info('[mse-player]:', VERSION)
+    logger.info('[mse-player]:', FlussonicMsePlayer.version)
 
     this.opts = opts || {}
 
@@ -107,6 +107,8 @@ export default class MSEPlayer {
       // need for determine old frames
       this.seekValue = utc
       this.media.pause()
+      this._pause = true
+      this.playing = false
     } catch (err) {
       logger.warn(`seek:${err.message}`)
     }
@@ -120,8 +122,8 @@ export default class MSEPlayer {
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     this.playPromise.then(pause.bind(this))
     function pause() {
-      this.media.pause()
       this.ws.pause()
+      this.media.pause()
       this._pause = true
       this.playing = false
 
@@ -186,14 +188,13 @@ export default class MSEPlayer {
 
   _play(from, videoTrack, audioTack) {
     return new Promise((resolve, reject) => {
-      this.onStartStalling() // switch off at progress checker
       if (this.playing) {
         const message = '[mse-player] _play: terminate because already has been playing'
         logger.log(message)
         return resolve({message})
       }
 
-      if (this._pause && !this.afterSeekFlag) {
+      if (this._pause) {
         this._resume()
         logger.log('_play: terminate because _paused and should resume')
         return resolve()
@@ -239,6 +240,7 @@ export default class MSEPlayer {
       this.startProgressTimer()
 
       this.playPromise.then(() => {
+        this.onStartStalling() // switch off at progress checker
         if (this.resolveThenMediaSourceOpen) {
           this.playing = true
           this.resolveThenMediaSourceOpen()
@@ -315,7 +317,7 @@ export default class MSEPlayer {
 
     this.init()
     this.ws.destroy()
-
+    this.sb.destroy()
     return mediaEmptyPromise
   }
 
@@ -431,8 +433,6 @@ export default class MSEPlayer {
         switch (eventType) {
         case WS_EVENT_RESUMED:
           if (this._pause && !this.playing) {
-            this._pause = false
-            this.playing = true
             // wait for "progress" event, for shift currentTime and start playing
             this.onStartStalling()
           }
@@ -552,7 +552,11 @@ export default class MSEPlayer {
         // media.currentTime -= 0.0001;
       // }
       if (!this.previouslyPaused) {
-        media.play()
+        this.playPromise = media.play()
+        this.playPromise.then(() => {
+          player._pause = false
+          player.playing = true
+        })
       }
     }
   }
@@ -587,22 +591,18 @@ export default class MSEPlayer {
       return logger.log('nothing to play')
     }
 
-    if (!this.playing && this._pause) {
-      logger.log('onTimer playing false, _pause true')
-    }
-
     // #TODO explain
     if (this.immediateSwitch) {
       this.immediateLevelSwitchEnd()
     }
 
     if (this.sb.lastLoadedUTC === this.utcPrev) {
-      logger.log('%cloaded utc is not change', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling)
+      // logger.log('%cloaded utc is not change', 'background: orange;', this.sb.lastLoadedUTC, this.utcPrev, this._stalling)
       return
     }
 
     if (this._stalling) {
-      logger.log('%cStalling flag is true', 'background: lightred;')
+      // logger.log('%cStalling flag is true', 'background: lightred;')
       return
     }
 

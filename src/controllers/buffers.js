@@ -15,16 +15,20 @@ export default class BuffersController {
 
   constructor(opts = {}) {
     logger.log('create BuffersController')
-    this.flushRange = []
-    this.appended = 0
     this.media = opts.media
-    this.mediaSource = opts.mediaSource
-    this.segments = []
-    this.sourceBuffer = {}
+    this.init(opts)
 
     this.doArrayBuffer = doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
     this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this)
+  }
+
+  init(opts = {}) {
+    this.flushRange = []
+    this.appended = 0
+    this.mediaSource = opts.mediaSource
+    this.segments = []
+    this.sourceBuffer = {}
   }
 
   setMediaSource(ms) {
@@ -277,6 +281,10 @@ export default class BuffersController {
       logger.warn('exception while calling mediaSource.endOfStream()');
     }
     this._needsEos = false;
+  }
+
+  destroy() {
+    this.init()
   }
 
 }

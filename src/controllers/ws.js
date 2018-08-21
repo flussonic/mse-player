@@ -7,7 +7,7 @@ const LIVE = 'live'
 
 import {logger} from '../utils/logger'
 
-export default class WS1 {
+export default class WebSocketController {
   constructor(opts) {
     this.opts = opts
     this.onwso = this.open.bind(this)
@@ -88,9 +88,12 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
   const cleanUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}?`
   const tracksExists = !!videoTrack || !!audioTrack
 
+  const ampFrom = tracksExists && !!time && time !== LIVE ? '&' : ''
+  const fromQuery = utc === LIVE ? '' : `from=${Math.floor(time)}`
+
   const resultUrl =
     `${cleanUrl}${tracksExists ? `tracks=${videoTrack}${audioTrack}` : ''}` +
-    `${tracksExists && !!time ? '&' : ''}${!!time ? `from=${Math.floor(time)}` : ''}` +
+    `${ampFrom}${fromQuery}` +
     `${(tracksExists || !!time) && !!othersParams ? '&' : ''}${othersParams}`
   return resultUrl
 }

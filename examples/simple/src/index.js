@@ -1,20 +1,42 @@
 // import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
-import FlussonicMsePlayer from '../../../dist/FlussonicMsePlayer'
+import {humanTime} from './utils'
 
 window.onload = onLoad()
 
 function onLoad() {
   const element = document.getElementById('player')
-  const streamName = 'aaa'
-  const url = `ws://localhost:8080/${streamName}/mse_ld?tracks=v1`
+  const streamName = 'clock'
+  const url = `ws://localhost:8080/${streamName}/mse_ld`
 
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
+  const utcLabel = document.getElementById('utc')
+  const stallingLabel = document.getElementById('stallingLabel')
+  const showStallingIndicator = (value) => {
+    stallingLabel.innerText = '' + value
+  }
+
+  let showFirstFrameUTC = false
 
   const opts = {
-    bufferMode: 'sequence',
-    onProgress: currentTime => console.log(currentTime, arguments),
+    debug: true,
+    onStartStalling: () => {
+      showStallingIndicator('start stalling')
+    },
+    onEndStalling: () => {
+      showStallingIndicator('stop stalling')
+    },
+    onSeeked: () => {
+      showFirstFrameUTC = true
+    },
+    onProgress: utc => {
+      utcLabel.innerText = humanTime(utc)
+      if (showFirstFrameUTC) {
+        console.log('%c first frame after action: ' + humanTime(utc), 'background: red')
+        showFirstFrameUTC = false
+      }
+    },
     onMediaInfo: rawMetaData => {
       console.log('rawMetaData:', rawMetaData)
       const videoTracks = window.player.getVideoTracks()
