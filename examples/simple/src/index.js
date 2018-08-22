@@ -80,8 +80,12 @@ function onLoad() {
     const element = document.getElementById('seek')
     let value
     if (!element || element instanceof HTMLInputElement) {
-      value = parseInt(element.value, 10)
-      value = value > 0 ? value : void 0
+      if (element.value === 'live') {
+        value = 'live'
+      } else {
+        value = parseInt(element.value, 10)
+        value = value > 0 ? value : void 0
+      }
     }
     if (value) {
       window.player.seek(value)
