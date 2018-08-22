@@ -33,7 +33,7 @@ function onLoad() {
     onProgress: utc => {
       utcLabel.innerText = humanTime(utc)
       if (showFirstFrameUTC) {
-        console.log('%c first frame after action: ' + humanTime(utc), 'background: red')
+        console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
     },
