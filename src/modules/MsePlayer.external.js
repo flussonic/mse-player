@@ -450,11 +450,13 @@ export default class MSEPlayer {
          }
           break
         case WS_EVENT_EOS:
-          debugger
           this._eos = true
           this.sb.onBufferEos()
           break
         default:
+          if (this.opts.onError) {
+            this.opts.onError({error: 'unhandled_event', event: eventType})
+          }
           logger.warn('unknown type of event', eventType)
         }
         return
@@ -499,9 +501,14 @@ export default class MSEPlayer {
     const metadata = data.metadata
     const streams = data.metadata.streams
 
-    const activeStreams = {
-      video: streams[this.sb.videoTrackId - 1]['track_id'],
-      audio: streams[this.sb.audioTrackId - 1]['track_id'],
+    const activeStreams = {}
+
+    if (this.sb.videoTrackId) {
+      activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id']
+    }
+
+    if (this.sb.audioTrackId) {
+      activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
     }
 
     this.doMediaInfo({...metadata, activeStreams})
