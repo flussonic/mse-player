@@ -1243,11 +1243,13 @@ var MSEPlayer = function () {
             }
             break;
           case WS_EVENT_EOS:
-            debugger;
             this._eos = true;
             this.sb.onBufferEos();
             break;
           default:
+            if (this.opts.onError) {
+              this.opts.onError({ error: 'unhandled_event', event: eventType });
+            }
             _logger.logger.warn('unknown type of event', eventType);
         }
         return;
@@ -1292,10 +1294,15 @@ var MSEPlayer = function () {
     var metadata = data.metadata;
     var streams = data.metadata.streams;
 
-    var activeStreams = {
-      video: streams[this.sb.videoTrackId - 1]['track_id'],
-      audio: streams[this.sb.audioTrackId - 1]['track_id']
-    };
+    var activeStreams = {};
+
+    if (this.sb.videoTrackId) {
+      activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id'];
+    }
+
+    if (this.sb.audioTrackId) {
+      activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id'];
+    }
 
     this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams }));
     _logger.logger.log(data);
