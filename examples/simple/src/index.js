@@ -5,7 +5,7 @@ window.onload = onLoad()
 
 function onLoad() {
   const element = document.getElementById('player')
-  const streamName = 'clock'
+  const streamName = 'clock1'
   const url = `ws://localhost:8080/${streamName}/mse_ld`
 
   const videoTracksSelect = document.getElementById('videoTracks')
