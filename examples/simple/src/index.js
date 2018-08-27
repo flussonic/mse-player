@@ -5,7 +5,7 @@ window.onload = onLoad()
 
 function onLoad() {
   const element = document.getElementById('player')
-  const streamName = 'clock1'
+  const streamName = 'clock'
   const url = `ws://localhost:8080/${streamName}/mse_ld`
 
   const videoTracksSelect = document.getElementById('videoTracks')
@@ -57,14 +57,8 @@ function onLoad() {
 
       mbrControls.style.display = 'block'
     },
-    onError: () => {
-      if (window.player.stopPromise) {
-        window.player.stopPromise.then(() => {
-          window.player.setBufferMode('segments')
-          window.player.play()
-        })
-
-      }
+    onError: (err) => {
+      console.log('••••• ERRROR', err)
     },
   }
 

@@ -1,6 +1,3 @@
-import parseUrl from 'parseurl'
-
-import EVENTS from '../enums/events'
 import {logger} from '../utils/logger'
 
 export function getMediaSource() {

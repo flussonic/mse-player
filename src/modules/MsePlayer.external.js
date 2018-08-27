@@ -15,7 +15,9 @@ import MSG from '../enums/messages'
 const WS_EVENT_PAUSED = 'paused'
 const WS_EVENT_RESUMED = 'resumed'
 const WS_EVENT_SEEKED = 'seeked'
+const WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live'
 const WS_EVENT_EOS = 'recordings_ended'
+
 
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
@@ -440,6 +442,7 @@ export default class MSEPlayer {
         case WS_EVENT_PAUSED:
           break
         case WS_EVENT_SEEKED:
+        case WS_EVENT_SWITCHED_TO_LIVE:
           this.seekValue = void 0
           if (this.opts.onSeeked) {
            try {
@@ -467,6 +470,7 @@ export default class MSEPlayer {
         return this.procInitSegment(rawData)
       }
     } catch (err) {
+      this.ws.pause();
       mseUtils.showDispatchError.bind(this)(e, err)
     }
   }
