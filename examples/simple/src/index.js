@@ -5,8 +5,13 @@ window.onload = onLoad()
 
 function onLoad() {
   const element = document.getElementById('player')
-  const streamName = 'clock'
+  const streamName = 'published'
   const url = `ws://localhost:8080/${streamName}/mse_ld`
+  // const url = `ws://127.0.0.1:7101/live1/mse_ld`
+  // const url = `ws://127.0.0.1:7101/transcode1/mse_ld`
+  // const url = `ws://127.0.0.1:7121/restream1/mse_ld`
+
+
 
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
@@ -39,6 +44,7 @@ function onLoad() {
     },
     onMediaInfo: rawMetaData => {
       console.log('rawMetaData:', rawMetaData)
+      console.log('activeStreams:', rawMetaData.activeStreams)
       const videoTracks = window.player.getVideoTracks()
       const audioTracks = window.player.getAudioTracks()
       const videoOptions = videoTracks.map(

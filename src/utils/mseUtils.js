@@ -152,14 +152,14 @@ let errorsCount = 0
 export function showDispatchError(e, err) {
   const rawData = e.data
   const isDataAB = rawData instanceof ArrayBuffer
-  logger.error(errorMsg(e), err)
+  console.error(errorMsg(e), err)
 
   if (this.media && this.media.error) {
-    logger.error('MediaError:', this.media.error)
+    console.error('MediaError:', this.media.error)
   }
 
   if (isDataAB) {
-    logger.error('Data:', debugData(e.data))
+    console.error('Data:', debugData(e.data))
   }
 
   errorsCount++

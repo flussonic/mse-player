@@ -160,7 +160,7 @@ export default class BuffersController {
       } catch (error) {
         // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
         // this is harmess at this stage, catch this to avoid reporting an internal exception
-        logger.error('error while accessing sourceBuffer.buffered')
+        console.error('error while accessing sourceBuffer.buffered')
       }
       this.appended = appended
       this._setTracksFlag = false

@@ -133,7 +133,7 @@ export default class MSEPlayer {
         try {
           this.onPause()
         } catch (e) {
-          logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
+          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack)
         }
       }
     }
@@ -155,7 +155,7 @@ export default class MSEPlayer {
     }
 
     if (!Array.isArray(tracks)) {
-      logger.error('tracks should be an Array instance: ["v1", "a1"]')
+      console.error('tracks should be an Array instance: ["v1", "a1"]')
     }
 
     const videoTracksStr = tracks
@@ -448,7 +448,7 @@ export default class MSEPlayer {
            try {
              this.opts.onSeeked()
            } catch (err) {
-             logger.error(err)
+             console.error(err)
            }
          }
           break
@@ -532,7 +532,7 @@ export default class MSEPlayer {
       try {
         this.onMediaInfo(metadata)
       } catch (e) {
-        logger.error(mseUtils.errorMsg(e))
+        console.error(mseUtils.errorMsg(e))
       }
     }
   }
@@ -623,7 +623,7 @@ export default class MSEPlayer {
     try {
       this.onProgress(this.sb.lastLoadedUTC)
     } catch (e) {
-      logger.error(mseUtils.errorMsg(e))
+      console.error(mseUtils.errorMsg(e))
     }
   }
 
@@ -634,7 +634,7 @@ export default class MSEPlayer {
         this.opts.onEOS()
       }
     } catch(err) {
-      logger.error('error while proccessing onEOS')
+      console.error('error while proccessing onEOS')
     }
   }
 
