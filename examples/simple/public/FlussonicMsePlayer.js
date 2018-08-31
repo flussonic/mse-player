@@ -511,14 +511,14 @@ var errorsCount = 0;
 function showDispatchError(e, err) {
   var rawData = e.data;
   var isDataAB = rawData instanceof ArrayBuffer;
-  _logger.logger.error(errorMsg(e), err);
+  console.error(errorMsg(e), err);
 
   if (this.media && this.media.error) {
-    _logger.logger.error('MediaError:', this.media.error);
+    console.error('MediaError:', this.media.error);
   }
 
   if (isDataAB) {
-    _logger.logger.error('Data:', debugData(e.data));
+    console.error('Data:', debugData(e.data));
   }
 
   errorsCount++;
@@ -755,7 +755,7 @@ var MSEPlayer = function () {
         try {
           this.onPause();
         } catch (e) {
-          _logger.logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
+          console.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
         }
       }
     }
@@ -777,7 +777,7 @@ var MSEPlayer = function () {
     }
 
     if (!Array.isArray(tracks)) {
-      _logger.logger.error('tracks should be an Array instance: ["v1", "a1"]');
+      console.error('tracks should be an Array instance: ["v1", "a1"]');
     }
 
     var videoTracksStr = tracks.filter(function (id) {
@@ -1069,7 +1069,7 @@ var MSEPlayer = function () {
               try {
                 this.opts.onSeeked();
               } catch (err) {
-                _logger.logger.error(err);
+                console.error(err);
               }
             }
             break;
@@ -1153,7 +1153,7 @@ var MSEPlayer = function () {
       try {
         this.onMediaInfo(metadata);
       } catch (e) {
-        _logger.logger.error(mseUtils.errorMsg(e));
+        console.error(mseUtils.errorMsg(e));
       }
     }
   };
@@ -1254,7 +1254,7 @@ var MSEPlayer = function () {
     try {
       this.onProgress(this.sb.lastLoadedUTC);
     } catch (e) {
-      _logger.logger.error(mseUtils.errorMsg(e));
+      console.error(mseUtils.errorMsg(e));
     }
   };
 
@@ -1265,7 +1265,7 @@ var MSEPlayer = function () {
         this.opts.onEOS();
       }
     } catch (err) {
-      _logger.logger.error('error while proccessing onEOS');
+      console.error('error while proccessing onEOS');
     }
   };
 
@@ -3718,7 +3718,7 @@ var BuffersController = function () {
       } catch (error) {
         // error could be thrown while accessing buffered, in case sourcebuffer has already been removed from MediaSource
         // this is harmess at this stage, catch this to avoid reporting an internal exception
-        _logger.logger.error('error while accessing sourceBuffer.buffered');
+        console.error('error while accessing sourceBuffer.buffered');
       }
       this.appended = appended;
       this._setTracksFlag = false;
