@@ -674,7 +674,7 @@ var MSEPlayer = function () {
       window.humanTime = mseUtils.humanTime;
     }
 
-    _logger.logger.info('[mse-player]:', FlussonicMsePlayer.version);
+    _logger.logger.info('[mse-player]:', MSEPlayer.version);
 
     this.opts = opts || {};
 
