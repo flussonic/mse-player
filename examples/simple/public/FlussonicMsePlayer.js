@@ -447,7 +447,6 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       player.onEndStalling();
       // если поставелна пауза
       if (media.paused && player._pause && !player.playing) {
-
         media.currentTime = endTime - 0.0001;
         player.playPromise = media.play();
         player.playPromise.then(function () {
@@ -674,7 +673,7 @@ var MSEPlayer = function () {
       window.humanTime = mseUtils.humanTime;
     }
 
-    _logger.logger.info('[mse-player]:', FlussonicMsePlayer.version);
+    _logger.logger.info('[mse-player]:', MSEPlayer.version);
 
     this.opts = opts || {};
 
@@ -1137,7 +1136,7 @@ var MSEPlayer = function () {
     }
 
     this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams }));
-    _logger.logger.log(data);
+    _logger.logger.log('%cprocInitSegment:', 'background: lightpink;', data);
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.sb.setMediaSource(this.mediaSource);
@@ -1147,7 +1146,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
-    _logger.logger.log(metadata);
+    _logger.logger.log('%cmediaInfo:', 'background: orange;', metadata);
     if (this.onMediaInfo) {
       this.mediaInfo = metadata;
       try {
@@ -1804,7 +1803,7 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
   var ampFrom = tracksExists && !!time && time !== LIVE ? '&' : '';
   var fromQuery = utc === LIVE ? '' : 'from=' + Math.floor(time);
 
-  var resultUrl = '' + cleanUrl + (tracksExists ? 'tracks=' + videoTrack + audioTrack : '') + ('' + ampFrom + fromQuery) + ('' + ((tracksExists || !!time) && !!othersParams ? '&' : '') + othersParams);
+  var resultUrl = '' + cleanUrl + (tracksExists ? 'tracks=' + videoTrack + audioTrack : '') + ('' + ampFrom + fromQuery) + ('' + ((tracksExists || !!time && time !== LIVE) && !!othersParams ? '&' : '') + othersParams);
   return resultUrl;
 }
 
@@ -3637,7 +3636,6 @@ var BuffersController = function () {
   };
 
   BuffersController.prototype.maybeAppend = function maybeAppend(segment) {
-
     if (this._needsFlush) {
       this.segments.unshift(segment);
       return;
