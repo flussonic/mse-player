@@ -33,9 +33,8 @@
     "babel-preset-env": "^1.6.0",
     "clean-webpack-plugin": "^0.1.17",
     "directory-named-webpack-plugin": "^2.2.3",
-    "jest": "^23.5.0",
-    "eslint": "~4.9.0",
     "gulp": "~4.0.0",
+    "jest": "^23.5.0",
     "webpack": "^3.6.0",
     "webpack-dev-server": "^2.9.1"
   },
