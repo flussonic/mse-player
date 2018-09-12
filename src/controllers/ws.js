@@ -94,6 +94,6 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
   const resultUrl =
     `${cleanUrl}${tracksExists ? `tracks=${videoTrack}${audioTrack}` : ''}` +
     `${ampFrom}${fromQuery}` +
-    `${(tracksExists || !!time) && !!othersParams ? '&' : ''}${othersParams}`
+    `${(tracksExists || (!!time && time !== LIVE)) && !!othersParams ? '&' : ''}${othersParams}`
   return resultUrl
 }
