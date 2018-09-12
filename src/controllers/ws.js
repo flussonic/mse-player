@@ -41,9 +41,7 @@ export default class WebSocketController {
   }
 
   seek(utc) {
-    const commandStr = utc === LIVE
-      ? WS_COMMAND_SEEK_LIVE
-      : WS_COMMAND_SEEK
+    const commandStr = utc === LIVE ? WS_COMMAND_SEEK_LIVE : WS_COMMAND_SEEK
     logger.log(`${commandStr}${utc}`)
     this.websocket.send(`${commandStr}${utc}`)
   }

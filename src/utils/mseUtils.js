@@ -75,12 +75,17 @@ export function debugData(rawData) {
 }
 
 const ua = navigator.userAgent
-export const MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)
-  ? 10 // very slow buffers in Edge
-  : 2
+export const MAX_DELAY =
+  /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)
+    ? 10 // very slow buffers in Edge
+    : 2
 
 export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt => {
-  const {currentTime: ct, buffered, buffered: {length: l}} = media
+  const {
+    currentTime: ct,
+    buffered,
+    buffered: {length: l},
+  } = media
 
   if (!l) {
     return
@@ -91,7 +96,6 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
     player.onEndStalling()
     // если поставелна пауза
     if (media.paused && player._pause && !player.playing) {
-
       media.currentTime = endTime - 0.0001
       player.playPromise = media.play()
       player.playPromise.then(() => {
@@ -105,11 +109,9 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
     return
   }
 
-  logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime)//evt, )
-  media.currentTime = endTime - 0.2// (Math.abs(ct - endTime)) //
+  logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime) //evt, )
+  media.currentTime = endTime - 0.2 // (Math.abs(ct - endTime)) //
 }
-
-
 
 export const replaceHttpByWS = url => url.replace(/^http/, 'ws')
 
@@ -141,9 +143,11 @@ export function humanTime(utcOrLive, lt = true) {
 
 export function logDM(isDataAB, parsedData) {
   if (parsedData) {
-    logger.log(`%c ${parsedData.type} ${parsedData.type === 'event' ? parsedData.event : 'mse_init_segment'}`,
+    logger.log(
+      `%c ${parsedData.type} ${parsedData.type === 'event' ? parsedData.event : 'mse_init_segment'}`,
       'background: aquamarine;',
-      parsedData)
+      parsedData
+    )
   }
 }
 

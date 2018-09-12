@@ -1,9 +1,4 @@
-import {
-  doArrayBuffer,
-  base64ToArrayBuffer,
-  RawDataToUint8Array,
-  getTrackId,
-} from '../utils/mseUtils'
+import {doArrayBuffer, base64ToArrayBuffer, RawDataToUint8Array, getTrackId} from '../utils/mseUtils'
 import {logger} from '../utils/logger'
 
 import {AUDIO, VIDEO} from '../enums/common'
@@ -12,7 +7,6 @@ import {BUFFER_UPDATE_END} from '../enums/events'
 const BUFFER_MODE_SEQUENCE = 'sequence' // segments
 
 export default class BuffersController {
-
   constructor(opts = {}) {
     logger.log('create BuffersController')
     this.media = opts.media
@@ -36,20 +30,17 @@ export default class BuffersController {
   }
 
   createSourceBuffers(data) {
-    const sb = this.sourceBuffer;
+    const sb = this.sourceBuffer
 
-    data.tracks.forEach((s) => {
+    data.tracks.forEach(s => {
       const isVideo = s.content === VIDEO
-      const mimeType = isVideo
-        ? 'video/mp4; codecs="avc1.4d401f"'
-        : 'audio/mp4; codecs="mp4a.40.2"'
+      const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
 
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType)
       const buffer = sb[s.content]
 
       buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
     })
-
   }
 
   onSBUpdateEnd() {
@@ -79,7 +70,6 @@ export default class BuffersController {
   }
 
   maybeAppend(segment) {
-
     if (this._needsFlush) {
       this.segments.unshift(segment)
       return
@@ -96,15 +86,13 @@ export default class BuffersController {
   }
 
   setTracksByType(data) {
-    data.tracks.forEach((s) => {
+    data.tracks.forEach(s => {
       this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
     })
   }
 
   getTypeBytrackId(id) {
-    return this.audioTrackId === id
-      ? AUDIO
-      : VIDEO
+    return this.audioTrackId === id ? AUDIO : VIDEO
   }
 
   procArrayBuffer(rawData) {
@@ -114,7 +102,7 @@ export default class BuffersController {
   }
 
   seek() {
-    for(let k in this.sourceBuffer) {
+    for (let k in this.sourceBuffer) {
       this.sourceBuffer[k].abort()
       this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
     }
@@ -131,7 +119,7 @@ export default class BuffersController {
     return appended > 0
   }
 
-  doFlush () {
+  doFlush() {
     // loop through all buffer ranges to flush
     while (this.flushRange.length) {
       let range = this.flushRange[0]
@@ -172,8 +160,14 @@ export default class BuffersController {
     return true once range has been flushed.
     as sourceBuffer.remove() is asynchronous, flushBuffer will be retriggered on sourceBuffer update end
   */
-  flushBuffer (startOffset, endOffset, typeIn) {
-    let sb, i, bufStart, bufEnd, flushStart, flushEnd, sourceBuffer = this.sourceBuffer
+  flushBuffer(startOffset, endOffset, typeIn) {
+    let sb,
+      i,
+      bufStart,
+      bufEnd,
+      flushStart,
+      flushEnd,
+      sourceBuffer = this.sourceBuffer
     if (Object.keys(sourceBuffer).length) {
       logger.log(`flushBuffer,pos/start/end: ${this.media.currentTime.toFixed(3)}/${startOffset}/${endOffset}`)
       // safeguard to avoid infinite looping : don't try to flush more than the nb of appended segments
@@ -194,7 +188,10 @@ export default class BuffersController {
                 bufStart = sb.buffered.start(i)
                 bufEnd = sb.buffered.end(i)
                 // workaround firefox not able to properly flush multiple buffered range.
-                if (navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 && endOffset === Number.POSITIVE_INFINITY) {
+                if (
+                  navigator.userAgent.toLowerCase().indexOf('firefox') !== -1 &&
+                  endOffset === Number.POSITIVE_INFINITY
+                ) {
                   flushStart = startOffset
                   flushEnd = endOffset
                 } else {
@@ -208,7 +205,11 @@ export default class BuffersController {
                 */
                 if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
                   this.flushBufferCounter++
-                  logger.log(`flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${this.media.currentTime}`)
+                  logger.log(
+                    `flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${
+                      this.media.currentTime
+                    }`
+                  )
                   sb.remove(flushStart, flushEnd)
                   return false
                 }
@@ -230,7 +231,7 @@ export default class BuffersController {
       logger.log('buffer flushed')
     }
     // everything flushed !
-    return true;
+    return true
   }
 
   rawDataToSegmnet(rawData) {
@@ -241,50 +242,50 @@ export default class BuffersController {
   }
 
   // on BUFFER_EOS mark matching sourcebuffer(s) as ended and trigger checkEos()
-  onBufferEos (data = {}) {
-    let sb = this.sourceBuffer;
-    let dataType = data.type;
+  onBufferEos(data = {}) {
+    let sb = this.sourceBuffer
+    let dataType = data.type
     for (let type in sb) {
       if (!dataType || type === dataType) {
         if (!sb[type].ended) {
-          sb[type].ended = true;
-          logger.log(`${type} sourceBuffer now EOS`);
+          sb[type].ended = true
+          logger.log(`${type} sourceBuffer now EOS`)
         }
       }
     }
-    this.checkEos();
+    this.checkEos()
   }
 
   // if all source buffers are marked as ended, signal endOfStream() to MediaSource.
-  checkEos () {
-    let sb = this.sourceBuffer, mediaSource = this.mediaSource;
+  checkEos() {
+    let sb = this.sourceBuffer,
+      mediaSource = this.mediaSource
     if (!mediaSource || mediaSource.readyState !== 'open') {
-      this._needsEos = false;
-      return;
+      this._needsEos = false
+      return
     }
     for (let type in sb) {
-      let sbobj = sb[type];
+      let sbobj = sb[type]
       if (!sbobj.ended) {
-        return;
+        return
       }
 
       if (sbobj.updating) {
-        this._needsEos = true;
-        return;
+        this._needsEos = true
+        return
       }
     }
-    logger.log('all media data available, signal endOfStream() to MediaSource and stop loading fragment');
+    logger.log('all media data available, signal endOfStream() to MediaSource and stop loading fragment')
     // Notify the media element that it now has all of the media data
     try {
-      mediaSource.endOfStream();
+      mediaSource.endOfStream()
     } catch (e) {
-      logger.warn('exception while calling mediaSource.endOfStream()');
+      logger.warn('exception while calling mediaSource.endOfStream()')
     }
-    this._needsEos = false;
+    this._needsEos = false
   }
 
   destroy() {
     this.init()
   }
-
 }
