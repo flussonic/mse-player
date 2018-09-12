@@ -659,7 +659,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "18.08.5";
+      return "18.08.6";
     }
   }]);
 
