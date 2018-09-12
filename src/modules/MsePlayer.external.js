@@ -48,7 +48,7 @@ export default class MSEPlayer {
       window.humanTime = mseUtils.humanTime
     }
 
-    logger.info('[mse-player]:', FlussonicMsePlayer.version)
+    logger.info('[mse-player]:', MSEPlayer.version)
 
     this.opts = opts || {}
 
