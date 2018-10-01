@@ -115,10 +115,10 @@ export default class MSEPlayer {
     if (!canPause.bind(this)()) {
       return logger.log('[mse:playback] can not do pause')
     }
-
+    const binded = _pause.bind(this)
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    this.playPromise.then(pause.bind(this))
-    function pause() {
+    this.playPromise.then(binded, binded)
+    function _pause() {
       this.ws.pause()
       this.media.pause()
       this._pause = true
@@ -190,6 +190,7 @@ export default class MSEPlayer {
 
   _play(from, videoTrack, audioTack) {
     return new Promise((resolve, reject) => {
+      logger.log('_play', from, videoTrack, audioTack)
       if (this.playing) {
         const message = '[mse-player] _play: terminate because already has been playing'
         logger.log(message)
@@ -197,9 +198,15 @@ export default class MSEPlayer {
       }
 
       if (this._pause) {
-        this._resume()
+        this._resume() // ws
+        // should invoke play method of video in onClick scope
+        // further logic are duplicated at checkVideoProgress
+        // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
+        player._pause = false
+        player.playing = true
+        this.playPromise = this.media.play()
         logger.log('_play: terminate because _paused and should resume')
-        return resolve()
+        return this.playPromise
       }
 
       this.playTime = from
@@ -244,8 +251,13 @@ export default class MSEPlayer {
           }
         },
         () => {
+          logger.log('playPromise rejection. this.playing false')
+
+          this.ws.pause()
+          this._pause = true
+          this.playing = false
+
           if (this.rejectThenMediaSourceOpen) {
-            this.playing = false
             this.rejectThenMediaSourceOpen()
             this.resolveThenMediaSourceOpen = void 0
             this.rejectThenMediaSourceOpen = void 0

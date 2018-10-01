@@ -11,6 +11,7 @@ export default class WebSocketController {
   constructor(opts) {
     this.opts = opts
     this.onwso = this.open.bind(this)
+    this.onwser = this.handleReceiveMessage.bind(this)
   }
 
   start(url, time, videoTrack = '', audioTack = '') {
@@ -20,7 +21,7 @@ export default class WebSocketController {
     this.websocket.binaryType = 'arraybuffer'
     // do that for remove event method
     this.websocket.addEventListener(EVENTS.WS_OPEN, this.onwso)
-    this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.opts.message)
+    this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.onwser)
   }
 
   open() {
@@ -33,10 +34,12 @@ export default class WebSocketController {
   }
 
   resume() {
+    logger.log('ws: send resume')
     this.websocket.send('resume')
   }
 
   pause() {
+    logger.log('ws: send pause')
     this.websocket.send('pause')
   }
 
@@ -50,12 +53,16 @@ export default class WebSocketController {
     this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
   }
 
+  handleReceiveMessage(e) {
+    this.opts.message(e)
+  }
+
   destroy() {
     if (this.websocket) {
-      this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsdm)
+      this.pause()
+      this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwser)
       this.websocket.onclose = function() {} // disable onclose handler first
       this.websocket.close()
-      this.onwsdm = null
     }
   }
 }
