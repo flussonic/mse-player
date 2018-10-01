@@ -69,7 +69,8 @@ function onLoad() {
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
-
+  window.player.play()
+  
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
     const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value

@@ -741,10 +741,10 @@ var MSEPlayer = function () {
     if (!canPause.bind(this)()) {
       return _logger.logger.log('[mse:playback] can not do pause');
     }
-
+    var binded = _pause.bind(this);
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    this.playPromise.then(pause.bind(this));
-    function pause() {
+    this.playPromise.then(binded, binded);
+    function _pause() {
       this.ws.pause();
       this.media.pause();
       this._pause = true;
@@ -813,6 +813,7 @@ var MSEPlayer = function () {
     var _this2 = this;
 
     return new Promise(function (resolve, reject) {
+      _logger.logger.log('_play', from, videoTrack, audioTack);
       if (_this2.playing) {
         var message = '[mse-player] _play: terminate because already has been playing';
         _logger.logger.log(message);
@@ -820,9 +821,15 @@ var MSEPlayer = function () {
       }
 
       if (_this2._pause) {
-        _this2._resume();
+        _this2._resume(); // ws
+        // should invoke play method of video in onClick scope
+        // further logic are duplicated at checkVideoProgress
+        // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
+        player._pause = false;
+        player.playing = true;
+        _this2.playPromise = _this2.media.play();
         _logger.logger.log('_play: terminate because _paused and should resume');
-        return resolve();
+        return _this2.playPromise;
       }
 
       _this2.playTime = from;
@@ -865,8 +872,13 @@ var MSEPlayer = function () {
           _this2.rejectThenMediaSourceOpen = void 0;
         }
       }, function () {
+        _logger.logger.log('playPromise rejection. this.playing false');
+
+        _this2.ws.pause();
+        _this2._pause = true;
+        _this2.playing = false;
+
         if (_this2.rejectThenMediaSourceOpen) {
-          _this2.playing = false;
           _this2.rejectThenMediaSourceOpen();
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
@@ -1714,6 +1726,7 @@ var WebSocketController = function () {
 
     this.opts = opts;
     this.onwso = this.open.bind(this);
+    this.onwser = this.handleReceiveMessage.bind(this);
   }
 
   WebSocketController.prototype.start = function start(url, time) {
@@ -1726,7 +1739,7 @@ var WebSocketController = function () {
     this.websocket.binaryType = 'arraybuffer';
     // do that for remove event method
     this.websocket.addEventListener(_events2.default.WS_OPEN, this.onwso);
-    this.websocket.addEventListener(_events2.default.WS_MESSAGE, this.opts.message);
+    this.websocket.addEventListener(_events2.default.WS_MESSAGE, this.onwser);
   };
 
   WebSocketController.prototype.open = function open() {
@@ -1739,10 +1752,12 @@ var WebSocketController = function () {
   };
 
   WebSocketController.prototype.resume = function resume() {
+    _logger.logger.log('ws: send resume');
     this.websocket.send('resume');
   };
 
   WebSocketController.prototype.pause = function pause() {
+    _logger.logger.log('ws: send pause');
     this.websocket.send('pause');
   };
 
@@ -1756,12 +1771,16 @@ var WebSocketController = function () {
     this.websocket.send('set_tracks=' + videoTrack + audioTrack);
   };
 
+  WebSocketController.prototype.handleReceiveMessage = function handleReceiveMessage(e) {
+    this.opts.message(e);
+  };
+
   WebSocketController.prototype.destroy = function destroy() {
     if (this.websocket) {
-      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsdm);
+      this.pause();
+      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwser);
       this.websocket.onclose = function () {}; // disable onclose handler first
       this.websocket.close();
-      this.onwsdm = null;
     }
   };
 
