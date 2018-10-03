@@ -8,23 +8,46 @@ const LIVE = 'live'
 import {logger} from '../utils/logger'
 
 export default class WebSocketController {
+
   constructor(opts) {
     this.opts = opts
+    this.init()
     this.onwso = this.open.bind(this)
-    this.onwser = this.handleReceiveMessage.bind(this)
+    this.onwsm = this.handleReceiveMessage.bind(this)
+    this.onwse = this.handleError.bind(this)
+  }
+
+  init() {
+    this.opened = false
+    this.connectionPromise = void 0
   }
 
   start(url, time, videoTrack = '', audioTack = '') {
-    const wsURL = getWSURL(url, time, videoTrack, audioTack)
+    /**
+     * if call ws.send command immediately after start
+     * it causes to error message like "ws still in connection status"
+     * #6809
+     */
 
-    this.websocket = new WebSocket(wsURL)
-    this.websocket.binaryType = 'arraybuffer'
-    // do that for remove event method
-    this.websocket.addEventListener(EVENTS.WS_OPEN, this.onwso)
-    this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.onwser)
+    this.connectionPromise = new Promise((res, rej) => {
+      const wsURL = getWSURL(url, time, videoTrack, audioTack)
+
+      this.websocket = new WebSocket(wsURL)
+      this.websocket.binaryType = 'arraybuffer'
+      // do that for remove event method
+      this.websocket.addEventListener(EVENTS.WS_OPEN, this.onwso)
+      this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.onwsm)
+      this.websocket.addEventListener(EVENTS.WS_ERROR, this.onwse)
+      this._openingResolve = res
+      // TODO: to think cases when ws can fall
+      this._openingReject = rej
+    })
+    return this.connectionPromise
   }
 
   open() {
+    this.opened = true
+    this._openingResolve() // #6809
     this.resume()
     this.websocket.removeEventListener(EVENTS.WS_OPEN, this.onwso)
   }
@@ -57,12 +80,19 @@ export default class WebSocketController {
     this.opts.message(e)
   }
 
+  handleError(...args) {
+    if (this.opts.error) {
+      this.opts.error(...args)
+    }
+  }
+
   destroy() {
     if (this.websocket) {
       this.pause()
-      this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwser)
+      this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsm)
       this.websocket.onclose = function() {} // disable onclose handler first
       this.websocket.close()
+      this.init()
     }
   }
 }

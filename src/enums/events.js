@@ -11,6 +11,8 @@ const EVENTS = {
   // WebSocket
   WS_OPEN: 'open',
   WS_MESSAGE: 'message',
+  WS_ERROR: 'error',
+  WS_CLOSE: 'close',
 
   // Buffer
   BUFFER_UPDATE_END: 'updateend',

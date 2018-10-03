@@ -75,6 +75,7 @@ export default class MSEPlayer {
 
     this.ws = new WebSocketController({
       message: this.dispatchMessage.bind(this),
+      error: this.onError,
     })
 
     /*
@@ -253,9 +254,16 @@ export default class MSEPlayer {
         () => {
           logger.log('playPromise rejection. this.playing false')
 
-          this.ws.pause()
+          this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+
           this._pause = true
           this.playing = false
+
+          if (this.onError) {
+            this.onError({
+              error: 'play_promise_reject',
+            })
+          }
 
           if (this.rejectThenMediaSourceOpen) {
             this.rejectThenMediaSourceOpen()
