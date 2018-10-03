@@ -202,8 +202,8 @@ export default class MSEPlayer {
         // should invoke play method of video in onClick scope
         // further logic are duplicated at checkVideoProgress
         // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
-        player._pause = false
-        player.playing = true
+        this._pause = false
+        this.playing = true
         this.playPromise = this.media.play()
         logger.log('_play: terminate because _paused and should resume')
         return this.playPromise
