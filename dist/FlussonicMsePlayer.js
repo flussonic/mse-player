@@ -825,8 +825,8 @@ var MSEPlayer = function () {
         // should invoke play method of video in onClick scope
         // further logic are duplicated at checkVideoProgress
         // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
-        player._pause = false;
-        player.playing = true;
+        _this2._pause = false;
+        _this2.playing = true;
         _this2.playPromise = _this2.media.play();
         _logger.logger.log('_play: terminate because _paused and should resume');
         return _this2.playPromise;
