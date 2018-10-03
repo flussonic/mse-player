@@ -242,6 +242,8 @@ var EVENTS = {
   // WebSocket
   WS_OPEN: 'open',
   WS_MESSAGE: 'message',
+  WS_ERROR: 'error',
+  WS_CLOSE: 'close',
 
   // Buffer
   BUFFER_UPDATE_END: 'updateend',
@@ -700,7 +702,8 @@ var MSEPlayer = function () {
     }
 
     this.ws = new _ws2.default({
-      message: this.dispatchMessage.bind(this)
+      message: this.dispatchMessage.bind(this),
+      error: this.onError
     });
 
     /*
@@ -874,9 +877,18 @@ var MSEPlayer = function () {
       }, function () {
         _logger.logger.log('playPromise rejection. this.playing false');
 
-        _this2.ws.pause();
+        _this2.ws.connectionPromise.then(function () {
+          return _this2.ws.pause();
+        }); // #6694
+
         _this2._pause = true;
         _this2.playing = false;
+
+        if (_this2.onError) {
+          _this2.onError({
+            error: 'play_promise_reject'
+          });
+        }
 
         if (_this2.rejectThenMediaSourceOpen) {
           _this2.rejectThenMediaSourceOpen();
@@ -1725,24 +1737,48 @@ var WebSocketController = function () {
     _classCallCheck(this, WebSocketController);
 
     this.opts = opts;
+    this.init();
     this.onwso = this.open.bind(this);
-    this.onwser = this.handleReceiveMessage.bind(this);
+    this.onwsm = this.handleReceiveMessage.bind(this);
+    this.onwse = this.handleError.bind(this);
   }
 
+  WebSocketController.prototype.init = function init() {
+    this.opened = false;
+    this.connectionPromise = void 0;
+  };
+
   WebSocketController.prototype.start = function start(url, time) {
+    var _this = this;
+
     var videoTrack = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
     var audioTack = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
 
-    var wsURL = getWSURL(url, time, videoTrack, audioTack);
+    /**
+     * if call ws.send command immediately after start
+     * it causes to error message like "ws still in connection status"
+     * #6809
+     */
 
-    this.websocket = new WebSocket(wsURL);
-    this.websocket.binaryType = 'arraybuffer';
-    // do that for remove event method
-    this.websocket.addEventListener(_events2.default.WS_OPEN, this.onwso);
-    this.websocket.addEventListener(_events2.default.WS_MESSAGE, this.onwser);
+    this.connectionPromise = new Promise(function (res, rej) {
+      var wsURL = getWSURL(url, time, videoTrack, audioTack);
+
+      _this.websocket = new WebSocket(wsURL);
+      _this.websocket.binaryType = 'arraybuffer';
+      // do that for remove event method
+      _this.websocket.addEventListener(_events2.default.WS_OPEN, _this.onwso);
+      _this.websocket.addEventListener(_events2.default.WS_MESSAGE, _this.onwsm);
+      _this.websocket.addEventListener(_events2.default.WS_ERROR, _this.onwse);
+      _this._openingResolve = res;
+      // TODO: to think cases when ws can fall
+      _this._openingReject = rej;
+    });
+    return this.connectionPromise;
   };
 
   WebSocketController.prototype.open = function open() {
+    this.opened = true;
+    this._openingResolve(); // #6809
     this.resume();
     this.websocket.removeEventListener(_events2.default.WS_OPEN, this.onwso);
   };
@@ -1775,12 +1811,21 @@ var WebSocketController = function () {
     this.opts.message(e);
   };
 
+  WebSocketController.prototype.handleError = function handleError() {
+    if (this.opts.error) {
+      var _opts;
+
+      (_opts = this.opts).error.apply(_opts, arguments);
+    }
+  };
+
   WebSocketController.prototype.destroy = function destroy() {
     if (this.websocket) {
       this.pause();
-      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwser);
+      this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsm);
       this.websocket.onclose = function () {}; // disable onclose handler first
       this.websocket.close();
+      this.init();
     }
   };
 
