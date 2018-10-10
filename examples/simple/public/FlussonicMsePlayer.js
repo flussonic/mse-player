@@ -636,6 +636,7 @@ var WS_EVENT_RESUMED = 'resumed';
 var WS_EVENT_SEEKED = 'seeked';
 var WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live';
 var WS_EVENT_EOS = 'recordings_ended';
+var WS_EVENT_NO_LIVE = 'stream_unavailable';
 
 var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
@@ -661,7 +662,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "18.08.6";
+      return "18.09.1";
     }
   }]);
 
@@ -876,11 +877,12 @@ var MSEPlayer = function () {
         }
       }, function () {
         _logger.logger.log('playPromise rejection. this.playing false');
-
-        _this2.ws.connectionPromise.then(function () {
-          return _this2.ws.pause();
-        }); // #6694
-
+        // if error, this.ws.connectionPromise can be undefined
+        if (_this2.ws.connectionPromise) {
+          _this2.ws.connectionPromise.then(function () {
+            return _this2.ws.pause();
+          }); // #6694
+        }
         _this2._pause = true;
         _this2.playing = false;
 
@@ -922,6 +924,9 @@ var MSEPlayer = function () {
       return;
     }
     this.stopRunning = true;
+    // workaround pending playPromise state
+    return this.handlerMediaDetaching();
+    // TODO: how to be with pending internal statuses
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     var bindedMD = this.handlerMediaDetaching.bind(this);
     if (this.playPromise) {
@@ -1099,6 +1104,14 @@ var MSEPlayer = function () {
           case WS_EVENT_EOS:
             this._eos = true;
             this.sb.onBufferEos();
+            break;
+          // if live source is unavailability
+          case WS_EVENT_NO_LIVE:
+            var noLiveError = { error: 'no_live', event: eventType };
+            _logger.logger.log('do playPromise reject with error', noLiveError);
+            // make playPromise rejected
+            throw new Error(noLiveError);
+            this.playPromise = Promise.rejected();
             break;
           default:
             if (this.opts.onError) {
@@ -1794,7 +1807,15 @@ var WebSocketController = function () {
 
   WebSocketController.prototype.pause = function pause() {
     _logger.logger.log('ws: send pause');
-    this.websocket.send('pause');
+    /**
+     * 0 (CONNECTING) The connection is not yet open.
+     * 1 (OPEN) The connection is open and ready to communicate.
+     * 2 (CLOSING) The connection is in the process of closing.
+     * 3 (CLOSED) The connection is closed or couldn't be opened.
+     */
+    if (this.websocket.readyState === 1) {
+      this.websocket.send('pause');
+    }
   };
 
   WebSocketController.prototype.seek = function seek(utc) {
