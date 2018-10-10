@@ -17,6 +17,7 @@ const WS_EVENT_RESUMED = 'resumed'
 const WS_EVENT_SEEKED = 'seeked'
 const WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live'
 const WS_EVENT_EOS = 'recordings_ended'
+const WS_EVENT_NO_LIVE = 'stream_unavailable'
 
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
@@ -253,9 +254,10 @@ export default class MSEPlayer {
         },
         () => {
           logger.log('playPromise rejection. this.playing false')
-
-          this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-
+          // if error, this.ws.connectionPromise can be undefined
+          if (this.ws.connectionPromise) {
+            this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+          }
           this._pause = true
           this.playing = false
 
@@ -298,6 +300,9 @@ export default class MSEPlayer {
       return
     }
     this.stopRunning = true
+    // workaround pending playPromise state
+    return this.handlerMediaDetaching()
+    // TODO: how to be with pending internal statuses
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     const bindedMD = this.handlerMediaDetaching.bind(this)
     if (this.playPromise) {
@@ -474,6 +479,14 @@ export default class MSEPlayer {
           case WS_EVENT_EOS:
             this._eos = true
             this.sb.onBufferEos()
+            break
+          // if live source is unavailability
+          case WS_EVENT_NO_LIVE:
+            const noLiveError = {error: 'no_live', event: eventType}
+            logger.log('do playPromise reject with error', noLiveError)
+            // make playPromise rejected
+            throw new Error(noLiveError)
+            this.playPromise = Promise.rejected()
             break
           default:
             if (this.opts.onError) {
