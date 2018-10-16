@@ -2,6 +2,11 @@ src
 examples
 .babelrc
 .gitignore
+.idea
+.eslintignore
+.eslintrc.js
+.flowconfig
+.prettierrc
 webpack.config.js
 CHANGELOG.md
 messages.md

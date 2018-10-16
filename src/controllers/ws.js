@@ -63,7 +63,15 @@ export default class WebSocketController {
 
   pause() {
     logger.log('ws: send pause')
-    this.websocket.send('pause')
+    /**
+     * 0 (CONNECTING) The connection is not yet open.
+     * 1 (OPEN) The connection is open and ready to communicate.
+     * 2 (CLOSING) The connection is in the process of closing.
+     * 3 (CLOSED) The connection is closed or couldn't be opened.
+     */
+    if (this.websocket.readyState === 1) {
+      this.websocket.send('pause')
+    }
   }
 
   seek(utc) {
