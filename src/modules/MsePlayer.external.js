@@ -535,7 +535,7 @@ export default class MSEPlayer {
     this.sb.setTracksByType(data)
 
     const metadata = data.metadata
-    const streams = data.metadata.streams
+    const streams = data.metadata.tracks || data.metadata.streams
 
     const activeStreams = {}
 
