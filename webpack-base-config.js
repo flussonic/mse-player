@@ -5,15 +5,16 @@ var webpack = require('webpack')
 var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin')
 
 module.exports = {
+  mode: 'production',
   node: {Buffer: false, global: true, process: true, setImmediate: false},
   plugins: [
-    new DirectoryNamedWebpackPlugin(true),
+    // new DirectoryNamedWebpackPlugin(true),
     new webpack.DefinePlugin({
       VERSION: JSON.stringify(require('./package.json').version)
     })
   ],
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.js$/,
         loader: 'babel-loader',
@@ -22,7 +23,10 @@ module.exports = {
     ]
   },
   resolve: {
-    modules: ['node_modules']
+    modules: ['node_modules'],
+    plugins: [
+      new DirectoryNamedWebpackPlugin(true)
+    ]
   },
   devServer: {
     disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882
