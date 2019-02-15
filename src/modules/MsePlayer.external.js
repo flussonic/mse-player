@@ -547,7 +547,7 @@ export default class MSEPlayer {
       activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
     }
 
-    this.doMediaInfo({...metadata, activeStreams})
+    this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})
     logger.log('%cprocInitSegment:', 'background: lightpink;', data)
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
