@@ -1,6 +1,6 @@
 {
   "name": "@flussonic/flussonic-mse-player",
-  "version": "18.09.3",
+  "version": "19.02.15",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/FlussonicMsePlayer.js",
   "keywords": [
@@ -32,14 +32,17 @@
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-preset-env": "^1.6.0",
     "clean-webpack-plugin": "^0.1.17",
-    "directory-named-webpack-plugin": "^2.2.3",
+    "directory-named-webpack-plugin": "^4.0.0",
     "gulp": "~4.0.0",
+    "html-webpack-plugin": "^3.2.0",
     "jest": "^23.5.0",
-    "webpack": "^3.6.0",
-    "webpack-dev-server": "^2.9.1"
+    "uglifyjs-webpack-plugin": "^2.1.1",
+    "webpack": "^4.0.0",
+    "webpack-dev-server": "^3.1.14"
   },
   "dependencies": {
-    "parseurl": "~1.3.2"
+    "parseurl": "~1.3.2",
+    "webpack-cli": "^3.2.3"
   },
   "directories": {
     "example": "examples"
