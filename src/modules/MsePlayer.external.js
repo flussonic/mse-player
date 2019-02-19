@@ -150,6 +150,16 @@ export default class MSEPlayer {
     }
   }
 
+  restart() {
+    console.log(this)
+
+    this.playing = false
+    this.ws.destroy()
+    this.ws.init()
+    this.ws.start(this.url, this.sb.lastLoadedUTC, this.videoTrack, this.audioTack)
+    // this._play(this.sb.lastLoadedUTC, this.audioTack, this.videoTrack)
+  }
+
   setTracks(tracks) {
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
