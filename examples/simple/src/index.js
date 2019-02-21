@@ -43,6 +43,9 @@ function onLoad() {
         showFirstFrameUTC = false
       }
     },
+    onDisconnect: (status) => {
+      console.log('Websocket status:', status)
+    },
     onMediaInfo: rawMetaData => {
       console.log('rawMetaData:', rawMetaData)
       console.log('activeStreams:', rawMetaData.activeStreams)

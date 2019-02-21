@@ -116,7 +116,7 @@ export default class WebSocketController {
           })
       }, 5000)
     }
-    logger.log('Code: ' + event.code + ' reason: ' + event.reason)
+    this.opts.closed(event)
   }
 
   destroy() {

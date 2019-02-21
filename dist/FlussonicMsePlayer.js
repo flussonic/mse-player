@@ -732,6 +732,7 @@ var MSEPlayer = function () {
     }
 
     this.onProgress = opts && opts.onProgress;
+    this.onDisconnect = opts && opts.onDisconnect;
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
 
@@ -743,6 +744,7 @@ var MSEPlayer = function () {
 
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
+      closed: this.onDisconnect.bind(this),
       error: this.onError
     });
 
@@ -1105,6 +1107,12 @@ var MSEPlayer = function () {
     }
   };
 
+  MSEPlayer.prototype.onDisconnect = function onDisconnect(event) {
+    if (this.opts.onDisconnect) {
+      this.opts.onDisconnect(event);
+    }
+  };
+
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
     if (this.stopRunning) {
       return;
@@ -1114,6 +1122,7 @@ var MSEPlayer = function () {
     var isDataAB = rawData instanceof ArrayBuffer;
     var parsedData = !isDataAB ? JSON.parse(rawData) : void 0;
     mseUtils.logDM(isDataAB, parsedData);
+
     try {
       // ArrayBuffer data
       if (isDataAB) {
@@ -1919,7 +1928,7 @@ var WebSocketController = function () {
         });
       }, 5000);
     }
-    _logger.logger.log('Code: ' + event.code + ' reason: ' + event.reason);
+    this.opts.closed(event);
   };
 
   WebSocketController.prototype.destroy = function destroy() {
