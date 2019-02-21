@@ -65,6 +65,7 @@ export default class MSEPlayer {
     }
 
     this.onProgress = opts && opts.onProgress
+    this.onDisconnect = opts && opts.onDisconnect
     this.onMediaInfo = opts && opts.onMediaInfo
     this.onError = opts && opts.onError
 
@@ -76,6 +77,7 @@ export default class MSEPlayer {
 
     this.ws = new WebSocketController({
       message: this.dispatchMessage.bind(this),
+      closed: this.onDisconnect.bind(this),
       error: this.onError,
     })
 
@@ -148,6 +150,16 @@ export default class MSEPlayer {
       }
       return true
     }
+  }
+
+  restart() {
+    console.log(this)
+
+    this.playing = false
+    this.ws.destroy()
+    this.ws.init()
+    this.ws.start(this.url, this.sb.lastLoadedUTC, this.videoTrack, this.audioTack)
+    // this._play(this.sb.lastLoadedUTC, this.audioTack, this.videoTrack)
   }
 
   setTracks(tracks) {
@@ -431,6 +443,12 @@ export default class MSEPlayer {
     }
   }
 
+  onDisconnect(event) {
+    if (this.opts.onDisconnect) {
+      this.opts.onDisconnect(event)
+    }
+  }
+
   dispatchMessage(e) {
     if (this.stopRunning) {
       return
@@ -440,6 +458,7 @@ export default class MSEPlayer {
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
     mseUtils.logDM(isDataAB, parsedData)
+    
     try {
       // ArrayBuffer data
       if (isDataAB) {
@@ -454,6 +473,7 @@ export default class MSEPlayer {
        * EVENTS
        */
 
+      
       if (parsedData && parsedData.type === EVENT_SEGMENT) {
         const eventType = parsedData[EVENT_SEGMENT]
         switch (eventType) {
@@ -547,7 +567,7 @@ export default class MSEPlayer {
       activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
     }
 
-    this.doMediaInfo({...metadata, activeStreams})
+    this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})
     logger.log('%cprocInitSegment:', 'background: lightpink;', data)
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {

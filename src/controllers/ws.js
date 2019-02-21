@@ -8,18 +8,19 @@ const LIVE = 'live'
 import {logger} from '../utils/logger'
 
 export default class WebSocketController {
-
   constructor(opts) {
     this.opts = opts
     this.init()
     this.onwso = this.open.bind(this)
     this.onwsm = this.handleReceiveMessage.bind(this)
     this.onwse = this.handleError.bind(this)
+    this.onwsc = this.onWSClose.bind(this)
   }
 
   init() {
     this.opened = false
     this.connectionPromise = void 0
+    clearTimeout(this.reconnect)
   }
 
   start(url, time, videoTrack = '', audioTack = '') {
@@ -28,16 +29,18 @@ export default class WebSocketController {
      * it causes to error message like "ws still in connection status"
      * #6809
      */
+    this.socketURL = {url, time, videoTrack, audioTack}
 
     this.connectionPromise = new Promise((res, rej) => {
       const wsURL = getWSURL(url, time, videoTrack, audioTack)
-
       this.websocket = new WebSocket(wsURL)
       this.websocket.binaryType = 'arraybuffer'
       // do that for remove event method
       this.websocket.addEventListener(EVENTS.WS_OPEN, this.onwso)
       this.websocket.addEventListener(EVENTS.WS_MESSAGE, this.onwsm)
       this.websocket.addEventListener(EVENTS.WS_ERROR, this.onwse)
+      this.websocket.addEventListener(EVENTS.WS_CLOSE, this.onwsc)
+
       this._openingResolve = res
       // TODO: to think cases when ws can fall
       this._openingReject = rej
@@ -57,6 +60,7 @@ export default class WebSocketController {
   }
 
   resume() {
+    clearTimeout(this.reconnect)
     logger.log('ws: send resume')
     this.websocket.send('resume')
   }
@@ -94,7 +98,29 @@ export default class WebSocketController {
     }
   }
 
+  onWSClose(event) {
+    if (event.wasClean) {
+      // alert('Соединение закрыто чисто')
+    } else {
+      logger.log('WebSocket lost connection') // например, "убит" процесс сервера
+      this.destroy()
+      const {url, time, videoTrack, audioTack} = this.socketURL
+      this.reconnect = setTimeout(() => {
+        this.start(url, time, videoTrack, audioTack)
+          .then(() => {
+            clearTimeout(this.reconnect)
+            return
+          })
+          .catch(() => {
+            return
+          })
+      }, 5000)
+    }
+    this.opts.closed(event)
+  }
+
   destroy() {
+    clearTimeout(this.reconnect)
     if (this.websocket) {
       this.pause()
       this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsm)

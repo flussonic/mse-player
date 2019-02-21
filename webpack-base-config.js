@@ -1,18 +1,13 @@
 /* eslint-disable no-var */
 var path = require('path')
 var webpack = require('webpack')
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 
 var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin')
 
 module.exports = {
   mode: 'production',
   node: {Buffer: false, global: true, process: true, setImmediate: false},
-  plugins: [
-    // new DirectoryNamedWebpackPlugin(true),
-    new webpack.DefinePlugin({
-      VERSION: JSON.stringify(require('./package.json').version)
-    })
-  ],
   module: {
     rules: [
       {
@@ -22,10 +17,33 @@ module.exports = {
       },
     ]
   },
+  // devtool: 'source-map',
+  plugins: [
+    // new DirectoryNamedWebpackPlugin(true),
+    new webpack.DefinePlugin({
+      VERSION: JSON.stringify(require('./package.json').version)
+    }),
+  ],
   resolve: {
     modules: ['node_modules'],
     plugins: [
       new DirectoryNamedWebpackPlugin(true)
+    ]
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new UglifyJsPlugin({
+        include: /\.min\.js$/,
+        cache: true,
+        parallel: true,
+        uglifyOptions: {
+          compress: true,
+          ecma: 5,
+          mangle: true
+        },
+        sourceMap: false
+      })
     ]
   },
   devServer: {
