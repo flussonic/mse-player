@@ -77,7 +77,7 @@ export default class MSEPlayer {
 
     this.ws = new WebSocketController({
       message: this.dispatchMessage.bind(this),
-      closed: this.onDisconnect.bind(this),
+      closed: this.onDisconnect ? this.onDisconnect.bind(this) : null,
       error: this.onError,
     })
 
