@@ -701,7 +701,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.15";
+      return "19.2.2";
     }
   }]);
 
@@ -744,7 +744,7 @@ var MSEPlayer = function () {
 
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
-      closed: this.onDisconnect.bind(this),
+      closed: this.onDisconnect ? this.onDisconnect.bind(this) : null,
       error: this.onError
     });
 
