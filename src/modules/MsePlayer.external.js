@@ -60,6 +60,8 @@ export default class MSEPlayer {
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
 
+    this.videoTracksType = 'streams'
+
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
@@ -171,17 +173,16 @@ export default class MSEPlayer {
     if (!Array.isArray(tracks)) {
       console.error('tracks should be an Array instance: ["v1", "a1"]')
     }
-
     const videoTracksStr = tracks
       .filter(id => {
-        const stream = this.mediaInfo.streams.find(s => id === s['track_id'])
+        const stream = this.mediaInfo[this.videoTracksType].find(s => id === s['track_id'])
         return !!stream && stream.content === TYPE_CONTENT_VIDEO
       })
       .join('')
 
     const audioTracksStr = tracks
       .filter(id => {
-        const stream = this.mediaInfo.streams.find(s => id === s['track_id'])
+        const stream = this.mediaInfo[this.videoTracksType].find(s => id === s['track_id'])
         return !!stream && stream.content === TYPE_CONTENT_AUDIO
       })
       .join('')
@@ -555,7 +556,12 @@ export default class MSEPlayer {
     this.sb.setTracksByType(data)
 
     const metadata = data.metadata
-    const streams = data.metadata.tracks || data.metadata.streams
+
+    let streams = data.metadata.streams
+    if (data.metadata.tracks) {
+      streams = data.metadata.tracks
+      this.videoTracksType = 'tracks';
+    }
 
     const activeStreams = {}
 
@@ -593,14 +599,14 @@ export default class MSEPlayer {
     if (!this.mediaInfo) {
       return
     }
-    return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_VIDEO)
+    return this.mediaInfo[this.videoTracksType].filter(s => s.content === TYPE_CONTENT_VIDEO)
   }
 
   getAudioTracks() {
     if (!this.mediaInfo) {
       return
     }
-    return this.mediaInfo.streams.filter(s => s.content === TYPE_CONTENT_AUDIO)
+    return this.mediaInfo[this.videoTracksType].filter(s => s.content === TYPE_CONTENT_AUDIO)
   }
 
   /**

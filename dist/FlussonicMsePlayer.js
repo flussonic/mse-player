@@ -701,7 +701,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.3";
+      return "19.2.4";
     }
   }]);
 
@@ -726,6 +726,8 @@ var MSEPlayer = function () {
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
+
+    this.videoTracksType = 'streams';
 
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number');
@@ -833,16 +835,15 @@ var MSEPlayer = function () {
     if (!Array.isArray(tracks)) {
       console.error('tracks should be an Array instance: ["v1", "a1"]');
     }
-
     var videoTracksStr = tracks.filter(function (id) {
-      var stream = _this.mediaInfo.streams.find(function (s) {
+      var stream = _this.mediaInfo[_this.videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
       return !!stream && stream.content === TYPE_CONTENT_VIDEO;
     }).join('');
 
     var audioTracksStr = tracks.filter(function (id) {
-      var stream = _this.mediaInfo.streams.find(function (s) {
+      var stream = _this.mediaInfo[_this.videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
       return !!stream && stream.content === TYPE_CONTENT_AUDIO;
@@ -1218,7 +1219,12 @@ var MSEPlayer = function () {
     this.sb.setTracksByType(data);
 
     var metadata = data.metadata;
-    var streams = data.metadata.tracks || data.metadata.streams;
+
+    var streams = data.metadata.streams;
+    if (data.metadata.tracks) {
+      streams = data.metadata.tracks;
+      this.videoTracksType = 'tracks';
+    }
 
     var activeStreams = {};
 
@@ -1256,7 +1262,7 @@ var MSEPlayer = function () {
     if (!this.mediaInfo) {
       return;
     }
-    return this.mediaInfo.streams.filter(function (s) {
+    return this.mediaInfo[this.videoTracksType].filter(function (s) {
       return s.content === TYPE_CONTENT_VIDEO;
     });
   };
@@ -1265,7 +1271,7 @@ var MSEPlayer = function () {
     if (!this.mediaInfo) {
       return;
     }
-    return this.mediaInfo.streams.filter(function (s) {
+    return this.mediaInfo[this.videoTracksType].filter(function (s) {
       return s.content === TYPE_CONTENT_AUDIO;
     });
   };
