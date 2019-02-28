@@ -459,7 +459,7 @@ export default class MSEPlayer {
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
     mseUtils.logDM(isDataAB, parsedData)
-    
+
     try {
       // ArrayBuffer data
       if (isDataAB) {
@@ -474,7 +474,7 @@ export default class MSEPlayer {
        * EVENTS
        */
 
-      
+
       if (parsedData && parsedData.type === EVENT_SEGMENT) {
         const eventType = parsedData[EVENT_SEGMENT]
         switch (eventType) {
@@ -625,8 +625,8 @@ export default class MSEPlayer {
       if (!this.previouslyPaused) {
         this.playPromise = media.play()
         this.playPromise.then(() => {
-          player._pause = false
-          player.playing = true
+          this._pause = false
+          this.playing = true
         })
       }
     }
