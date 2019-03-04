@@ -155,7 +155,7 @@ export default class MSEPlayer {
   }
 
   restart() {
-    console.log(this)
+    // console.log(this)
 
     this.playing = false
     this.ws.destroy()
@@ -285,6 +285,8 @@ export default class MSEPlayer {
             this.resolveThenMediaSourceOpen = void 0
             this.rejectThenMediaSourceOpen = void 0
           }
+
+          this.restart();
         }
       )
       return this.playPromise

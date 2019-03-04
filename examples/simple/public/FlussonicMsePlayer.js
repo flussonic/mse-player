@@ -701,7 +701,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.5";
+      return "19.2.6";
     }
   }]);
 
@@ -815,7 +815,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.restart = function restart() {
-    console.log(this);
+    // console.log(this)
 
     this.playing = false;
     this.ws.destroy();
@@ -949,6 +949,8 @@ var MSEPlayer = function () {
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
         }
+
+        _this2.restart();
       });
       return _this2.playPromise;
     });
