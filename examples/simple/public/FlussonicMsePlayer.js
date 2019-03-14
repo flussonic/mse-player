@@ -701,7 +701,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.6";
+      return "19.2.7";
     }
   }]);
 
@@ -815,13 +815,14 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.restart = function restart() {
-    // console.log(this)
+    var fullRestart = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+
+    var from = fullRestart ? undefined : this.sb.lastLoadedUTC;
 
     this.playing = false;
     this.ws.destroy();
     this.ws.init();
-    this.ws.start(this.url, this.sb.lastLoadedUTC, this.videoTrack, this.audioTack);
-    // this._play(this.sb.lastLoadedUTC, this.audioTack, this.videoTrack)
+    this.ws.start(this.url, from, this.videoTrack, this.audioTack);
   };
 
   MSEPlayer.prototype.setTracks = function setTracks(tracks) {
@@ -877,12 +878,22 @@ var MSEPlayer = function () {
       }
 
       if (_this2._pause) {
-        _this2._resume(); // ws
         // should invoke play method of video in onClick scope
         // further logic are duplicated at checkVideoProgress
         // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
-        _this2._pause = false;
-        _this2.playing = true;
+
+        if (_this2.ws && _this2.ws.opened === false) {
+          _logger.logger.log('WebSocket Closed, trying to restart it');
+          _this2._pause = false;
+          _this2.restart(true);
+          return;
+        } else {
+          _logger.logger.log('WebSocket is in opened state, resuming');
+          _this2._pause = false;
+          _this2.playing = true;
+          _this2._resume(); // ws
+        }
+
         _this2.playPromise = _this2.media.play();
         _logger.logger.log('_play: terminate because _paused and should resume');
         return _this2.playPromise;
@@ -1171,8 +1182,8 @@ var MSEPlayer = function () {
             var noLiveError = { error: 'no_live', event: eventType };
             _logger.logger.log('do playPromise reject with error', noLiveError);
             // make playPromise rejected
-            throw new Error(noLiveError);
             this.playPromise = Promise.rejected();
+            throw new Error(noLiveError);
             break;
           default:
             if (this.opts.onError) {

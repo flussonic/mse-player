@@ -154,14 +154,13 @@ export default class MSEPlayer {
     }
   }
 
-  restart() {
-    // console.log(this)
+  restart(fullRestart = false) {
+    const from = fullRestart ? undefined : this.sb.lastLoadedUTC
 
     this.playing = false
     this.ws.destroy()
     this.ws.init()
-    this.ws.start(this.url, this.sb.lastLoadedUTC, this.videoTrack, this.audioTack)
-    // this._play(this.sb.lastLoadedUTC, this.audioTack, this.videoTrack)
+    this.ws.start(this.url, from, this.videoTrack, this.audioTack)
   }
 
   setTracks(tracks) {
@@ -213,12 +212,22 @@ export default class MSEPlayer {
       }
 
       if (this._pause) {
-        this._resume() // ws
         // should invoke play method of video in onClick scope
         // further logic are duplicated at checkVideoProgress
         // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
-        this._pause = false
-        this.playing = true
+        
+        if (this.ws && this.ws.opened === false) {
+          logger.log('WebSocket Closed, trying to restart it')
+          this._pause = false
+          this.restart(true)
+          return
+        } else {
+          logger.log('WebSocket is in opened state, resuming')
+          this._pause = false
+          this.playing = true
+          this._resume() // ws
+        }
+
         this.playPromise = this.media.play()
         logger.log('_play: terminate because _paused and should resume')
         return this.playPromise
@@ -508,8 +517,8 @@ export default class MSEPlayer {
             const noLiveError = {error: 'no_live', event: eventType}
             logger.log('do playPromise reject with error', noLiveError)
             // make playPromise rejected
-            throw new Error(noLiveError)
             this.playPromise = Promise.rejected()
+            throw new Error(noLiveError)
             break
           default:
             if (this.opts.onError) {
