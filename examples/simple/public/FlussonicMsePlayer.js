@@ -1938,7 +1938,9 @@ var WebSocketController = function () {
         });
       }, 5000);
     }
-    this.opts.closed(event);
+    if (this.opts.closed) {
+      this.opts.closed(event);
+    }
   };
 
   WebSocketController.prototype.destroy = function destroy() {

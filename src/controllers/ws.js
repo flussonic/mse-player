@@ -116,7 +116,9 @@ export default class WebSocketController {
           })
       }, 5000)
     }
-    this.opts.closed(event)
+    if (this.opts.closed) {
+      this.opts.closed(event)
+    }
   }
 
   destroy() {
