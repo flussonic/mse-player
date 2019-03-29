@@ -60,8 +60,6 @@ export default class MSEPlayer {
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
 
-    this.videoTracksType = 'streams'
-
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
@@ -172,16 +170,19 @@ export default class MSEPlayer {
     if (!Array.isArray(tracks)) {
       console.error('tracks should be an Array instance: ["v1", "a1"]')
     }
+
+    const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
+
     const videoTracksStr = tracks
       .filter(id => {
-        const stream = this.mediaInfo[this.videoTracksType].find(s => id === s['track_id'])
+        const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
         return !!stream && stream.content === TYPE_CONTENT_VIDEO
       })
       .join('')
 
     const audioTracksStr = tracks
       .filter(id => {
-        const stream = this.mediaInfo[this.videoTracksType].find(s => id === s['track_id'])
+        const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
         return !!stream && stream.content === TYPE_CONTENT_AUDIO
       })
       .join('')
@@ -215,7 +216,7 @@ export default class MSEPlayer {
         // should invoke play method of video in onClick scope
         // further logic are duplicated at checkVideoProgress
         // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
-        
+
         if (this.ws && this.ws.opened === false) {
           logger.log('WebSocket Closed, trying to restart it')
           this._pause = false
@@ -295,7 +296,7 @@ export default class MSEPlayer {
             this.rejectThenMediaSourceOpen = void 0
           }
 
-          this.restart();
+          this.restart()
         }
       )
       return this.playPromise
@@ -485,7 +486,6 @@ export default class MSEPlayer {
        * EVENTS
        */
 
-
       if (parsedData && parsedData.type === EVENT_SEGMENT) {
         const eventType = parsedData[EVENT_SEGMENT]
         switch (eventType) {
@@ -566,12 +566,15 @@ export default class MSEPlayer {
     // calc this.audioTrackId this.videoTrackId
     this.sb.setTracksByType(data)
 
-    const metadata = data.metadata
+    const metadata = {
+      ...data.metadata,
+      tracks: data.metadata.streams ? data.metadata.streams : data.metadata.tracks,
+      streams: data.metadata.streams ? data.metadata.streams : data.metadata.tracks,
+    }
 
     let streams = data.metadata.streams
     if (data.metadata.tracks) {
       streams = data.metadata.tracks
-      this.videoTracksType = 'tracks';
     }
 
     const activeStreams = {}
@@ -597,6 +600,7 @@ export default class MSEPlayer {
   doMediaInfo(metadata) {
     logger.log('%cmediaInfo:', 'background: orange;', metadata)
     if (this.onMediaInfo) {
+      // this.mediaInfo = { ...metadata, tracks: metadata.streams, streams: undefined }
       this.mediaInfo = metadata
       try {
         this.onMediaInfo(metadata)
@@ -610,14 +614,16 @@ export default class MSEPlayer {
     if (!this.mediaInfo) {
       return
     }
-    return this.mediaInfo[this.videoTracksType].filter(s => s.content === TYPE_CONTENT_VIDEO)
+    const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
+    return this.mediaInfo[videoTracksType].filter(s => s.content === TYPE_CONTENT_VIDEO)
   }
 
   getAudioTracks() {
     if (!this.mediaInfo) {
       return
     }
-    return this.mediaInfo[this.videoTracksType].filter(s => s.content === TYPE_CONTENT_AUDIO)
+    const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
+    return this.mediaInfo[videoTracksType].filter(s => s.content === TYPE_CONTENT_AUDIO)
   }
 
   /**

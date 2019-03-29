@@ -86,7 +86,8 @@ export default class BuffersController {
   }
 
   setTracksByType(data) {
-    data.tracks.forEach(s => {
+    const type = data.tracks ? 'tracks' : 'streams'
+    data[type].forEach(s => {
       this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
     })
   }

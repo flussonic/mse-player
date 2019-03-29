@@ -701,7 +701,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.7";
+      return "19.2.8";
     }
   }]);
 
@@ -726,8 +726,6 @@ var MSEPlayer = function () {
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP;
-
-    this.videoTracksType = 'streams';
 
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number');
@@ -836,15 +834,18 @@ var MSEPlayer = function () {
     if (!Array.isArray(tracks)) {
       console.error('tracks should be an Array instance: ["v1", "a1"]');
     }
+
+    var videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks';
+
     var videoTracksStr = tracks.filter(function (id) {
-      var stream = _this.mediaInfo[_this.videoTracksType].find(function (s) {
+      var stream = _this.mediaInfo[videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
       return !!stream && stream.content === TYPE_CONTENT_VIDEO;
     }).join('');
 
     var audioTracksStr = tracks.filter(function (id) {
-      var stream = _this.mediaInfo[_this.videoTracksType].find(function (s) {
+      var stream = _this.mediaInfo[videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
       return !!stream && stream.content === TYPE_CONTENT_AUDIO;
@@ -1231,12 +1232,11 @@ var MSEPlayer = function () {
     // calc this.audioTrackId this.videoTrackId
     this.sb.setTracksByType(data);
 
-    var metadata = data.metadata;
+    var metadata = _extends({}, data.metadata, { tracks: data.metadata.streams ? data.metadata.streams : data.metadata.tracks, streams: data.metadata.streams ? data.metadata.streams : data.metadata.tracks });
 
     var streams = data.metadata.streams;
     if (data.metadata.tracks) {
       streams = data.metadata.tracks;
-      this.videoTracksType = 'tracks';
     }
 
     var activeStreams = {};
@@ -1262,6 +1262,7 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
     _logger.logger.log('%cmediaInfo:', 'background: orange;', metadata);
     if (this.onMediaInfo) {
+      // this.mediaInfo = { ...metadata, tracks: metadata.streams, streams: undefined }
       this.mediaInfo = metadata;
       try {
         this.onMediaInfo(metadata);
@@ -1275,7 +1276,8 @@ var MSEPlayer = function () {
     if (!this.mediaInfo) {
       return;
     }
-    return this.mediaInfo[this.videoTracksType].filter(function (s) {
+    var videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks';
+    return this.mediaInfo[videoTracksType].filter(function (s) {
       return s.content === TYPE_CONTENT_VIDEO;
     });
   };
@@ -1284,7 +1286,8 @@ var MSEPlayer = function () {
     if (!this.mediaInfo) {
       return;
     }
-    return this.mediaInfo[this.videoTracksType].filter(function (s) {
+    var videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks';
+    return this.mediaInfo[videoTracksType].filter(function (s) {
       return s.content === TYPE_CONTENT_AUDIO;
     });
   };
@@ -3840,7 +3843,8 @@ var BuffersController = function () {
   BuffersController.prototype.setTracksByType = function setTracksByType(data) {
     var _this3 = this;
 
-    data.tracks.forEach(function (s) {
+    var type = data.tracks ? 'tracks' : 'streams';
+    data[type].forEach(function (s) {
       _this3[s.content === _common.VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id;
     });
   };
