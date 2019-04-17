@@ -101,7 +101,7 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
       player.playPromise.then(() => {
         player._pause = false
         player.playing = true
-      })
+      }).catch(() => {return})
     }
   }
 
