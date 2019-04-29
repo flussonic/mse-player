@@ -42,7 +42,7 @@ export default class MSEPlayer {
    * @param urlStream
    * @param opts
    */
-  constructor(media, urlStream, opts = {}) {
+  constructor(  media, urlStream, opts = {}) {
     if (opts.debug) {
       enableLogs(true)
       window.humanTime = mseUtils.humanTime
@@ -65,7 +65,13 @@ export default class MSEPlayer {
     }
 
     this.onProgress = opts && opts.onProgress
-    this.onDisconnect = opts && opts.onDisconnect
+    if (opts && opts.onDisconnect) {
+      this.onDisconnect = opts && opts.onDisconnect
+    } else {
+      this.onDisconnect = (status) => {
+        logger.log('[websocket status]:', status)
+      }
+    }
     this.onMediaInfo = opts && opts.onMediaInfo
     this.onError = opts && opts.onError
 
@@ -77,7 +83,7 @@ export default class MSEPlayer {
 
     this.ws = new WebSocketController({
       message: this.dispatchMessage.bind(this),
-      closed: this.onDisconnect ? this.onDisconnect.bind(this) : null,
+      closed: this.onDisconnect.bind(this),
       error: this.onError,
     })
 
@@ -252,7 +258,7 @@ export default class MSEPlayer {
 
       // deferring execution
       if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-        logger.warn('readyState is not "open"')
+        logger.warn('readyState is not "open"', this.mediaSource.readyState)
         this.shouldPlay = true
         this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
         this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
