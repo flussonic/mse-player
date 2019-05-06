@@ -493,6 +493,8 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
         player.playPromise.then(function () {
           player._pause = false;
           player.playing = true;
+        }).catch(function () {
+          return;
         });
       }
     }
@@ -1232,7 +1234,10 @@ var MSEPlayer = function () {
     // calc this.audioTrackId this.videoTrackId
     this.sb.setTracksByType(data);
 
-    var metadata = _extends({}, data.metadata, { tracks: data.metadata.streams ? data.metadata.streams : data.metadata.tracks, streams: data.metadata.streams ? data.metadata.streams : data.metadata.tracks });
+    var metadata = _extends({}, data.metadata, {
+      tracks: data.metadata.streams ? data.metadata.streams : data.metadata.tracks,
+      streams: data.metadata.streams ? data.metadata.streams : data.metadata.tracks
+    });
 
     var streams = data.metadata.streams;
     if (data.metadata.tracks) {
