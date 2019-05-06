@@ -703,7 +703,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.8";
+      return "19.2.9";
     }
   }]);
 
@@ -734,7 +734,13 @@ var MSEPlayer = function () {
     }
 
     this.onProgress = opts && opts.onProgress;
-    this.onDisconnect = opts && opts.onDisconnect;
+    if (opts && opts.onDisconnect) {
+      this.onDisconnect = opts && opts.onDisconnect;
+    } else {
+      this.onDisconnect = function (status) {
+        _logger.logger.log('[websocket status]:', status);
+      };
+    }
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
 
@@ -746,7 +752,7 @@ var MSEPlayer = function () {
 
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
-      closed: this.onDisconnect ? this.onDisconnect.bind(this) : null,
+      closed: this.onDisconnect.bind(this),
       error: this.onError
     });
 
@@ -920,7 +926,7 @@ var MSEPlayer = function () {
 
       // deferring execution
       if (_this2.mediaSource && _this2.mediaSource.readyState !== 'open') {
-        _logger.logger.warn('readyState is not "open"');
+        _logger.logger.warn('readyState is not "open"', _this2.mediaSource.readyState);
         _this2.shouldPlay = true;
         _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
         _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
