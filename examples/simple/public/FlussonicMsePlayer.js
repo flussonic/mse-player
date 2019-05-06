@@ -926,7 +926,7 @@ var MSEPlayer = function () {
 
       // deferring execution
       if (_this2.mediaSource && _this2.mediaSource.readyState !== 'open') {
-        _logger.logger.warn('readyState is not "open"');
+        _logger.logger.warn('readyState is not "open"', _this2.mediaSource.readyState);
         _this2.shouldPlay = true;
         _this2.resolveThenMediaSourceOpen = _this2.resolveThenMediaSourceOpen ? _this2.resolveThenMediaSourceOpen : resolve;
         _this2.rejectThenMediaSourceOpen = _this2.rejectThenMediaSourceOpen ? _this2.rejectThenMediaSourceOpen : reject;
