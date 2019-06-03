@@ -42,7 +42,7 @@ export default class MSEPlayer {
    * @param urlStream
    * @param opts
    */
-  constructor(  media, urlStream, opts = {}) {
+  constructor(media, urlStream, opts = {}) {
     if (opts.debug) {
       enableLogs(true)
       window.humanTime = mseUtils.humanTime
@@ -68,7 +68,7 @@ export default class MSEPlayer {
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect
     } else {
-      this.onDisconnect = (status) => {
+      this.onDisconnect = status => {
         logger.log('[websocket status]:', status)
       }
     }
@@ -210,6 +210,7 @@ export default class MSEPlayer {
    */
 
   _play(from, videoTrack, audioTack) {
+    this.liveError = false
     return new Promise((resolve, reject) => {
       logger.log('_play', from, videoTrack, audioTack)
       if (this.playing) {
@@ -271,40 +272,51 @@ export default class MSEPlayer {
       this.playPromise = this.media.play()
       this.startProgressTimer()
 
-      this.playPromise.then(
-        () => {
-          this.onStartStalling() // switch off at progress checker
-          if (this.resolveThenMediaSourceOpen) {
-            this.playing = true
-            this.resolveThenMediaSourceOpen()
-            this.resolveThenMediaSourceOpen = void 0
-            this.rejectThenMediaSourceOpen = void 0
-          }
-        },
-        () => {
-          logger.log('playPromise rejection. this.playing false')
-          // if error, this.ws.connectionPromise can be undefined
-          if (this.ws.connectionPromise) {
-            this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-          }
-          this._pause = true
-          this.playing = false
+      this.playPromise
+        .then(
+          () => {
+            this.onStartStalling() // switch off at progress checker
+            if (this.resolveThenMediaSourceOpen) {
+              this.playing = true
+              this.resolveThenMediaSourceOpen()
+              this.resolveThenMediaSourceOpen = void 0
+              this.rejectThenMediaSourceOpen = void 0
+            }
+          },
+          () => {
+            logger.log('playPromise rejection. this.playing false')
+            // if error, this.ws.connectionPromise can be undefined
+            if (this.ws.connectionPromise) {
+              this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+            }
+            this._pause = true
+            this.playing = false
 
-          if (this.onError) {
-            this.onError({
-              error: 'play_promise_reject',
-            })
-          }
+            if (this.onError) {
+              this.onError({
+                error: 'play_promise_reject',
+              })
+            }
 
-          if (this.rejectThenMediaSourceOpen) {
-            this.rejectThenMediaSourceOpen()
-            this.resolveThenMediaSourceOpen = void 0
-            this.rejectThenMediaSourceOpen = void 0
-          }
+            if (this.rejectThenMediaSourceOpen) {
+              // this.rejectThenMediaSourceOpen()
+              // .then(() => {
+              //   logger.log('NO LIVE success')
+              // })
+              // .catch(err => {
+              //   logger.log('NO LIVE error', err)
+              // })
+              this.resolveThenMediaSourceOpen = void 0
+              this.rejectThenMediaSourceOpen = void 0
+            }
 
-          this.restart()
-        }
-      )
+            this.restart()
+          }
+        )
+        .catch(err => {
+          this.ws.pause()
+          this.stop()
+        })
       return this.playPromise
     })
   }
@@ -433,6 +445,9 @@ export default class MSEPlayer {
 
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
+      if (this.liveError) {
+        return
+      }
       return new Promise(resolve => {
         this.onmso = this.onMediaSourceOpen.bind(this, resolve)
         ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
@@ -520,11 +535,22 @@ export default class MSEPlayer {
             break
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            const noLiveError = {error: 'no_live', event: eventType}
-            logger.log('do playPromise reject with error', noLiveError)
+            logger.log('do playPromise reject with error' /*, noLiveError*/)
             // make playPromise rejected
-            this.playPromise = Promise.rejected()
-            throw new Error(noLiveError)
+            if (!this.liveError) {
+              this.playPromise = Promise.reject()
+                .then(success => {
+                  // не вызывается
+                  this.ws.pause()
+                })
+                .catch(error => {
+                  logger.log('no live record') // печатает "провал" + Stacktrace
+                  this.ws.pause()
+                  this.stop()
+                  // throw error // повторно выбрасываем ошибку, вызывая новый reject
+                })
+              this.liveError = true
+            }
             break
           default:
             if (this.opts.onError) {
@@ -600,7 +626,9 @@ export default class MSEPlayer {
       this.sb.setMediaSource(this.mediaSource)
       this.sb.createSourceBuffers(data)
     }
-    this.sb.createTracks(data.tracks)
+    if (!this.liveError) {
+      this.sb.createTracks(data.tracks)
+    }
   }
 
   doMediaInfo(metadata) {
