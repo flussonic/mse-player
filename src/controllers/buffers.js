@@ -76,12 +76,13 @@ export default class BuffersController {
     }
 
     const buffer = this.sourceBuffer[segment.type]
-
-    if (buffer.updating) {
-      this.segments.unshift(segment)
-    } else {
-      buffer.appendBuffer(segment.data)
-      this.appended++
+    if (buffer) {
+      if (buffer.updating) {
+        this.segments.unshift(segment)
+      } else {
+        buffer.appendBuffer(segment.data)
+        this.appended++
+      }
     }
   }
 

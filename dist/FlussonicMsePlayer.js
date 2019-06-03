@@ -703,7 +703,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.2.9";
+      return "19.6.1";
     }
   }]);
 
@@ -878,6 +878,7 @@ var MSEPlayer = function () {
   MSEPlayer.prototype._play = function _play(from, videoTrack, audioTack) {
     var _this2 = this;
 
+    this.liveError = false;
     return new Promise(function (resolve, reject) {
       _logger.logger.log('_play', from, videoTrack, audioTack);
       if (_this2.playing) {
@@ -965,12 +966,21 @@ var MSEPlayer = function () {
         }
 
         if (_this2.rejectThenMediaSourceOpen) {
-          _this2.rejectThenMediaSourceOpen();
+          // this.rejectThenMediaSourceOpen()
+          // .then(() => {
+          //   logger.log('NO LIVE success')
+          // })
+          // .catch(err => {
+          //   logger.log('NO LIVE error', err)
+          // })
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
         }
 
         _this2.restart();
+      }).catch(function (err) {
+        _this2.ws.pause();
+        _this2.stop();
       });
       return _this2.playPromise;
     });
@@ -1106,6 +1116,9 @@ var MSEPlayer = function () {
 
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+      if (this.liveError) {
+        return;
+      }
       return new Promise(function (resolve) {
         _this4.onmso = _this4.onMediaSourceOpen.bind(_this4, resolve);
         ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this4.onmso);
@@ -1137,6 +1150,8 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
+    var _this5 = this;
+
     if (this.stopRunning) {
       return;
     }
@@ -1188,11 +1203,20 @@ var MSEPlayer = function () {
             break;
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            var noLiveError = { error: 'no_live', event: eventType };
-            _logger.logger.log('do playPromise reject with error', noLiveError);
+            _logger.logger.log('do playPromise reject with error' /*, noLiveError*/);
             // make playPromise rejected
-            this.playPromise = Promise.rejected();
-            throw new Error(noLiveError);
+            if (!this.liveError) {
+              this.playPromise = Promise.reject().then(function (success) {
+                // не вызывается
+                _this5.ws.pause();
+              }).catch(function (error) {
+                _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
+                _this5.ws.pause();
+                _this5.stop();
+                // throw error // повторно выбрасываем ошибку, вызывая новый reject
+              });
+              this.liveError = true;
+            }
             break;
           default:
             if (this.opts.onError) {
@@ -1267,7 +1291,9 @@ var MSEPlayer = function () {
       this.sb.setMediaSource(this.mediaSource);
       this.sb.createSourceBuffers(data);
     }
-    this.sb.createTracks(data.tracks);
+    if (!this.liveError) {
+      this.sb.createTracks(data.tracks);
+    }
   };
 
   MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
@@ -1311,7 +1337,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this5 = this;
+    var _this6 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1323,8 +1349,8 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this5._pause = false;
-          _this5.playing = true;
+          _this6._pause = false;
+          _this6.playing = true;
         });
       }
     }
@@ -3842,12 +3868,13 @@ var BuffersController = function () {
     }
 
     var buffer = this.sourceBuffer[segment.type];
-
-    if (buffer.updating) {
-      this.segments.unshift(segment);
-    } else {
-      buffer.appendBuffer(segment.data);
-      this.appended++;
+    if (buffer) {
+      if (buffer.updating) {
+        this.segments.unshift(segment);
+      } else {
+        buffer.appendBuffer(segment.data);
+        this.appended++;
+      }
     }
   };
 
