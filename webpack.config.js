@@ -7,11 +7,18 @@ const webpackConfig = require('./webpack-base-config')
 
 webpackConfig.output = {
   path: path.resolve(__dirname, 'dist/'),
-  // path: path.resolve(__dirname, 'examples/simple/public/'),
+  publicPath: path.resolve(__dirname, 'examples/simple/public/'),
   filename: '[name].js',
   library: 'FlussonicMsePlayer',
   libraryTarget: 'umd',
 }
+
+// webpackConfig.output = {
+//   path: path.resolve(__dirname, 'examples/simple/public/'),
+//   filename: '[name].js',
+//   library: 'FlussonicMsePlayer',
+//   libraryTarget: 'umd',
+// }
 
 webpackConfig.entry = {
   FlussonicMsePlayer: [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],

@@ -87,7 +87,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
 /******/
 /******/ 	// __webpack_public_path__
-/******/ 	__webpack_require__.p = "";
+/******/ 	__webpack_require__.p = "C:\\Users\\Atak3n\\Desktop\\mse-player\\examples\\simple\\public";
 /******/
 /******/
 /******/ 	// Load entry module and return exports
@@ -963,16 +963,12 @@ var MSEPlayer = function () {
           _this2.onError({
             error: 'play_promise_reject'
           });
+          _this2.ws.pause();
+          _this2.stop();
         }
 
         if (_this2.rejectThenMediaSourceOpen) {
-          // this.rejectThenMediaSourceOpen()
-          // .then(() => {
-          //   logger.log('NO LIVE success')
-          // })
-          // .catch(err => {
-          //   logger.log('NO LIVE error', err)
-          // })
+          _this2.rejectThenMediaSourceOpen();
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
         }
@@ -981,7 +977,11 @@ var MSEPlayer = function () {
       }).catch(function (err) {
         _this2.ws.pause();
         _this2.stop();
+        reject(err);
       });
+
+      console.log('this.playPromise', _this2.playPromise);
+
       return _this2.playPromise;
     });
   };
@@ -1117,6 +1117,7 @@ var MSEPlayer = function () {
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
       if (this.liveError) {
+        this.player = void 0;
         return;
       }
       return new Promise(function (resolve) {

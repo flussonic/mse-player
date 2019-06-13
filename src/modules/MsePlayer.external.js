@@ -296,16 +296,12 @@ export default class MSEPlayer {
               this.onError({
                 error: 'play_promise_reject',
               })
+              this.ws.pause()
+              this.stop()
             }
 
             if (this.rejectThenMediaSourceOpen) {
-              // this.rejectThenMediaSourceOpen()
-              // .then(() => {
-              //   logger.log('NO LIVE success')
-              // })
-              // .catch(err => {
-              //   logger.log('NO LIVE error', err)
-              // })
+              this.rejectThenMediaSourceOpen()
               this.resolveThenMediaSourceOpen = void 0
               this.rejectThenMediaSourceOpen = void 0
             }
@@ -316,7 +312,11 @@ export default class MSEPlayer {
         .catch(err => {
           this.ws.pause()
           this.stop()
+          reject(err);
         })
+        
+        console.log('this.playPromise', this.playPromise);
+
       return this.playPromise
     })
   }
@@ -446,6 +446,7 @@ export default class MSEPlayer {
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
       if (this.liveError) {
+        this.player = void 0
         return
       }
       return new Promise(resolve => {
