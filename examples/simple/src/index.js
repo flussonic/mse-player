@@ -7,20 +7,18 @@ function onLoad() {
   const element = document.getElementById('player')
   // const streamName = 'clock'
   // const url = `ws://localhost:8080/${streamName}/mse_ld`
-  // const url = ' wss://a-machinskiy.erlyvideo.ru/testnolive/mse_ld'
-  const url = ' wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
+  const url = ' wss://a-machinskiy.erlyvideo.ru/testnolive/mse_ld'
+  // const url = ' wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
   // const url = `ws://127.0.0.1:7101/live1/mse_ld`
   // const url = `ws://127.0.0.1:7101/transcode1/mse_ld`
   // const url = `ws://127.0.0.1:7121/restream1/mse_ld`
-
-
 
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
   const utcLabel = document.getElementById('utc')
   const stallingLabel = document.getElementById('stallingLabel')
-  const showStallingIndicator = (value) => {
+  const showStallingIndicator = value => {
     stallingLabel.innerText = '' + value
   }
 
@@ -56,7 +54,7 @@ function onLoad() {
         (v, i) =>
           `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${
             v['height']
-            }</option>`
+          }</option>`
       )
 
       const audioOptions = audioTracks.map(
@@ -68,14 +66,21 @@ function onLoad() {
 
       mbrControls.style.display = 'block'
     },
-    onError: (err) => {
+    onError: err => {
       console.log('••••• ERRROR', err)
     },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
-  window.player.play()
-  
+  window.player
+    .play()
+    .then(success => {
+      console.log('resolve', success)
+    })
+    .catch(err => {
+      console.log(err)
+    })
+
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
     const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value

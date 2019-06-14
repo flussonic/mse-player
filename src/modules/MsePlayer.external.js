@@ -312,10 +312,8 @@ export default class MSEPlayer {
         .catch(err => {
           this.ws.pause()
           this.stop()
-          reject(err);
+          reject(err)
         })
-        
-        console.log('this.playPromise', this.playPromise);
 
       return this.playPromise
     })

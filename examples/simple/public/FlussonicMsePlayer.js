@@ -980,8 +980,6 @@ var MSEPlayer = function () {
         reject(err);
       });
 
-      console.log('this.playPromise', _this2.playPromise);
-
       return _this2.playPromise;
     });
   };
