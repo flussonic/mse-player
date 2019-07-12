@@ -703,7 +703,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.6.4";
+      return "19.7.1";
     }
   }]);
 
@@ -856,9 +856,11 @@ var MSEPlayer = function () {
       var stream = _this.mediaInfo[videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
+      if (stream.bitrate && stream.bitrate !== 0) {
+        return null;
+      }
       return !!stream && stream.content === TYPE_CONTENT_AUDIO;
     }).join('');
-
     this.onStartStalling();
     this.ws.setTracks(videoTracksStr, audioTracksStr);
 
@@ -1949,7 +1951,9 @@ var WebSocketController = function () {
     this.websocket.send('' + commandStr + utc);
   };
 
-  WebSocketController.prototype.setTracks = function setTracks(videoTrack, audioTrack) {
+  WebSocketController.prototype.setTracks = function setTracks(videoTrack) {
+    var audioTrack = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+
     this.websocket.send('set_tracks=' + videoTrack + audioTrack);
   };
 

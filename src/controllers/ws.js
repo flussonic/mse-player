@@ -84,7 +84,7 @@ export default class WebSocketController {
     this.websocket.send(`${commandStr}${utc}`)
   }
 
-  setTracks(videoTrack, audioTrack) {
+  setTracks(videoTrack, audioTrack = null) {
     this.websocket.send(`set_tracks=${videoTrack}${audioTrack}`)
   }
 

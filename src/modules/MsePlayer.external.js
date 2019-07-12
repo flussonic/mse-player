@@ -189,10 +189,12 @@ export default class MSEPlayer {
     const audioTracksStr = tracks
       .filter(id => {
         const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
+        if (stream.bitrate && stream.bitrate !== 0) {
+          return null;
+        }
         return !!stream && stream.content === TYPE_CONTENT_AUDIO
       })
       .join('')
-
     this.onStartStalling()
     this.ws.setTracks(videoTracksStr, audioTracksStr)
 

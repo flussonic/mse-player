@@ -7,8 +7,9 @@ function onLoad() {
   const element = document.getElementById('player')
   // const streamName = 'clock'
   // const url = `ws://localhost:8080/${streamName}/mse_ld`
-  const url = ' wss://a-machinskiy.erlyvideo.ru/testnolive/mse_ld'
   // const url = ' wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
+  const url = 'wss://a-machinskiy.erlyvideo.ru/testNoSound/mse_ld'
+  // const url = 'wss://a-machinskiy.erlyvideo.ru/testSound/mse_ld'
   // const url = `ws://127.0.0.1:7101/live1/mse_ld`
   // const url = `ws://127.0.0.1:7101/transcode1/mse_ld`
   // const url = `ws://127.0.0.1:7121/restream1/mse_ld`
@@ -25,7 +26,6 @@ function onLoad() {
   let showFirstFrameUTC = false
 
   const opts = {
-    // debug: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -47,7 +47,6 @@ function onLoad() {
     // },
     onMediaInfo: rawMetaData => {
       console.log('rawMetaData:', rawMetaData)
-      console.log('activeStreams:', rawMetaData.activeStreams)
       const videoTracks = window.player.getVideoTracks()
       const audioTracks = window.player.getAudioTracks()
       const videoOptions = videoTracks.map(
@@ -67,7 +66,7 @@ function onLoad() {
       mbrControls.style.display = 'block'
     },
     onError: err => {
-      console.log('••••• ERRROR', err)
+      console.trace('••••• ERRROR', err)
     },
   }
 
@@ -84,6 +83,7 @@ function onLoad() {
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
     const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value
+    console.log({videoTracksSelect}, videoTrackId, audioTrackId)
     window.player.setTracks([videoTrackId, audioTrackId])
   }
 
