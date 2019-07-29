@@ -298,7 +298,7 @@ export default class MSEPlayer {
               this.onError({
                 error: 'play_promise_reject',
               })
-              this.ws.pause()
+              // this.ws.pause()
               this.stop()
             }
 
@@ -312,7 +312,7 @@ export default class MSEPlayer {
           }
         )
         .catch(err => {
-          this.ws.pause()
+          // this.ws.pause()
           this.stop()
           reject(err)
         })
@@ -613,11 +613,15 @@ export default class MSEPlayer {
     const activeStreams = {}
 
     if (this.sb.videoTrackId) {
-      activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id']
+      if (streams[this.sb.videoTrackId - 1]['track_id']) {
+        activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id']
+      }
     }
 
     if (this.sb.audioTrackId) {
-      activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
+      if (streams[this.sb.audioTrackId - 1]['track_id']) {
+        activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
+      }
     }
 
     this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})

@@ -61,7 +61,7 @@ export default class WebSocketController {
 
   resume() {
     clearTimeout(this.reconnect)
-    logger.log('ws: send resume')
+    logger.trace('ws: send resume')
     this.websocket.send('resume')
   }
 

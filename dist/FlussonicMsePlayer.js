@@ -200,8 +200,7 @@ var enableLogs = exports.enableLogs = function enableLogs(debugConfig) {
   if (debugConfig === true || (typeof debugConfig === 'undefined' ? 'undefined' : _typeof(debugConfig)) === 'object') {
     exportLoggerFunctions(debugConfig,
     // Remove out from list here to hard-disable a log-level
-    // 'trace',
-    'debug', 'log', 'info', 'warn', 'error');
+    'trace', 'debug', 'log', 'info', 'warn', 'error');
     // Some browsers don't allow to use bind on console object anyway
     // fallback to default if needed
     try {
@@ -703,7 +702,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.7.1";
+      return "19.7.2";
     }
   }]);
 
@@ -965,7 +964,7 @@ var MSEPlayer = function () {
           _this2.onError({
             error: 'play_promise_reject'
           });
-          _this2.ws.pause();
+          // this.ws.pause()
           _this2.stop();
         }
 
@@ -977,7 +976,7 @@ var MSEPlayer = function () {
 
         _this2.restart();
       }).catch(function (err) {
-        _this2.ws.pause();
+        // this.ws.pause()
         _this2.stop();
         reject(err);
       });
@@ -1278,11 +1277,15 @@ var MSEPlayer = function () {
     var activeStreams = {};
 
     if (this.sb.videoTrackId) {
-      activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id'];
+      if (streams[this.sb.videoTrackId - 1]['track_id']) {
+        activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id'];
+      }
     }
 
     if (this.sb.audioTrackId) {
-      activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id'];
+      if (streams[this.sb.audioTrackId - 1]['track_id']) {
+        activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id'];
+      }
     }
 
     this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams, version: MSEPlayer.version }));
@@ -1928,7 +1931,7 @@ var WebSocketController = function () {
 
   WebSocketController.prototype.resume = function resume() {
     clearTimeout(this.reconnect);
-    _logger.logger.log('ws: send resume');
+    _logger.logger.trace('ws: send resume');
     this.websocket.send('resume');
   };
 

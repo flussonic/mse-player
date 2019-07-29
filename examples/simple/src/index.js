@@ -7,8 +7,8 @@ function onLoad() {
   const element = document.getElementById('player')
   // const streamName = 'clock'
   // const url = `ws://localhost:8080/${streamName}/mse_ld`
-  // const url = ' wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
-  const url = 'wss://a-machinskiy.erlyvideo.ru/testNoSound/mse_ld'
+  const url = ' wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
+  // const url = 'wss://a-machinskiy.erlyvideo.ru/testNoSound/mse_ld'
   // const url = 'wss://a-machinskiy.erlyvideo.ru/testSound/mse_ld'
   // const url = `ws://127.0.0.1:7101/live1/mse_ld`
   // const url = `ws://127.0.0.1:7101/transcode1/mse_ld`
@@ -26,6 +26,7 @@ function onLoad() {
   let showFirstFrameUTC = false
 
   const opts = {
+    debug:true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
