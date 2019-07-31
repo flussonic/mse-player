@@ -7,12 +7,7 @@ function onLoad() {
   const element = document.getElementById('player')
   // const streamName = 'clock'
   // const url = `ws://localhost:8080/${streamName}/mse_ld`
-  // const url = ' wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
-  const url = 'wss://a-machinskiy.erlyvideo.ru/testNoSound/mse_ld'
-  // const url = 'wss://a-machinskiy.erlyvideo.ru/testSound/mse_ld'
-  // const url = `ws://127.0.0.1:7101/live1/mse_ld`
-  // const url = `ws://127.0.0.1:7101/transcode1/mse_ld`
-  // const url = `ws://127.0.0.1:7121/restream1/mse_ld`
+  const url = 'wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
 
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
@@ -26,6 +21,8 @@ function onLoad() {
   let showFirstFrameUTC = false
 
   const opts = {
+    debug:true,
+    connectionRetries: 10,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -42,9 +39,9 @@ function onLoad() {
         showFirstFrameUTC = false
       }
     },
-    // onDisconnect: (status) => {
-    //   console.log('Websocket status:', status)
-    // },
+    onDisconnect: (status) => {
+      console.log('Websocket status:', status)
+    },
     onMediaInfo: rawMetaData => {
       console.log('rawMetaData:', rawMetaData)
       const videoTracks = window.player.getVideoTracks()

@@ -683,6 +683,7 @@ var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
+var DEFAULT_CONNECTIONS_RETRIES = 3;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -731,6 +732,12 @@ var MSEPlayer = function () {
 
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number');
+    }
+
+    this.opts.connectionRetries = this.opts.connectionRetries ? this.opts.connectionRetries : DEFAULT_CONNECTIONS_RETRIES;
+
+    if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
+      throw new Error('invalid connectionRetries param, should be number');
     }
 
     this.onProgress = opts && opts.onProgress;
@@ -996,6 +1003,7 @@ var MSEPlayer = function () {
     this.audioTack = '';
     this.videoTrack = '';
     this.endProgressTimer();
+    this.retry = 0;
   };
 
   MSEPlayer.prototype._resume = function _resume() {
@@ -1009,7 +1017,6 @@ var MSEPlayer = function () {
     }
     this.stopRunning = true;
     // workaround pending playPromise state
-    return this.handlerMediaDetaching();
     // TODO: how to be with pending internal statuses
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     var bindedMD = this.handlerMediaDetaching.bind(this);
@@ -1022,6 +1029,8 @@ var MSEPlayer = function () {
     if (!this.playPromise) {
       return this.handlerMediaDetaching();
     }
+
+    return this.handlerMediaDetaching();
   };
 
   MSEPlayer.prototype.handlerMediaDetaching = function handlerMediaDetaching() {
@@ -1209,11 +1218,14 @@ var MSEPlayer = function () {
             if (!this.liveError) {
               this.playPromise = Promise.reject().then(function (success) {
                 // не вызывается
-                _this5.ws.pause();
               }).catch(function (error) {
                 _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
-                _this5.ws.pause();
-                _this5.stop();
+                _logger.logger.log(error);
+                if (_this5.retry <= _this5.opts.connectionRetries) {
+                  console.log('ws restart on connection retry', _this5.retry, _this5.opts.connectionRetries);
+                  _this5.restart();
+                  _this5.retry++;
+                }
                 // throw error // повторно выбрасываем ошибку, вызывая новый reject
               });
               this.liveError = true;

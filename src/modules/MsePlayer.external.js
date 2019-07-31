@@ -23,6 +23,7 @@ const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
+const DEFAULT_CONNECTIONS_RETRIES = 3
 
 export default class MSEPlayer {
   static get version() {
@@ -59,9 +60,15 @@ export default class MSEPlayer {
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
-
+    
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number')
+    }
+    
+    this.opts.connectionRetries = this.opts.connectionRetries ? this.opts.connectionRetries : DEFAULT_CONNECTIONS_RETRIES
+    
+    if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
+      throw new Error('invalid connectionRetries param, should be number')
     }
 
     this.onProgress = opts && opts.onProgress
@@ -331,6 +338,7 @@ export default class MSEPlayer {
     this.audioTack = ''
     this.videoTrack = ''
     this.endProgressTimer()
+    this.retry = 0
   }
 
   _resume() {
@@ -344,7 +352,6 @@ export default class MSEPlayer {
     }
     this.stopRunning = true
     // workaround pending playPromise state
-    return this.handlerMediaDetaching()
     // TODO: how to be with pending internal statuses
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
     const bindedMD = this.handlerMediaDetaching.bind(this)
@@ -357,6 +364,8 @@ export default class MSEPlayer {
     if (!this.playPromise) {
       return this.handlerMediaDetaching()
     }
+    
+    return this.handlerMediaDetaching()
   }
 
   handlerMediaDetaching() {
@@ -542,12 +551,15 @@ export default class MSEPlayer {
               this.playPromise = Promise.reject()
                 .then(success => {
                   // не вызывается
-                  this.ws.pause()
                 })
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
-                  this.ws.pause()
-                  this.stop()
+                  logger.log(error)
+                  if (this.retry <= this.opts.connectionRetries) {
+                    console.log('ws restart on connection retry', this.retry, this.opts.connectionRetries)
+                    this.restart()
+                    this.retry++
+                  }
                   // throw error // повторно выбрасываем ошибку, вызывая новый reject
                 })
               this.liveError = true
