@@ -60,13 +60,15 @@ export default class MSEPlayer {
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE
 
     this.opts.errorsBeforeStop = this.opts.errorsBeforeStop ? this.opts.errorsBeforeStop : DEFAULT_ERRORS_BEFORE_STOP
-    
+
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
-    
-    this.opts.connectionRetries = this.opts.connectionRetries ? this.opts.connectionRetries : DEFAULT_CONNECTIONS_RETRIES
-    
+
+    this.opts.connectionRetries = this.opts.connectionRetries
+      ? this.opts.connectionRetries
+      : DEFAULT_CONNECTIONS_RETRIES
+
     if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
       throw new Error('invalid connectionRetries param, should be number')
     }
@@ -92,6 +94,7 @@ export default class MSEPlayer {
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
       error: this.onError,
+      retry: this.opts.connectionRetries,
     })
 
     /*
@@ -174,6 +177,15 @@ export default class MSEPlayer {
     this.ws.start(this.url, from, this.videoTrack, this.audioTack)
   }
 
+  retryConnection() {
+    this.init()
+    this.ws.destroy()
+    this.sb.destroy()
+
+    this.play()
+    this.retry = this.retry + 1
+  }
+
   setTracks(tracks) {
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
@@ -197,7 +209,7 @@ export default class MSEPlayer {
       .filter(id => {
         const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
         if (stream.bitrate && stream.bitrate !== 0) {
-          return null;
+          return null
         }
         return !!stream && stream.content === TYPE_CONTENT_AUDIO
       })
@@ -305,8 +317,11 @@ export default class MSEPlayer {
               this.onError({
                 error: 'play_promise_reject',
               })
-              // this.ws.pause()
-              this.stop()
+              if (this.retry <= this.opts.connectionRetries) {
+                this.throttle(this.retryConnection(), 5000)
+              } else {
+                this.stop()
+              }
             }
 
             if (this.rejectThenMediaSourceOpen) {
@@ -320,7 +335,11 @@ export default class MSEPlayer {
         )
         .catch(err => {
           // this.ws.pause()
-          this.stop()
+          if (this.retry <= this.opts.connectionRetries) {
+            this.throttle(this.retryConnection(), 5000)
+          } else {
+            this.stop()
+          }
           reject(err)
         })
 
@@ -364,7 +383,7 @@ export default class MSEPlayer {
     if (!this.playPromise) {
       return this.handlerMediaDetaching()
     }
-    
+
     return this.handlerMediaDetaching()
   }
 
@@ -556,9 +575,7 @@ export default class MSEPlayer {
                   logger.log('no live record') // печатает "провал" + Stacktrace
                   logger.log(error)
                   if (this.retry <= this.opts.connectionRetries) {
-                    console.log('ws restart on connection retry', this.retry, this.opts.connectionRetries)
-                    this.restart()
-                    this.retry++
+                    this.throttle(this.retryConnection(), 5000)
                   }
                   // throw error // повторно выбрасываем ошибку, вызывая новый reject
                 })
@@ -770,5 +787,16 @@ export default class MSEPlayer {
 
   onMediaSourceClose() {
     logger.log('media source closed')
+  }
+
+  throttle(func, milliseconds) {
+    var lastCall = 0
+    return function() {
+      var now = Date.now()
+      if (lastCall + milliseconds < now) {
+        lastCall = now
+        return func.apply(this, arguments)
+      }
+    }
   }
 }

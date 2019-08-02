@@ -21,6 +21,7 @@ export default class WebSocketController {
     this.opened = false
     this.connectionPromise = void 0
     clearTimeout(this.reconnect)
+    this.reconnect = void 0
   }
 
   start(url, time, videoTrack = '', audioTack = '') {
@@ -61,7 +62,7 @@ export default class WebSocketController {
 
   resume() {
     clearTimeout(this.reconnect)
-    logger.trace('ws: send resume')
+    logger.log('ws: send resume')
     this.websocket.send('resume')
   }
 
@@ -99,11 +100,10 @@ export default class WebSocketController {
   }
 
   onWSClose(event) {
-    if (event.wasClean) {
-      // alert('Соединение закрыто чисто')
+    logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason) // например, "убит" процесс сервера
+    if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
+      logger.log('Clean websocket stop')
     } else {
-      logger.log('WebSocket lost connection') // например, "убит" процесс сервера
-      this.destroy()
       const {url, time, videoTrack, audioTack} = this.socketURL
       this.reconnect = setTimeout(() => {
         this.start(url, time, videoTrack, audioTack)
@@ -122,12 +122,14 @@ export default class WebSocketController {
   }
 
   destroy() {
-    clearTimeout(this.reconnect)
     if (this.websocket) {
       this.pause()
       this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsm)
-      this.websocket.onclose = function() {} // disable onclose handler first
+      // this.websocket.onclose = function() {} // disable onclose handler first
       this.websocket.close()
+      this.websocket.onclose = void 0 // disable onclose handler first
+      clearTimeout(this.reconnect)
+      this.reconnect = void 0 // disable onclose handler first
       this.init()
     }
   }

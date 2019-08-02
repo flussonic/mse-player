@@ -23,6 +23,7 @@ function onLoad() {
   const opts = {
     debug:true,
     connectionRetries: 10,
+    errorsBeforeStop: 10,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -63,7 +64,7 @@ function onLoad() {
       mbrControls.style.display = 'block'
     },
     onError: err => {
-      console.trace('••••• ERRROR', err)
+      console.log('••••• ERRROR', err)
     },
   }
 

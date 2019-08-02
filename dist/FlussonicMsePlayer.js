@@ -703,7 +703,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.7.2";
+      return "19.7.3";
     }
   }]);
 
@@ -759,7 +759,8 @@ var MSEPlayer = function () {
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
-      error: this.onError
+      error: this.onError,
+      retry: this.opts.connectionRetries
     });
 
     /*
@@ -835,6 +836,15 @@ var MSEPlayer = function () {
     this.ws.destroy();
     this.ws.init();
     this.ws.start(this.url, from, this.videoTrack, this.audioTack);
+  };
+
+  MSEPlayer.prototype.retryConnection = function retryConnection() {
+    this.init();
+    this.ws.destroy();
+    this.sb.destroy();
+
+    this.play();
+    this.retry = this.retry + 1;
   };
 
   MSEPlayer.prototype.setTracks = function setTracks(tracks) {
@@ -971,8 +981,11 @@ var MSEPlayer = function () {
           _this2.onError({
             error: 'play_promise_reject'
           });
-          // this.ws.pause()
-          _this2.stop();
+          if (_this2.retry <= _this2.opts.connectionRetries) {
+            _this2.throttle(_this2.retryConnection(), 5000);
+          } else {
+            _this2.stop();
+          }
         }
 
         if (_this2.rejectThenMediaSourceOpen) {
@@ -984,7 +997,11 @@ var MSEPlayer = function () {
         _this2.restart();
       }).catch(function (err) {
         // this.ws.pause()
-        _this2.stop();
+        if (_this2.retry <= _this2.opts.connectionRetries) {
+          _this2.throttle(_this2.retryConnection(), 5000);
+        } else {
+          _this2.stop();
+        }
         reject(err);
       });
 
@@ -1221,9 +1238,7 @@ var MSEPlayer = function () {
                 _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
                 _logger.logger.log(error);
                 if (_this5.retry <= _this5.opts.connectionRetries) {
-                  console.log('ws restart on connection retry', _this5.retry, _this5.opts.connectionRetries);
-                  _this5.restart();
-                  _this5.retry++;
+                  _this5.throttle(_this5.retryConnection(), 5000);
                 }
                 // throw error // повторно выбрасываем ошибку, вызывая новый reject
               });
@@ -1442,6 +1457,17 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.onMediaSourceClose = function onMediaSourceClose() {
     _logger.logger.log('media source closed');
+  };
+
+  MSEPlayer.prototype.throttle = function throttle(func, milliseconds) {
+    var lastCall = 0;
+    return function () {
+      var now = Date.now();
+      if (lastCall + milliseconds < now) {
+        lastCall = now;
+        return func.apply(this, arguments);
+      }
+    };
   };
 
   return MSEPlayer;
@@ -1898,6 +1924,7 @@ var WebSocketController = function () {
     this.opened = false;
     this.connectionPromise = void 0;
     clearTimeout(this.reconnect);
+    this.reconnect = void 0;
   };
 
   WebSocketController.prototype.start = function start(url, time) {
@@ -1943,7 +1970,7 @@ var WebSocketController = function () {
 
   WebSocketController.prototype.resume = function resume() {
     clearTimeout(this.reconnect);
-    _logger.logger.trace('ws: send resume');
+    _logger.logger.log('ws: send resume');
     this.websocket.send('resume');
   };
 
@@ -1987,11 +2014,10 @@ var WebSocketController = function () {
   WebSocketController.prototype.onWSClose = function onWSClose(event) {
     var _this2 = this;
 
-    if (event.wasClean) {
-      // alert('Соединение закрыто чисто')
+    _logger.logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason); // например, "убит" процесс сервера
+    if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
+      _logger.logger.log('Clean websocket stop');
     } else {
-      _logger.logger.log('WebSocket lost connection'); // например, "убит" процесс сервера
-      this.destroy();
       var _socketURL = this.socketURL,
           url = _socketURL.url,
           time = _socketURL.time,
@@ -2013,12 +2039,14 @@ var WebSocketController = function () {
   };
 
   WebSocketController.prototype.destroy = function destroy() {
-    clearTimeout(this.reconnect);
     if (this.websocket) {
       this.pause();
       this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsm);
-      this.websocket.onclose = function () {}; // disable onclose handler first
+      // this.websocket.onclose = function() {} // disable onclose handler first
       this.websocket.close();
+      this.websocket.onclose = void 0; // disable onclose handler first
+      clearTimeout(this.reconnect);
+      this.reconnect = void 0; // disable onclose handler first
       this.init();
     }
   };
