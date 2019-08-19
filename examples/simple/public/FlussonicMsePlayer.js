@@ -682,7 +682,7 @@ var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
-var DEFAULT_CONNECTIONS_RETRIES = 3;
+var DEFAULT_CONNECTIONS_RETRIES = 9999;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -703,7 +703,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.7.3";
+      return "19.8.1";
     }
   }]);
 
@@ -739,6 +739,8 @@ var MSEPlayer = function () {
       throw new Error('invalid connectionRetries param, should be number');
     }
 
+    this.retry = 0;
+
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect;
@@ -759,8 +761,7 @@ var MSEPlayer = function () {
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
-      error: this.onError,
-      retry: this.opts.connectionRetries
+      error: this.onError
     });
 
     /*
@@ -839,6 +840,8 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.retryConnection = function retryConnection() {
+    _logger.logger.log('%cconnectionRetry:', 'background: orange;', 'Retrying ' + (this.retry + 1));
+    this.mediaSource = null;
     this.init();
     this.ws.destroy();
     this.sb.destroy();
@@ -996,7 +999,6 @@ var MSEPlayer = function () {
 
         _this2.restart();
       }).catch(function (err) {
-        // this.ws.pause()
         if (_this2.retry <= _this2.opts.connectionRetries) {
           _this2.throttle(_this2.retryConnection(), 5000);
         } else {
@@ -1019,7 +1021,6 @@ var MSEPlayer = function () {
     this.audioTack = '';
     this.videoTrack = '';
     this.endProgressTimer();
-    this.retry = 0;
   };
 
   MSEPlayer.prototype._resume = function _resume() {
@@ -1969,9 +1970,17 @@ var WebSocketController = function () {
   };
 
   WebSocketController.prototype.resume = function resume() {
+    var _this2 = this;
+
     clearTimeout(this.reconnect);
     _logger.logger.log('ws: send resume');
-    this.websocket.send('resume');
+    if (this.websocket.readyState === 0) {
+      return setTimeout(function () {
+        return _this2.resume();
+      }, 500);
+    } else {
+      this.websocket.send('resume');
+    }
   };
 
   WebSocketController.prototype.pause = function pause() {
@@ -2012,7 +2021,7 @@ var WebSocketController = function () {
   };
 
   WebSocketController.prototype.onWSClose = function onWSClose(event) {
-    var _this2 = this;
+    var _this3 = this;
 
     _logger.logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason); // например, "убит" процесс сервера
     if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
@@ -2025,8 +2034,8 @@ var WebSocketController = function () {
           audioTack = _socketURL.audioTack;
 
       this.reconnect = setTimeout(function () {
-        _this2.start(url, time, videoTrack, audioTack).then(function () {
-          clearTimeout(_this2.reconnect);
+        _this3.start(url, time, videoTrack, audioTack).then(function () {
+          clearTimeout(_this3.reconnect);
           return;
         }).catch(function () {
           return;

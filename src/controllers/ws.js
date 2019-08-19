@@ -63,7 +63,11 @@ export default class WebSocketController {
   resume() {
     clearTimeout(this.reconnect)
     logger.log('ws: send resume')
-    this.websocket.send('resume')
+    if (this.websocket.readyState === 0) {
+      return setTimeout(() => this.resume(), 500)
+    } else {
+      this.websocket.send('resume')
+    }
   }
 
   pause() {

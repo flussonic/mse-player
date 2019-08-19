@@ -23,7 +23,7 @@ const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
-const DEFAULT_CONNECTIONS_RETRIES = 3
+const DEFAULT_CONNECTIONS_RETRIES = 9999
 
 export default class MSEPlayer {
   static get version() {
@@ -73,6 +73,8 @@ export default class MSEPlayer {
       throw new Error('invalid connectionRetries param, should be number')
     }
 
+    this.retry = 0
+
     this.onProgress = opts && opts.onProgress
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect
@@ -94,7 +96,6 @@ export default class MSEPlayer {
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
       error: this.onError,
-      retry: this.opts.connectionRetries,
     })
 
     /*
@@ -178,6 +179,8 @@ export default class MSEPlayer {
   }
 
   retryConnection() {
+    logger.log('%cconnectionRetry:', 'background: orange;', `Retrying ${this.retry + 1}`)
+    this.mediaSource = null
     this.init()
     this.ws.destroy()
     this.sb.destroy()
@@ -334,7 +337,6 @@ export default class MSEPlayer {
           }
         )
         .catch(err => {
-          // this.ws.pause()
           if (this.retry <= this.opts.connectionRetries) {
             this.throttle(this.retryConnection(), 5000)
           } else {
@@ -357,7 +359,6 @@ export default class MSEPlayer {
     this.audioTack = ''
     this.videoTrack = ''
     this.endProgressTimer()
-    this.retry = 0
   }
 
   _resume() {
