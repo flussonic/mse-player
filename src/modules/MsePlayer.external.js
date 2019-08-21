@@ -604,6 +604,7 @@ export default class MSEPlayer {
 
   procInitSegment(rawData) {
     const data = JSON.parse(rawData)
+  
     if (data.type !== MSE_INIT_SEGMENT) {
       return logger.warn(`type is not ${MSE_INIT_SEGMENT}`)
     }
@@ -641,15 +642,15 @@ export default class MSEPlayer {
     }
 
     const activeStreams = {}
-
+    
     if (this.sb.videoTrackId) {
-      if (streams[this.sb.videoTrackId - 1]['track_id']) {
+      if (streams[this.sb.videoTrackId - 1] && streams[this.sb.videoTrackId - 1]['track_id']) {
         activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id']
       }
     }
-
+    
     if (this.sb.audioTrackId) {
-      if (streams[this.sb.audioTrackId - 1]['track_id']) {
+      if (streams[this.sb.audioTrackId - 1] && streams[this.sb.audioTrackId - 1]['track_id']) {
         activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
       }
     }
@@ -669,7 +670,6 @@ export default class MSEPlayer {
   doMediaInfo(metadata) {
     logger.log('%cmediaInfo:', 'background: orange;', metadata)
     if (this.onMediaInfo) {
-      // this.mediaInfo = { ...metadata, tracks: metadata.streams, streams: undefined }
       this.mediaInfo = metadata
       try {
         this.onMediaInfo(metadata)

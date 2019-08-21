@@ -703,7 +703,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.8.1";
+      return "19.8.2";
     }
   }]);
 
@@ -1267,6 +1267,7 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
     var data = JSON.parse(rawData);
+
     if (data.type !== _segments.MSE_INIT_SEGMENT) {
       return _logger.logger.warn('type is not ' + _segments.MSE_INIT_SEGMENT);
     }
@@ -1305,13 +1306,13 @@ var MSEPlayer = function () {
     var activeStreams = {};
 
     if (this.sb.videoTrackId) {
-      if (streams[this.sb.videoTrackId - 1]['track_id']) {
+      if (streams[this.sb.videoTrackId - 1] && streams[this.sb.videoTrackId - 1]['track_id']) {
         activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id'];
       }
     }
 
     if (this.sb.audioTrackId) {
-      if (streams[this.sb.audioTrackId - 1]['track_id']) {
+      if (streams[this.sb.audioTrackId - 1] && streams[this.sb.audioTrackId - 1]['track_id']) {
         activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id'];
       }
     }
@@ -1331,7 +1332,6 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.doMediaInfo = function doMediaInfo(metadata) {
     _logger.logger.log('%cmediaInfo:', 'background: orange;', metadata);
     if (this.onMediaInfo) {
-      // this.mediaInfo = { ...metadata, tracks: metadata.streams, streams: undefined }
       this.mediaInfo = metadata;
       try {
         this.onMediaInfo(metadata);
