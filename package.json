@@ -1,6 +1,6 @@
 {
   "name": "@flussonic/flussonic-mse-player",
-  "version": "19.8.1",
+  "version": "19.8.2",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/FlussonicMsePlayer.js",
   "keywords": [
@@ -13,7 +13,8 @@
     "build": "webpack --progress",
     "build-min": "webpack --progress",
     "start": "webpack-dev-server --host 0.0.0.0 --content-base public/ --output-public-path latest/ --hot",
-    "gulp": "./node_modules/.bin/gulp cp"
+    "gulp": "./node_modules/.bin/gulp cp",
+    "build-copy": "webpack --progress > examples/simple/public/"
   },
   "repository": {
     "type": "git",
