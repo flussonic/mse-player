@@ -4,6 +4,7 @@ node_modules
 coverage
 *.cache
 npm-debug.log
+/dist
 
 # bump
 *.bkp
