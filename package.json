@@ -11,10 +11,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build-watch": "webpack --mode production --watch",
     "build": "webpack --mode production",
-    "build-min": "webpack --mode production",
-    "start": "webpack-dev-server --host 0.0.0.0 --content-base public/ --output-public-path latest/ --hot",
-    "gulp": "./node_modules/.bin/gulp cp",
-    "build-copy": "webpack --mode production > examples/simple/public/"
+    "build-min": "webpack --mode production"
   },
   "repository": {
     "type": "git",

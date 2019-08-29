@@ -27,12 +27,11 @@ ci_extract:
 
 # ci_upload:
 # 	for i in dist/*; do \
-# 	  curl -u ${REPOSITORY_AUTH} -T $${i} https://front-ci.erlyvideo.ru/dist/webrtc-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
+# 	  curl -u ${REPOSITORY_AUTH} -T $${i} https://front-ci.erlyvideo.ru/dist/mse-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
 # 	done
 
 # ci_notify:
 # 	curl -X POST --data-urlencode \
-# 	'payload={"channel": "#dev-frontend", "username": "CI", "text": "**webrtc-player '${BRANCH}' '${VERSION}'** \nhttps://front-ci.erlyvideo.ru/"}' "${SLACKURL}"
+# 	'payload={"channel": "#dev-frontend", "username": "CI", "text": "**mse-player '${BRANCH}' '${VERSION}'** \nhttps://front-ci.erlyvideo.ru/"}' "${SLACKURL}"
 
-
-# ci: ci_prepare ci_dependencies ci_build ci_extract
+ci: ci_prepare ci_dependencies ci_build ci_extract
