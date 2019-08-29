@@ -1,0 +1,5 @@
+ARG BRANCH
+FROM live-player-dependencies:${BRANCH}
+
+WORKDIR /root
+RUN yarn build:frontci

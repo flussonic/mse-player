@@ -1,0 +1,47 @@
+stages:
+  - prepare_environment
+  # - dependencies
+  # - build
+  # - upload
+  # - notify
+
+
+prepare_environment:
+  stage: prepare_environment
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_prepare
+
+# dependencies:
+#   stage: dependencies
+#   script:
+#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_dependencies
+#   dependencies:
+#     - prepare_environment
+
+# build:
+#   stage: build
+#   script:
+#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_build
+#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_extract
+#   artifacts:
+#     paths:
+#       - dist
+#     expire_in: 1 day
+#   dependencies:
+#     - dependencies
+
+# upload:
+#   stage: upload
+#   dependencies:
+#     - build
+#   script:
+#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG REPOSITORY_AUTH=$REPOSITORY_AUTH ci_upload
+
+# notify:
+#   stage: notify
+#   script:
+#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
+#   dependencies:
+#     - upload
+
+

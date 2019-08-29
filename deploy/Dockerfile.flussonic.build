@@ -1,0 +1,9 @@
+ARG BRANCH
+FROM live-player-dependencies:${BRANCH}
+ARG VERSION
+
+WORKDIR /root
+RUN echo "$VERSION"
+RUN yarn build:flussonic
+RUN [ -z "$VERSION" ] && exit 5 || true
+RUN echo "$VERSION" > ./player/version
