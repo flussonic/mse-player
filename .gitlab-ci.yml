@@ -4,6 +4,7 @@ stages:
   # - build
   # - upload
   # - notify
+  # - deploy
 
 
 prepare_environment:
@@ -18,17 +19,17 @@ dependencies:
   dependencies:
     - prepare_environment
 
-# build:
-#   stage: build
-#   script:
-#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_build
-#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_extract
-#   artifacts:
-#     paths:
-#       - dist
-#     expire_in: 1 day
-#   dependencies:
-#     - dependencies
+build:
+  stage: build
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_build
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_extract
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 day
+  dependencies:
+    - dependencies
 
 # upload:
 #   stage: upload
