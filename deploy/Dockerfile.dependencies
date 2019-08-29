@@ -6,6 +6,8 @@ WORKDIR /root
 ADD src src
 ADD .babelrc .
 ADD package.json .
+ADD webpack.config.js .
+ADD webpack-base-config.js .
 ADD yarn.lock .
 ADD deploy deploy
 
