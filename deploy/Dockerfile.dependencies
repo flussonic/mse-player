@@ -1,13 +1,11 @@
 ARG BRANCH
-FROM live-player-prepare:${BRANCH}
+FROM mse-player-prepare:${BRANCH}
 
 WORKDIR /root
 
 ADD src src
 ADD .babelrc .
 ADD package.json .
-ADD webpack.config.frontci.js .
-ADD webpack.config.flussonic.js .
 ADD yarn.lock .
 ADD deploy deploy
 

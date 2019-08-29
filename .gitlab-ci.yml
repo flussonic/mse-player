@@ -1,6 +1,6 @@
 stages:
   - prepare_environment
-  # - dependencies
+  - dependencies
   # - build
   # - upload
   # - notify
@@ -11,12 +11,12 @@ prepare_environment:
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_prepare
 
-# dependencies:
-#   stage: dependencies
-#   script:
-#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_dependencies
-#   dependencies:
-#     - prepare_environment
+dependencies:
+  stage: dependencies
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_dependencies
+  dependencies:
+    - prepare_environment
 
 # build:
 #   stage: build

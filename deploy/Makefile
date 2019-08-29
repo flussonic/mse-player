@@ -13,8 +13,8 @@ endif
 ci_prepare:
 	docker build -t mse-player-prepare:${HTTP_BRANCH} -f deploy/Dockerfile.prepare deploy
 
-# ci_dependencies:
-# 	docker build -t live-player-dependencies:${HTTP_BRANCH} --build-arg BRANCH=${HTTP_BRANCH} -f deploy/Dockerfile.dependencies .
+ci_dependencies:
+	docker build -t mse-player-dependencies:${HTTP_BRANCH} --build-arg BRANCH=${HTTP_BRANCH} -f deploy/Dockerfile.dependencies .
 
 # ci_build_frontci:
 # 	docker build -t live-player-build-frontci:${HTTP_BRANCH} --build-arg BRANCH=${HTTP_BRANCH} -f deploy/Dockerfile.frontci.build .
