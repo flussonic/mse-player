@@ -9,12 +9,12 @@
   "homepage": "https://github.com/flussonic/mse-player",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build-watch": "webpack --progress --watch",
-    "build": "webpack --progress",
-    "build-min": "webpack --progress",
+    "build-watch": "webpack --production --watch",
+    "build": "webpack --production",
+    "build-min": "webpack --production",
     "start": "webpack-dev-server --host 0.0.0.0 --content-base public/ --output-public-path latest/ --hot",
     "gulp": "./node_modules/.bin/gulp cp",
-    "build-copy": "webpack --progress > examples/simple/public/"
+    "build-copy": "webpack --production > examples/simple/public/"
   },
   "repository": {
     "type": "git",

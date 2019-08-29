@@ -17,9 +17,7 @@ module.exports = {
       },
     ]
   },
-  // devtool: 'source-map',
   plugins: [
-    // new DirectoryNamedWebpackPlugin(true),
     new webpack.DefinePlugin({
       VERSION: JSON.stringify(require('./package.json').version)
     }),
