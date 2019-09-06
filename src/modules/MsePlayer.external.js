@@ -23,7 +23,7 @@ const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
-const DEFAULT_CONNECTIONS_RETRIES = 9999
+const DEFAULT_CONNECTIONS_RETRIES = 10
 
 export default class MSEPlayer {
   static get version() {
@@ -74,6 +74,7 @@ export default class MSEPlayer {
     }
 
     this.retry = 0
+    this.retryConnectionTimer
 
     this.onProgress = opts && opts.onProgress
     if (opts && opts.onDisconnect) {
@@ -179,6 +180,10 @@ export default class MSEPlayer {
   }
 
   retryConnection() {
+    if (this.retry >= this.opts.connectionRetries) {
+      clearInterval(this.retryConnectionTimer)
+      return
+    }
     logger.log('%cconnectionRetry:', 'background: orange;', `Retrying ${this.retry + 1}`)
     this.mediaSource = null
     this.init()
@@ -305,6 +310,8 @@ export default class MSEPlayer {
               this.resolveThenMediaSourceOpen()
               this.resolveThenMediaSourceOpen = void 0
               this.rejectThenMediaSourceOpen = void 0
+              clearInterval(this.retryConnectionTimer)
+              this.retry = 0
             }
           },
           () => {
@@ -320,8 +327,8 @@ export default class MSEPlayer {
               this.onError({
                 error: 'play_promise_reject',
               })
-              if (this.retry <= this.opts.connectionRetries) {
-                this.throttle(this.retryConnection(), 5000)
+              if (!this.retryConnectionTimer) {
+                this.onConnectionRetry()
               } else {
                 this.stop()
               }
@@ -337,8 +344,8 @@ export default class MSEPlayer {
           }
         )
         .catch(err => {
-          if (this.retry <= this.opts.connectionRetries) {
-            this.throttle(this.retryConnection(), 5000)
+          if (!this.retryConnectionTimer) {
+            this.onConnectionRetry()
           } else {
             this.stop()
           }
@@ -575,8 +582,8 @@ export default class MSEPlayer {
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
                   logger.log(error)
-                  if (this.retry <= this.opts.connectionRetries) {
-                    this.throttle(this.retryConnection(), 5000)
+                  if (!this.retryConnectionTimer) {
+                    this.onConnectionRetry()
                   }
                   // throw error // повторно выбрасываем ошибку, вызывая новый reject
                 })
@@ -604,7 +611,7 @@ export default class MSEPlayer {
 
   procInitSegment(rawData) {
     const data = JSON.parse(rawData)
-  
+
     if (data.type !== MSE_INIT_SEGMENT) {
       return logger.warn(`type is not ${MSE_INIT_SEGMENT}`)
     }
@@ -642,13 +649,13 @@ export default class MSEPlayer {
     }
 
     const activeStreams = {}
-    
+
     if (this.sb.videoTrackId) {
       if (streams[this.sb.videoTrackId - 1] && streams[this.sb.videoTrackId - 1]['track_id']) {
         activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id']
       }
     }
-    
+
     if (this.sb.audioTrackId) {
       if (streams[this.sb.audioTrackId - 1] && streams[this.sb.audioTrackId - 1]['track_id']) {
         activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
@@ -790,14 +797,29 @@ export default class MSEPlayer {
     logger.log('media source closed')
   }
 
-  throttle(func, milliseconds) {
-    var lastCall = 0
-    return function() {
-      var now = Date.now()
-      if (lastCall + milliseconds < now) {
-        lastCall = now
-        return func.apply(this, arguments)
+  onConnectionRetry() {
+    if (!this.retryConnectionTimer) {
+      if (this.retry < this.opts.connectionRetries) {
+        this.retryConnectionTimer = setInterval(() => this.retryConnection(), 5000)
       }
+    } else if (this.retry >= this.opts.connectionRetries) {
+      clearInterval(this.retryConnectionTimer)
+    }
+  }
+
+  debounce(func, wait, immediate) {
+    var timeout
+    return function() {
+      var context = this,
+        args = arguments
+      var later = function() {
+        timeout = null
+        if (!immediate) func.apply(context, args)
+      }
+      var callNow = immediate && !timeout
+      clearTimeout(timeout)
+      timeout = setTimeout(later, wait)
+      if (callNow) func.apply(context, args)
     }
   }
 }
