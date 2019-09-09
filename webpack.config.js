@@ -1,30 +1,71 @@
 const path = require('path')
 const webpack = require('webpack')
 const Clean = require('clean-webpack-plugin')
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 
-const webpackConfig = require('./webpack-base-config')
+var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin')
 
-webpackConfig.output = {
-  path: path.resolve(__dirname, 'dist/'),
-  filename: '[name].js',
-  library: 'FlussonicMsePlayer',
-  libraryTarget: 'umd',
-}
-
-webpackConfig.entry = {
-  FlussonicMsePlayer: [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
-  'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
+module.exports = {
+  mode: 'production',
+  node: {Buffer: false, global: true, process: true, setImmediate: false},
+  entry: {
+    FlussonicMsePlayer: [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
+    'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
+  },
+  output: {
+    path: path.resolve(__dirname, 'dist/'),
+    filename: '[name].js',
+    library: 'FlussonicMsePlayer',
+    libraryTarget: 'umd',
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        loader: 'babel-loader',
+        exclude: [path.resolve(__dirname, './node_modules')]
+      },
+    ]
+  },
+  plugins: [
+    new webpack.DefinePlugin({
+      VERSION: JSON.stringify(require('./package.json').version)
+    }),
+  ],
+  resolve: {
+    modules: ['node_modules'],
+    plugins: [
+      new DirectoryNamedWebpackPlugin(true)
+    ]
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new UglifyJsPlugin({
+        include: /\.min\.js$/,
+        cache: true,
+        parallel: true,
+        uglifyOptions: {
+          compress: true,
+          ecma: 5,
+          mangle: true
+        },
+        sourceMap: false
+      })
+    ]
+  },
+  devServer: {
+    disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882
+  }
 }
 
 if (process.env.npm_lifecycle_event === 'build-min') {
-  webpackConfig.entry = {
+  module.exports.entry = {
     'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
   }
-  webpackConfig.plugins.push(new webpack.LoaderOptionsPlugin({minimize: true, debug: false}))
+  module.exports.plugins.push(new webpack.LoaderOptionsPlugin({minimize: true, debug: false}))
 } else if (process.env.npm_lifecycle_event === 'build') {
-  webpackConfig.plugins.push(new webpack.LoaderOptionsPlugin({minimize: false, debug: false}))
+  module.exports.plugins.push(new webpack.LoaderOptionsPlugin({minimize: false, debug: false}))
 } else if (process.env.npm_lifecycle_event !== 'start') {
-  webpackConfig.plugins.push(new Clean(['dist'], {verbose: false}))
+  module.exports.plugins.push(new Clean(['dist'], {verbose: false}))
 }
-
-module.exports = webpackConfig
