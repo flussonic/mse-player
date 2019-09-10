@@ -48,7 +48,7 @@ upload_frontci:
   dependencies:
     - build_frontci
   script:
-    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG REPOSITORY_AUTH=$REPOSITORY_AUTH ci_upload_frontci
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG FRONTCI_USER=$FRONTCI_USER FRONTCI_PASS=$RFRONTCI_PASS ci_upload_frontci
 
 # notify:
 #   stage: notify

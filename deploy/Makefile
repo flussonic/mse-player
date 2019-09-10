@@ -36,7 +36,7 @@ ci_extract_frontci:
 
 ci_upload_frontci:
 	for i in frontci/*; do \
-	  curl -u ${REPOSITORY_AUTH} -T $${i} https://front-ci.erlyvideo.ru/dist/mse-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
+	  curl -u ${FRONTCI_USER}:${FRONTCI_PASS} -T $${i} https://front-ci.erlyvideo.ru/dist/mse-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
 	done
 
 # ci_notify:
