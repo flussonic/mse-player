@@ -3,7 +3,7 @@ stages:
   - dependencies
   - build
   - upload
-  # - notify
+  - notify
   # - deploy
 
 
@@ -56,5 +56,3 @@ notify:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
   dependencies:
     - upload
-
-
