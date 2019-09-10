@@ -307,6 +307,7 @@ export default class MSEPlayer {
             this.onStartStalling() // switch off at progress checker
             if (this.resolveThenMediaSourceOpen) {
               this.playing = true
+              this._stop = false
               this.resolveThenMediaSourceOpen()
               this.resolveThenMediaSourceOpen = void 0
               this.rejectThenMediaSourceOpen = void 0
@@ -386,7 +387,13 @@ export default class MSEPlayer {
       // there are two cases:
       // resolved/rejected
       // both required to shutdown ws, mediasources and etc.
-      return this.playPromise.then(bindedMD, bindedMD)
+      this.playPromise
+        .then(() => {
+          return this.handlerMediaDetaching()
+        })
+        .catch(() => {
+          return this.handlerMediaDetaching()
+        })
     }
     if (!this.playPromise) {
       return this.handlerMediaDetaching()
@@ -397,11 +404,11 @@ export default class MSEPlayer {
 
   handlerMediaDetaching() {
     logger.info('media source detaching')
-
     let mediaEmptyPromise
 
     // destroy media source and detach from media element
     this.removeMediaSource()
+    this._stop = true
 
     if (this.media) {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp) // checkVideoProgress
@@ -798,7 +805,7 @@ export default class MSEPlayer {
   }
 
   onConnectionRetry() {
-    if (!this.retryConnectionTimer) {
+    if (!this.retryConnectionTimer && !this._stop) {
       if (this.retry < this.opts.connectionRetries) {
         this.retryConnectionTimer = setInterval(() => this.retryConnection(), 5000)
       }

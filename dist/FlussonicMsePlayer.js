@@ -965,6 +965,7 @@ var MSEPlayer = function () {
         _this2.onStartStalling(); // switch off at progress checker
         if (_this2.resolveThenMediaSourceOpen) {
           _this2.playing = true;
+          _this2._stop = false;
           _this2.resolveThenMediaSourceOpen();
           _this2.resolveThenMediaSourceOpen = void 0;
           _this2.rejectThenMediaSourceOpen = void 0;
@@ -1028,6 +1029,8 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onMediaDetaching = function onMediaDetaching() {
+    var _this3 = this;
+
     if (this.stopRunning) {
       _logger.logger.warn('stop is running.');
       return;
@@ -1041,7 +1044,11 @@ var MSEPlayer = function () {
       // there are two cases:
       // resolved/rejected
       // both required to shutdown ws, mediasources and etc.
-      return this.playPromise.then(bindedMD, bindedMD);
+      this.playPromise.then(function () {
+        return _this3.handlerMediaDetaching();
+      }).catch(function () {
+        return _this3.handlerMediaDetaching();
+      });
     }
     if (!this.playPromise) {
       return this.handlerMediaDetaching();
@@ -1051,22 +1058,22 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.handlerMediaDetaching = function handlerMediaDetaching() {
-    var _this3 = this;
+    var _this4 = this;
 
     _logger.logger.info('media source detaching');
-
     var mediaEmptyPromise = void 0;
 
     // destroy media source and detach from media element
     this.removeMediaSource();
+    this._stop = true;
 
     if (this.media) {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp); // checkVideoProgress
       mediaEmptyPromise = new Promise(function (resolve) {
-        _this3._onmee = _this3.onMediaElementEmptied(resolve).bind(_this3);
+        _this4._onmee = _this4.onMediaElementEmptied(resolve).bind(_this4);
       });
       mediaEmptyPromise.then(function () {
-        return _this3.stopRunning = false;
+        return _this4.stopRunning = false;
       });
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_EMPTIED, this._onmee);
     }
@@ -1120,7 +1127,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onAttachMedia = function onAttachMedia(data) {
-    var _this4 = this;
+    var _this5 = this;
 
     this.media = data.media;
     var media = this.media;
@@ -1147,8 +1154,8 @@ var MSEPlayer = function () {
         return;
       }
       return new Promise(function (resolve) {
-        _this4.onmso = _this4.onMediaSourceOpen.bind(_this4, resolve);
-        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this4.onmso);
+        _this5.onmso = _this5.onMediaSourceOpen.bind(_this5, resolve);
+        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this5.onmso);
       });
     }
   };
@@ -1177,7 +1184,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
-    var _this5 = this;
+    var _this6 = this;
 
     if (this.stopRunning) {
       return;
@@ -1238,8 +1245,13 @@ var MSEPlayer = function () {
               }).catch(function (error) {
                 _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
                 _logger.logger.log(error);
+<<<<<<< master
                 if (_this5.retry <= _this5.opts.connectionRetries) {
                   _this5.throttle(_this5.retryConnection(), 5000);
+=======
+                if (!_this6.retryConnectionTimer) {
+                  _this6.onConnectionRetry();
+>>>>>>> Normal Start/Stop working #9384
                 }
                 // throw error // повторно выбрасываем ошибку, вызывая новый reject
               });
@@ -1369,7 +1381,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this6 = this;
+    var _this7 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1381,8 +1393,8 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this6._pause = false;
-          _this6.playing = true;
+          _this7._pause = false;
+          _this7.playing = true;
         });
       }
     }
@@ -1460,8 +1472,27 @@ var MSEPlayer = function () {
     _logger.logger.log('media source closed');
   };
 
+<<<<<<< master
   MSEPlayer.prototype.throttle = function throttle(func, milliseconds) {
     var lastCall = 0;
+=======
+  MSEPlayer.prototype.onConnectionRetry = function onConnectionRetry() {
+    var _this8 = this;
+
+    if (!this.retryConnectionTimer && !this._stop) {
+      if (this.retry < this.opts.connectionRetries) {
+        this.retryConnectionTimer = setInterval(function () {
+          return _this8.retryConnection();
+        }, 5000);
+      }
+    } else if (this.retry >= this.opts.connectionRetries) {
+      clearInterval(this.retryConnectionTimer);
+    }
+  };
+
+  MSEPlayer.prototype.debounce = function debounce(func, wait, immediate) {
+    var timeout;
+>>>>>>> Normal Start/Stop working #9384
     return function () {
       var now = Date.now();
       if (lastCall + milliseconds < now) {
@@ -2034,10 +2065,12 @@ var WebSocketController = function () {
           audioTack = _socketURL.audioTack;
 
       this.reconnect = setTimeout(function () {
+        console.log('Reconnect on close', _this3.stopRunning, _this3);
         _this3.start(url, time, videoTrack, audioTack).then(function () {
           clearTimeout(_this3.reconnect);
           return;
         }).catch(function () {
+          _this3.destroy();
           return;
         });
       }, 5000);
