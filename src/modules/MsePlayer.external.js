@@ -18,6 +18,7 @@ const WS_EVENT_SEEKED = 'seeked'
 const WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live'
 const WS_EVENT_EOS = 'recordings_ended'
 const WS_EVENT_NO_LIVE = 'stream_unavailable'
+const WS_TRY_RECONNECT = false
 
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
@@ -73,6 +74,14 @@ export default class MSEPlayer {
       throw new Error('invalid connectionRetries param, should be number')
     }
 
+    this.opts.wsReconnect = this.opts.wsReconnect
+      ? this.opts.wsReconnect
+      : WS_TRY_RECONNECT
+
+    if (typeof this.opts.wsReconnect !== "boolean") {
+      throw new Error('invalid wsReconnect param, should be boolean')
+    }
+
     this.retry = 0
     this.retryConnectionTimer
 
@@ -97,8 +106,8 @@ export default class MSEPlayer {
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
       error: this.onError,
+      wsReconnect: this.opts.wsReconnect
     })
-
     /*
      * SourceBuffers Controller
      */
