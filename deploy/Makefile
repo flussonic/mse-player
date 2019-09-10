@@ -39,8 +39,8 @@ ci_upload_frontci:
 	  curl -u ${FRONTCI_USER}:${FRONTCI_PASS} -T $${i} https://front-ci.erlyvideo.ru/dist/mse-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
 	done
 
-# ci_notify:
-# 	curl -X POST --data-urlencode \
-# 	'payload={"channel": "#dev-frontend", "username": "CI", "text": "**mse-player '${BRANCH}' '${VERSION}'** \nhttps://front-ci.erlyvideo.ru/"}' "${SLACKURL}"
+ci_notify:
+	curl -X POST --data-urlencode \
+	'payload={"channel": "#dev-frontend", "username": "CI", "text": "**mse-player '${BRANCH}' '${VERSION}'** \nhttps://front-ci.erlyvideo.ru/"}' "${SLACKURL}"
 
-ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci ci_upload_frontci
+ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci ci_upload_frontci ci_notify

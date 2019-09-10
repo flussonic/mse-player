@@ -50,11 +50,11 @@ upload_frontci:
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG FRONTCI_USER=$FRONTCI_USER FRONTCI_PASS=$FRONTCI_PASS ci_upload_frontci
 
-# notify:
-#   stage: notify
-#   script:
-#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
-#   dependencies:
-#     - upload
+notify:
+  stage: notify
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
+  dependencies:
+    - upload
 
 
