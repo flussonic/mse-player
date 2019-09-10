@@ -43,4 +43,10 @@ ci_notify:
 	curl -X POST --data-urlencode \
 	'payload={"channel": "#dev-frontend", "username": "CI", "text": "**mse-player '${BRANCH}' '${VERSION}'** \nhttps://front-ci.erlyvideo.ru/"}' "${SLACKURL}"
 
-ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci ci_upload_frontci ci_notify
+ci_deploy_npm:
+	docker run --rm mse-player-package:${HTTP_BRANCH} make -f deploy/Makefile npm_publish
+
+npm_publish:
+	npm publish
+
+ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci ci_upload_frontci ci_notify ci_deploy_npm

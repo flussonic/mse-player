@@ -3,6 +3,7 @@
   "version": "19.8.4",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/FlussonicMsePlayer.js",
+  "unpkg": "./dist/FlussonicMsePlayer.min.js",
   "keywords": [
     "flussonic"
   ],
