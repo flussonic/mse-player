@@ -1,7 +1,7 @@
 ifeq (,$(BRANCH))
   BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 else
-	BRANCH=master
+  BRANCH=master
 endif
 
 HTTP_BRANCH=$(shell echo ${BRANCH}| sed 's/\//-/')
