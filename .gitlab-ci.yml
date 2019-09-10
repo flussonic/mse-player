@@ -2,7 +2,7 @@ stages:
   - prepare_environment
   - dependencies
   - build
-  # - upload
+  - upload
   # - notify
   # - deploy
 
