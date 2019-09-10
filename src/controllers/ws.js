@@ -110,12 +110,14 @@ export default class WebSocketController {
     } else {
       const {url, time, videoTrack, audioTack} = this.socketURL
       this.reconnect = setTimeout(() => {
+        console.log('Reconnect on close', this.stopRunning, this)
         this.start(url, time, videoTrack, audioTack)
           .then(() => {
             clearTimeout(this.reconnect)
             return
           })
           .catch(() => {
+            this.destroy()
             return
           })
       }, 5000)
