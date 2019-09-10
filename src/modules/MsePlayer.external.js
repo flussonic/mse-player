@@ -337,11 +337,6 @@ export default class MSEPlayer {
               this.onError({
                 error: 'play_promise_reject',
               })
-              if (!this.retryConnectionTimer) {
-                this.onConnectionRetry()
-              } else {
-                this.stop()
-              }
             }
 
             if (this.rejectThenMediaSourceOpen) {
