@@ -54,5 +54,3 @@ notify:
   stage: notify
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
-  dependencies:
-    - upload
