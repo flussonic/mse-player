@@ -34,13 +34,13 @@ ci_extract_frontci:
 	docker cp $${CONTAINER}:/root/frontci . ;\
 	docker rm -f $${CONTAINER}
 
-# ci_upload:
-# 	for i in dist/*; do \
-# 	  curl -u ${REPOSITORY_AUTH} -T $${i} https://front-ci.erlyvideo.ru/dist/mse-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
-# 	done
+ci_upload_frontci:
+	for i in frontci/*; do \
+	  curl -u ${REPOSITORY_AUTH} -T $${i} https://front-ci.erlyvideo.ru/dist/mse-player/${HTTP_BRANCH}/${VERSION}/`basename $${i}` || exit 1 ;\
+	done
 
 # ci_notify:
 # 	curl -X POST --data-urlencode \
 # 	'payload={"channel": "#dev-frontend", "username": "CI", "text": "**mse-player '${BRANCH}' '${VERSION}'** \nhttps://front-ci.erlyvideo.ru/"}' "${SLACKURL}"
 
-ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci
+ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci ci_upload_frontci

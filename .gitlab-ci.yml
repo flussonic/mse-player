@@ -43,12 +43,12 @@ build_frontci:
   dependencies:
     - dependencies
 
-# upload:
-#   stage: upload
-#   dependencies:
-#     - build
-#   script:
-#     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG REPOSITORY_AUTH=$REPOSITORY_AUTH ci_upload
+upload_frontci:
+  stage: upload
+  dependencies:
+    - build_frontci
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG REPOSITORY_AUTH=$REPOSITORY_AUTH ci_upload_frontci
 
 # notify:
 #   stage: notify
