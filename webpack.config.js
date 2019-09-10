@@ -23,10 +23,6 @@ module.exports = {
     new webpack.DefinePlugin({
       VERSION: JSON.stringify(require('./package.json').version)
     }),
-    new HtmlWebPackPlugin({
-      template: "./src/demo/index.html",
-      filename: "./index.html"
-    }),
   ],
   module: {
     rules: [
@@ -34,10 +30,6 @@ module.exports = {
         test: /\.js$/,
         loader: 'babel-loader',
         exclude: [path.resolve(__dirname, './node_modules')]
-      },
-      {
-        test: /\.html$/,
-        use: "html-loader"
       },
     ]
   },
@@ -66,15 +58,4 @@ module.exports = {
   devServer: {
     disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882
   }
-}
-
-if (process.env.npm_lifecycle_event === 'build-min') {
-  module.exports.entry = {
-    'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
-  }
-  module.exports.plugins.push(new webpack.LoaderOptionsPlugin({minimize: true, debug: false}))
-} else if (process.env.npm_lifecycle_event === 'build') {
-  module.exports.plugins.push(new webpack.LoaderOptionsPlugin({minimize: false, debug: false}))
-} else if (process.env.npm_lifecycle_event !== 'start') {
-  module.exports.plugins.push(new Clean(['dist'], {verbose: false}))
 }

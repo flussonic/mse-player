@@ -24,9 +24,6 @@ module.exports = {
       inject: 'head',
     }),
   ],
-  externals: {
-    'FlussonicMsePlayer': 'FlussonicMsePlayer',
-  },
   module: {
     rules: [
       {

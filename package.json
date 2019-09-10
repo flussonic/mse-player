@@ -9,12 +9,9 @@
   "homepage": "https://github.com/flussonic/mse-player",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build-watch": "webpack --mode production --watch",
     "build": "webpack --mode production",
-    "build-min": "webpack --mode production",
     "build:frontci": "webpack --config webpack.config.frontci.js --mode production",
-    "start": "webpack-dev-server --env.development --mode development",
-    "start:dev": "yarn start --config webpack.config.dev.js"
+    "start": "webpack-dev-server --env.development --mode development --config webpack.config.dev.js"
   },
   "repository": {
     "type": "git",
