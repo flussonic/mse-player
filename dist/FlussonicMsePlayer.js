@@ -659,7 +659,6 @@ var WS_EVENT_SEEKED = 'seeked';
 var WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live';
 var WS_EVENT_EOS = 'recordings_ended';
 var WS_EVENT_NO_LIVE = 'stream_unavailable';
-var WS_TRY_RECONNECT = false;
 
 var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
@@ -722,12 +721,6 @@ var MSEPlayer = function () {
       throw new Error('invalid connectionRetries param, should be number');
     }
 
-    this.opts.wsReconnect = this.opts.wsReconnect ? this.opts.wsReconnect : WS_TRY_RECONNECT;
-
-    if (typeof this.opts.wsReconnect !== "boolean") {
-      throw new Error('invalid wsReconnect param, should be boolean');
-    }
-
     this.retry = 0;
     this.retryConnectionTimer;
 
@@ -751,9 +744,9 @@ var MSEPlayer = function () {
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
-      error: this.onError,
-      wsReconnect: this.opts.wsReconnect
+      error: this.onError
     });
+
     /*
      * SourceBuffers Controller
      */
@@ -981,6 +974,11 @@ var MSEPlayer = function () {
           _this2.onError({
             error: 'play_promise_reject'
           });
+          if (!_this2.retryConnectionTimer) {
+            _this2.onConnectionRetry();
+          } else {
+            _this2.stop();
+          }
         }
 
         if (_this2.rejectThenMediaSourceOpen) {
@@ -2039,26 +2037,25 @@ var WebSocketController = function () {
     var _this3 = this;
 
     _logger.logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason); // например, "убит" процесс сервера
-    if (this.opts.wsReconnect) {
-      if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
-        _logger.logger.log('Clean websocket stop');
-      } else {
-        var _socketURL = this.socketURL,
-            url = _socketURL.url,
-            time = _socketURL.time,
-            videoTrack = _socketURL.videoTrack,
-            audioTack = _socketURL.audioTack;
+    if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
+      _logger.logger.log('Clean websocket stop');
+    } else {
+      var _socketURL = this.socketURL,
+          url = _socketURL.url,
+          time = _socketURL.time,
+          videoTrack = _socketURL.videoTrack,
+          audioTack = _socketURL.audioTack;
 
-        this.reconnect = setTimeout(function () {
-          _this3.start(url, time, videoTrack, audioTack).then(function () {
-            clearTimeout(_this3.reconnect);
-            return;
-          }).catch(function () {
-            _this3.destroy();
-            return;
-          });
-        }, 5000);
-      }
+      this.reconnect = setTimeout(function () {
+        console.log('Reconnect on close', _this3.stopRunning, _this3);
+        _this3.start(url, time, videoTrack, audioTack).then(function () {
+          clearTimeout(_this3.reconnect);
+          return;
+        }).catch(function () {
+          _this3.destroy();
+          return;
+        });
+      }, 5000);
     }
     if (this.opts.closed) {
       this.opts.closed(event);
