@@ -19,14 +19,26 @@ dependencies:
   dependencies:
     - prepare_environment
 
-build:
+build_package:
   stage: build
   script:
-    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_build
-    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_extract
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_build_package
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_extract_package
   artifacts:
     paths:
       - dist
+    expire_in: 1 day
+  dependencies:
+    - dependencies
+
+build_frontci:
+  stage: build
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_build_frontci
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_extract_frontci
+  artifacts:
+    paths:
+      - frontci
     expire_in: 1 day
   dependencies:
     - dependencies
