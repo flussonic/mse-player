@@ -1,14 +1,27 @@
-// import FlussonicMsePlayer from '@flussonic/flussonic-mse-player'
+import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
+import {decode} from "querystring";
 
 window.onload = onLoad()
 
 function onLoad() {
-  const element = document.getElementById('player')
-  // const streamName = 'clock'
-  // const url = `ws://localhost:8080/${streamName}/mse_ld`
-  const url = 'wss://a-machinskiy.erlyvideo.ru/demo/mse_ld'
+  var streamer_ws = 'ws://localhost:8080'
+  var stream_name = 'clock'
 
+  // parse query string
+  var query = window.location.search
+  if (query) {
+    var qs = decode(query.replace(/^\?/, ""));
+    if(qs.host) {
+      streamer_ws = qs.host;
+    }
+    if(qs.name) {
+      stream_name = qs.name;
+    }
+  }
+  var url = streamer_ws + '/' + stream_name + '/mse_ld';
+
+  const element = document.getElementById('player')
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')

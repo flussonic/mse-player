@@ -2,6 +2,7 @@ const path = require('path')
 const webpack = require('webpack')
 const Clean = require('clean-webpack-plugin')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
+const HtmlWebPackPlugin = require("html-webpack-plugin");
 
 var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin')
 
@@ -18,6 +19,15 @@ module.exports = {
     library: 'FlussonicMsePlayer',
     libraryTarget: 'umd',
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      VERSION: JSON.stringify(require('./package.json').version)
+    }),
+    new HtmlWebPackPlugin({
+      template: "./src/demo/index.html",
+      filename: "./index.html"
+    }),
+  ],
   module: {
     rules: [
       {
@@ -25,13 +35,12 @@ module.exports = {
         loader: 'babel-loader',
         exclude: [path.resolve(__dirname, './node_modules')]
       },
+      {
+        test: /\.html$/,
+        use: "html-loader"
+      },
     ]
   },
-  plugins: [
-    new webpack.DefinePlugin({
-      VERSION: JSON.stringify(require('./package.json').version)
-    }),
-  ],
   resolve: {
     modules: ['node_modules'],
     plugins: [
