@@ -57,7 +57,7 @@ notify:
 deploy_npm:
   stage: deploy
   script:
-    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG ci_deploy_npm
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG NPM_AUTH_TOKEN=$NPM_AUTH_TOKEN ci_deploy_npm
   dependencies:
     - build_package
   allow_failure: true

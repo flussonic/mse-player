@@ -47,6 +47,6 @@ ci_deploy_npm:
 	docker run --rm mse-player-package:${HTTP_BRANCH} make -f deploy/Makefile npm_publish
 
 npm_publish:
-	npm publish
+	NPM_AUTH_TOKEN=$(NMP_AUTH_TOKEN) npm publish
 
 ci: ci_prepare ci_dependencies ci_build_package ci_extract_package ci_build_frontci ci_extract_frontci ci_upload_frontci ci_notify ci_deploy_npm
