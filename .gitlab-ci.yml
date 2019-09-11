@@ -4,8 +4,7 @@ stages:
   - build
   - upload
   - notify
-  # - deploy
-
+  - deploy
 
 prepare_environment:
   stage: prepare_environment
@@ -54,3 +53,14 @@ notify:
   stage: notify
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
+
+deploy_npm:
+  stage: deploy
+  script:
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG NPM_AUTH_TOKEN=$NPM_AUTH_TOKEN ci_deploy_npm
+  dependencies:
+    - build_package
+  allow_failure: true
+  only:
+    refs:
+      - tags
