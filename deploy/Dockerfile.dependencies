@@ -6,7 +6,6 @@ WORKDIR /root
 ADD src src
 ADD .babelrc .
 ADD .npmignore .
-ADD .npmrc .
 ADD package.json .
 ADD webpack.config.js .
 ADD webpack.config.frontci.js .
