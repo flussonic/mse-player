@@ -61,3 +61,6 @@ deploy_npm:
   dependencies:
     - build_package
   allow_failure: true
+  only:
+    refs:
+      - tags
