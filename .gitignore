@@ -4,7 +4,6 @@ node_modules
 coverage
 *.cache
 npm-debug.log
-/dist
 /frontci
 /demo
 
