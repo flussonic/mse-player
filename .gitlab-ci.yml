@@ -64,3 +64,25 @@ deploy_npm:
   only:
     refs:
       - tags
+
+deploy_review:
+  stage: deploy
+  script:
+    - echo "Deploy a review app"
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://front-ci.erlyvideo.ru/dist/mse-player/ac-9229-mse-player-ci-cd/19.8.3-40-gf47962e/index.html
+  only:
+    - branches
+  except:
+    - master
+
+# deploy_staging:
+#   stage: deploy
+#   script:
+#     - echo "Deploy to staging server"
+#   environment:
+#     name: staging
+#     url: https://staging.example.com
+#   only:
+#   - master
