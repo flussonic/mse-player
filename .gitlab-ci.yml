@@ -66,7 +66,7 @@ deploy_staging:
     name: staging
     url: https://front-ci.erlyvideo.ru/latest.html?p=$CI_PROJECT_NAME&r=$CI_COMMIT_REF_SLUG
   only:
-  - master
+    - master
 
 notify:
   stage: notify
