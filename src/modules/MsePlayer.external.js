@@ -18,6 +18,7 @@ const WS_EVENT_SEEKED = 'seeked'
 const WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live'
 const WS_EVENT_EOS = 'recordings_ended'
 const WS_EVENT_NO_LIVE = 'stream_unavailable'
+const WS_EVENT_TRACKS_SWITCHED = 'tracks_switched'
 const WS_TRY_RECONNECT = false
 
 const TYPE_CONTENT_VIDEO = VIDEO
@@ -225,7 +226,7 @@ export default class MSEPlayer {
     const audioTracksStr = tracks
       .filter(id => {
         const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
-        if (stream.bitrate && stream.bitrate !== 0) {
+        if (stream && stream.bitrate && stream.bitrate !== 0) {
           return null
         }
         return !!stream && stream.content === TYPE_CONTENT_AUDIO
@@ -600,6 +601,8 @@ export default class MSEPlayer {
                 })
               this.liveError = true
             }
+            break
+          case WS_EVENT_TRACKS_SWITCHED:
             break
           default:
             if (this.opts.onError) {
