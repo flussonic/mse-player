@@ -666,7 +666,7 @@ var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
-var DEFAULT_CONNECTIONS_RETRIES = 10;
+var DEFAULT_CONNECTIONS_RETRIES = 0;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -687,7 +687,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.9.3";
+      return "19.9.4";
     }
   }]);
 
@@ -717,7 +717,7 @@ var MSEPlayer = function () {
       throw new Error('invalid errorsBeforeStop param, should be number');
     }
 
-    this.opts.connectionRetries = this.opts.connectionRetries ? this.opts.connectionRetries : DEFAULT_CONNECTIONS_RETRIES;
+    this.opts.connectionRetries = this.opts.connectionRetries || DEFAULT_CONNECTIONS_RETRIES;
 
     if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
       throw new Error('invalid connectionRetries param, should be number');
@@ -725,7 +725,7 @@ var MSEPlayer = function () {
 
     this.opts.wsReconnect = this.opts.wsReconnect ? this.opts.wsReconnect : WS_TRY_RECONNECT;
 
-    if (typeof this.opts.wsReconnect !== "boolean") {
+    if (typeof this.opts.wsReconnect !== 'boolean') {
       throw new Error('invalid wsReconnect param, should be boolean');
     }
 
@@ -894,6 +894,7 @@ var MSEPlayer = function () {
   MSEPlayer.prototype._play = function _play(from, videoTrack, audioTack) {
     var _this2 = this;
 
+    // debugger
     this.liveError = false;
     return new Promise(function (resolve, reject) {
       _logger.logger.log('_play', from, videoTrack, audioTack);
@@ -967,8 +968,8 @@ var MSEPlayer = function () {
           clearInterval(_this2.retryConnectionTimer);
           _this2.retry = 0;
         }
-      }, function () {
-        _logger.logger.log('playPromise rejection. this.playing false');
+      }).catch(function (err) {
+        _logger.logger.log('playPromise rejection. this.playing false', err);
         // if error, this.ws.connectionPromise can be undefined
         if (_this2.ws.connectionPromise) {
           _this2.ws.connectionPromise.then(function () {
@@ -980,7 +981,8 @@ var MSEPlayer = function () {
 
         if (_this2.onError) {
           _this2.onError({
-            error: 'play_promise_reject'
+            error: 'play_promise_reject',
+            err: err
           });
         }
 
@@ -991,14 +993,15 @@ var MSEPlayer = function () {
         }
 
         _this2.restart();
-      }).catch(function (err) {
-        if (!_this2.retryConnectionTimer) {
-          _this2.onConnectionRetry();
-        } else {
-          _this2.stop();
-        }
-        reject(err);
       });
+      // .catch(err => {
+      //   if (!this.retryConnectionTimer) {
+      //     this.onConnectionRetry()
+      //   } else {
+      //     this.stop()
+      //   }
+      //   reject(err)
+      // })
 
       return _this2.playPromise;
     });
