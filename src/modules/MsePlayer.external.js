@@ -25,7 +25,7 @@ const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
-const DEFAULT_CONNECTIONS_RETRIES = 10
+const DEFAULT_CONNECTIONS_RETRIES = 0
 
 export default class MSEPlayer {
   static get version() {
@@ -67,19 +67,15 @@ export default class MSEPlayer {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
 
-    this.opts.connectionRetries = this.opts.connectionRetries
-      ? this.opts.connectionRetries
-      : DEFAULT_CONNECTIONS_RETRIES
+    this.opts.connectionRetries = this.opts.connectionRetries || DEFAULT_CONNECTIONS_RETRIES
 
     if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
       throw new Error('invalid connectionRetries param, should be number')
     }
 
-    this.opts.wsReconnect = this.opts.wsReconnect
-      ? this.opts.wsReconnect
-      : WS_TRY_RECONNECT
+    this.opts.wsReconnect = this.opts.wsReconnect ? this.opts.wsReconnect : WS_TRY_RECONNECT
 
-    if (typeof this.opts.wsReconnect !== "boolean") {
+    if (typeof this.opts.wsReconnect !== 'boolean') {
       throw new Error('invalid wsReconnect param, should be boolean')
     }
 
@@ -107,7 +103,7 @@ export default class MSEPlayer {
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
       error: this.onError,
-      wsReconnect: this.opts.wsReconnect
+      wsReconnect: this.opts.wsReconnect,
     })
     /*
      * SourceBuffers Controller
@@ -249,6 +245,7 @@ export default class MSEPlayer {
    */
 
   _play(from, videoTrack, audioTack) {
+    // debugger
     this.liveError = false
     return new Promise((resolve, reject) => {
       logger.log('_play', from, videoTrack, audioTack)
@@ -312,51 +309,50 @@ export default class MSEPlayer {
       this.startProgressTimer()
 
       this.playPromise
-        .then(
-          () => {
-            this.onStartStalling() // switch off at progress checker
-            if (this.resolveThenMediaSourceOpen) {
-              this.playing = true
-              this._stop = false
-              this.resolveThenMediaSourceOpen()
-              this.resolveThenMediaSourceOpen = void 0
-              this.rejectThenMediaSourceOpen = void 0
-              clearInterval(this.retryConnectionTimer)
-              this.retry = 0
-            }
-          },
-          () => {
-            logger.log('playPromise rejection. this.playing false')
-            // if error, this.ws.connectionPromise can be undefined
-            if (this.ws.connectionPromise) {
-              this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-            }
-            this._pause = true
-            this.playing = false
-
-            if (this.onError) {
-              this.onError({
-                error: 'play_promise_reject',
-              })
-            }
-
-            if (this.rejectThenMediaSourceOpen) {
-              this.rejectThenMediaSourceOpen()
-              this.resolveThenMediaSourceOpen = void 0
-              this.rejectThenMediaSourceOpen = void 0
-            }
-
-            this.restart()
+        .then(() => {
+          this.onStartStalling() // switch off at progress checker
+          if (this.resolveThenMediaSourceOpen) {
+            this.playing = true
+            this._stop = false
+            this.resolveThenMediaSourceOpen()
+            this.resolveThenMediaSourceOpen = void 0
+            this.rejectThenMediaSourceOpen = void 0
+            clearInterval(this.retryConnectionTimer)
+            this.retry = 0
           }
-        )
-        .catch(err => {
-          if (!this.retryConnectionTimer) {
-            this.onConnectionRetry()
-          } else {
-            this.stop()
-          }
-          reject(err)
         })
+        .catch(err => {
+          logger.log('playPromise rejection. this.playing false', err)
+          // if error, this.ws.connectionPromise can be undefined
+          if (this.ws.connectionPromise) {
+            this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+          }
+          this._pause = true
+          this.playing = false
+
+          if (this.onError) {
+            this.onError({
+              error: 'play_promise_reject',
+              err,
+            })
+          }
+
+          if (this.rejectThenMediaSourceOpen) {
+            this.rejectThenMediaSourceOpen()
+            this.resolveThenMediaSourceOpen = void 0
+            this.rejectThenMediaSourceOpen = void 0
+          }
+
+          this.restart()
+        })
+      // .catch(err => {
+      //   if (!this.retryConnectionTimer) {
+      //     this.onConnectionRetry()
+      //   } else {
+      //     this.stop()
+      //   }
+      //   reject(err)
+      // })
 
       return this.playPromise
     })
