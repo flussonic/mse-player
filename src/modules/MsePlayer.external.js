@@ -66,7 +66,7 @@ export default class MSEPlayer {
     if (typeof this.opts.errorsBeforeStop !== 'number' || isNaN(this.opts.errorsBeforeStop)) {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
-
+    
     this.opts.connectionRetries = this.opts.connectionRetries || DEFAULT_CONNECTIONS_RETRIES
 
     if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
