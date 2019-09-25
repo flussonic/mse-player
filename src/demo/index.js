@@ -1,6 +1,6 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
-import {decode} from "querystring";
+import {decode} from 'querystring'
 
 window.onload = onLoad()
 
@@ -11,15 +11,15 @@ function onLoad() {
   // parse query string
   var query = window.location.search
   if (query) {
-    var qs = decode(query.replace(/^\?/, ""));
-    if(qs.host) {
-      streamer_ws = qs.host;
+    var qs = decode(query.replace(/^\?/, ''))
+    if (qs.host) {
+      streamer_ws = qs.host
     }
-    if(qs.name) {
-      stream_name = qs.name;
+    if (qs.name) {
+      stream_name = qs.name
     }
   }
-  var url = streamer_ws + '/' + stream_name + '/mse_ld';
+  var url = streamer_ws + '/' + stream_name + '/mse_ld'
 
   const element = document.getElementById('player')
   const videoTracksSelect = document.getElementById('videoTracks')
@@ -34,8 +34,8 @@ function onLoad() {
   let showFirstFrameUTC = false
 
   const opts = {
-    debug:true,
-    connectionRetries: 10,
+    debug: true,
+    connectionRetries: 1,
     errorsBeforeStop: 10,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
@@ -53,7 +53,7 @@ function onLoad() {
         showFirstFrameUTC = false
       }
     },
-    onDisconnect: (status) => {
+    onDisconnect: status => {
       console.log('Websocket status:', status)
     },
     onMediaInfo: rawMetaData => {
@@ -62,9 +62,7 @@ function onLoad() {
       const audioTracks = window.player.getAudioTracks()
       const videoOptions = videoTracks.map(
         (v, i) =>
-          `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${
-            v['height']
-          }</option>`
+          `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${v['height']}</option>`
       )
 
       const audioOptions = audioTracks.map(
