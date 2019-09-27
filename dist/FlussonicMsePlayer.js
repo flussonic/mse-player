@@ -848,6 +848,7 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.setTracks = function setTracks(tracks) {
     var _this = this;
 
+    // debugger;
     if (!this.mediaInfo) {
       _logger.logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
       return;
@@ -871,9 +872,10 @@ var MSEPlayer = function () {
         return id === s['track_id'];
       });
       if (stream && stream.bitrate && stream.bitrate !== 0) {
+        return !!stream && stream.content === TYPE_CONTENT_AUDIO;
+      } else {
         return null;
       }
-      return !!stream && stream.content === TYPE_CONTENT_AUDIO;
     }).join('');
     this.onStartStalling();
     this.ws.setTracks(videoTracksStr, audioTracksStr);
