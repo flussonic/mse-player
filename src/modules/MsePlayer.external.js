@@ -201,6 +201,7 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
+    // debugger;
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -223,9 +224,10 @@ export default class MSEPlayer {
       .filter(id => {
         const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
         if (stream && stream.bitrate && stream.bitrate !== 0) {
+          return !!stream && stream.content === TYPE_CONTENT_AUDIO
+        } else {
           return null
         }
-        return !!stream && stream.content === TYPE_CONTENT_AUDIO
       })
       .join('')
     this.onStartStalling()
