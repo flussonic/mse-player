@@ -1,6 +1,7 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
+// import Chart from 'chart.js'
 
 window.onload = onLoad()
 
@@ -33,6 +34,11 @@ function onLoad() {
 
   let showFirstFrameUTC = false
 
+  // let graphUTC = []
+  // let graphUTCLabels = []
+  // let graphSegmentsVideo = []
+  // let graphSegmentsAudio = []
+
   const opts = {
     debug: true,
     connectionRetries: 1,
@@ -46,12 +52,27 @@ function onLoad() {
     onSeeked: () => {
       showFirstFrameUTC = true
     },
-    onProgress: utc => {
+    onProgress: (utc) => {
       utcLabel.innerText = humanTime(utc)
       if (showFirstFrameUTC) {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
+
+      // graphUTC.push(utc)
+      // if (!graphUTCLabels.includes(humanTime(utc))) {
+      //   graphUTCLabels.push(humanTime(utc))
+      // }
+      // if (segments.type && segments.type === 'audio') {
+      //   graphSegmentsAudio.push(segments.data.length)
+      // }
+      // if (segments.type && segments.type === 'video') {
+      //   graphSegmentsVideo.push(segments.data.length)
+      // }
+      // if (element.buffered.length) {
+      //   console.log(element.buffered.length, element.buffered.start(0), element.buffered.end(0))
+      // }
+      // chart.update()
     },
     onDisconnect: status => {
       console.log('Websocket status:', status)
@@ -111,4 +132,48 @@ function onLoad() {
       window.player.seek(value)
     } else throw new Error('incorrect input!')
   }
+
+  // const ctx = document.getElementById('myChart').getContext('2d')
+
+  // const chart = new Chart(ctx, {
+  //   // The type of chart we want to create
+  //   type: 'line',
+
+  //   // The data for our dataset
+  //   data: {
+  //     labels: graphUTCLabels,
+  //     datasets: [
+  //       {
+  //         label: 'Video Buffer',
+  //         backgroundColor: 'rgb(255, 99, 132)',
+  //         borderColor: 'rgb(255, 99, 132)',
+  //         fill: false,
+  //         data: graphSegmentsVideo,
+  //       },
+  //       {
+  //         label: 'Audio Buffer',
+  //         backgroundColor: '#63d4ff',
+  //         borderColor: '#63d4ff',
+  //         fill: false,
+  //         data: graphSegmentsAudio,
+  //       },
+  //     ],
+  //   },
+
+  //   // Configuration options go here
+  //   options: {
+  //     elements: {
+  //       line: {
+  //         tension: 0, // disables bezier curves
+  //       },
+  //     },
+  //     animation: {
+  //       duration: 0, // general animation time
+  //     },
+  //     hover: {
+  //       animationDuration: 0, // duration of animations when hovering an item
+  //     },
+  //     responsiveAnimationDuration: 0, // animation duration after a resize
+  //   },
+  // })
 }
