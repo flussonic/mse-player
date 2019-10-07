@@ -46,6 +46,7 @@ export default class WebSocketController {
       // TODO: to think cases when ws can fall
       this._openingReject = rej
     })
+    
     return this.connectionPromise
   }
 

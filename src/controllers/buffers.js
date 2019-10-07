@@ -31,13 +31,16 @@ export default class BuffersController {
 
   createSourceBuffers(data) {
     const sb = this.sourceBuffer
-
+    // console.log({data})
     data.tracks.forEach(s => {
       const isVideo = s.content === VIDEO
       const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
-
+      
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType)
+      // sb[s.content].mode = 'sequence'
       const buffer = sb[s.content]
+
+      // console.log(sb[s.content], sb)
 
       buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
     })
@@ -45,6 +48,7 @@ export default class BuffersController {
 
   onSBUpdateEnd() {
     if (this._needsFlush) {
+      console.log('flushing buffer')
       this.doFlush()
     }
 
@@ -58,6 +62,7 @@ export default class BuffersController {
   }
 
   createTracks(tracks) {
+    // console.log({tracks})
     tracks.forEach(track => {
       const view = base64ToArrayBuffer(track.payload)
       const segment = {
@@ -74,8 +79,8 @@ export default class BuffersController {
       this.segments.unshift(segment)
       return
     }
-
     const buffer = this.sourceBuffer[segment.type]
+    // console.log({buffer})
     if (buffer) {
       if (buffer.updating) {
         this.segments.unshift(segment)
@@ -88,6 +93,9 @@ export default class BuffersController {
 
   setTracksByType(data) {
     const type = data.tracks ? 'tracks' : 'streams'
+    if (data[type].length === 1) {
+      this.audioTrackId = null
+    }
     data[type].forEach(s => {
       this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
     })
@@ -99,6 +107,7 @@ export default class BuffersController {
 
   procArrayBuffer(rawData) {
     const segment = this.rawDataToSegmnet(rawData)
+    // console.log({segment}, segment.data.length)
     this.segments.push(segment)
     this.doArrayBuffer()
   }
@@ -208,9 +217,7 @@ export default class BuffersController {
                 if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
                   this.flushBufferCounter++
                   logger.log(
-                    `flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${
-                      this.media.currentTime
-                    }`
+                    `flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${this.media.currentTime}`
                   )
                   sb.remove(flushStart, flushEnd)
                   return false
