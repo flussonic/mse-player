@@ -740,7 +740,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.9.5";
+      return "19.10.1";
     }
   }]);
 
