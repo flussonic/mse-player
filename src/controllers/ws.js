@@ -46,13 +46,15 @@ export default class WebSocketController {
       // TODO: to think cases when ws can fall
       this._openingReject = rej
     })
-    
+
     return this.connectionPromise
   }
 
   open() {
     this.opened = true
+    this.paused = true
     this._openingResolve() // #6809
+    logger.log('this.websocket.readyState', this.websocket.readyState)
     this.resume()
     this.websocket.removeEventListener(EVENTS.WS_OPEN, this.onwso)
   }
@@ -68,6 +70,7 @@ export default class WebSocketController {
       return setTimeout(() => this.resume(), 500)
     } else {
       this.websocket.send('resume')
+      this.paused = false
     }
   }
 
@@ -81,6 +84,7 @@ export default class WebSocketController {
      */
     if (this.websocket.readyState === 1) {
       this.websocket.send('pause')
+      this.paused = true
     }
   }
 
@@ -106,24 +110,25 @@ export default class WebSocketController {
 
   onWSClose(event) {
     logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason) // например, "убит" процесс сервера
-    if (this.opts.wsReconnect) {
-      if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
-        logger.log('Clean websocket stop')
-      } else {
-        const {url, time, videoTrack, audioTack} = this.socketURL
-        this.reconnect = setTimeout(() => {
-          this.start(url, time, videoTrack, audioTack)
-            .then(() => {
-              clearTimeout(this.reconnect)
-              return
-            })
-            .catch(() => {
-              this.destroy()
-              return
-            })
-        }, 5000)
-      }
+    // if (this.opts.wsReconnect) {
+    if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
+      logger.log('Clean websocket stop')
+      this.destroy()
+    } else {
+      const {url, time, videoTrack, audioTack} = this.socketURL
+      this.reconnect = setTimeout(() => {
+        this.start(url, time, videoTrack, audioTack)
+          .then(() => {
+            clearTimeout(this.reconnect)
+            return
+          })
+          .catch(() => {
+            this.destroy()
+            return
+          })
+      }, 5000)
     }
+    // }
     if (this.opts.closed) {
       this.opts.closed(event)
     }
