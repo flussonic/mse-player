@@ -40,9 +40,9 @@ export function base64ToArrayBuffer(base64) {
 export function RawDataToUint8Array(rawData) {
   // 12,4 = mfhd;20,4 slice - segment.id;36,4 = tfhd;44,4 slice - track.id;64,4 = tfdt
   // 72,8 slice - prestime;84,4 = futc;92,8 slice - real utc;104,4 = trun
-  const result = new Uint8Array(rawData)
-  return result
+  return new Uint8Array(rawData)
 }
+
 export function getTrackId(data) {
   return data[47]
 }
@@ -67,7 +67,8 @@ export function doArrayBuffer() {
 }
 
 export function debugData(rawData) {
-  const view = RawDataToUint8Array(rawData)
+  // const view = RawDataToUint8Array(rawData)
+  const view = new Uint8Array(rawData)
   const trackId = getTrackId(view)
   const utc = getRealUtcFromData(view)
 
@@ -121,7 +122,7 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
   if (player) {
     const {sourceBuffer} = player.sb
     const bufferTypes = Object.keys(sourceBuffer)
-    const targetBackBufferPosition = ct - 60
+    const targetBackBufferPosition = ct - 30
     // console.log({media, player, sourceBuffer, bufferTypes, targetBackBufferPosition})
 
     for (let index = bufferTypes.length - 1; index >= 0; index--) {
@@ -165,6 +166,10 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
   if (delay <= maxDelay) {
     return
   }
+
+  // if (player.ws.paused && player.sb.segments.length < 100) {
+  //   player.ws.resume()
+  // }
 
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime) //evt, )
   media.currentTime = endTime - 0.2 // (Math.abs(ct - endTime)) //

@@ -31,24 +31,22 @@ export default class BuffersController {
 
   createSourceBuffers(data) {
     const sb = this.sourceBuffer
-    // console.log({data})
     data.tracks.forEach(s => {
       const isVideo = s.content === VIDEO
       const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
       
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType)
-      // sb[s.content].mode = 'sequence'
+      sb[s.content].timestampOffset = 0.25
       const buffer = sb[s.content]
-
-      // console.log(sb[s.content], sb)
 
       buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
     })
   }
 
   onSBUpdateEnd() {
+    // debugger
     if (this._needsFlush) {
-      console.log('flushing buffer')
+      logger.log('flushing buffer')
       this.doFlush()
     }
 
@@ -62,7 +60,6 @@ export default class BuffersController {
   }
 
   createTracks(tracks) {
-    // console.log({tracks})
     tracks.forEach(track => {
       const view = base64ToArrayBuffer(track.payload)
       const segment = {
@@ -79,16 +76,32 @@ export default class BuffersController {
       this.segments.unshift(segment)
       return
     }
+    if (!this.media || this.media.error) {
+      this.segments = []
+      logger.error('trying to append although a media error occured, flush segment and abort')
+      return
+    }
     const buffer = this.sourceBuffer[segment.type]
+    // console.log(segment.type, this.segments, this.appended)
+    // if (this.segments.length > 0) {
+    // console.log(this.segments, this.segments.length)
+    // console.log('segments', this.segments.length)
+    // } else {
+    //   console.log(this.segments)
+    // }
+    // console.log(segment.type, this.appended)
     // console.log({buffer})
     if (buffer) {
       if (buffer.updating) {
+        // console.log('updating in progress')
         this.segments.unshift(segment)
-      } else {
-        buffer.appendBuffer(segment.data)
-        this.appended++
+        return
       }
+
+      buffer.appendBuffer(segment.data)
+      this.appended++
     }
+    // console.timeEnd('dispatchMessage')
   }
 
   setTracksByType(data) {
@@ -107,8 +120,8 @@ export default class BuffersController {
 
   procArrayBuffer(rawData) {
     const segment = this.rawDataToSegmnet(rawData)
-    // console.log({segment}, segment.data.length)
     this.segments.push(segment)
+    // console.log(this.segments, {segment}, segment.data.length)
     this.doArrayBuffer()
   }
 

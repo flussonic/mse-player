@@ -1,7 +1,7 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
-// import Chart from 'chart.js'
+import Chart from 'chart.js'
 
 window.onload = onLoad()
 
@@ -27,6 +27,7 @@ function onLoad() {
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
   const utcLabel = document.getElementById('utc')
+  const realLabel = document.getElementById('real')
   const stallingLabel = document.getElementById('stallingLabel')
   const showStallingIndicator = value => {
     stallingLabel.innerText = '' + value
@@ -34,10 +35,10 @@ function onLoad() {
 
   let showFirstFrameUTC = false
 
-  // let graphUTC = []
-  // let graphUTCLabels = []
-  // let graphSegmentsVideo = []
-  // let graphSegmentsAudio = []
+  let graphUTC = []
+  let graphUTCLabels = []
+  let graphSegmentsVideo = []
+  let graphSegmentsAudio = []
 
   const opts = {
     debug: true,
@@ -54,17 +55,28 @@ function onLoad() {
     },
     onProgress: (utc) => {
       utcLabel.innerText = humanTime(utc)
+      realLabel.innerText = humanTime(new Date().getTime()/1000)
       if (showFirstFrameUTC) {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
 
-      // graphUTC.push(utc)
-      // if (!graphUTCLabels.includes(humanTime(utc))) {
-      //   graphUTCLabels.push(humanTime(utc))
-      // }
-      // if (segments.type && segments.type === 'audio') {
-      //   graphSegmentsAudio.push(segments.data.length)
+      graphUTC.push(utc)
+      if (!graphUTCLabels.includes(humanTime(utc))) {
+        graphUTCLabels.push(humanTime(utc))
+        if (graphUTCLabels.length === 200) {
+          graphUTCLabels.shift()
+        }
+      }
+      if (window.player) {
+        // console.log(window.player.sb.segments.length)
+        graphSegmentsAudio.push(window.player.sb.segments.length)
+        if (graphSegmentsAudio.length === 200) {
+          graphSegmentsAudio.shift()
+        }
+      }
+      // if (window.player) {
+      //   graphSegmentsVideo.push(window.player.sb.segments.length)
       // }
       // if (segments.type && segments.type === 'video') {
       //   graphSegmentsVideo.push(segments.data.length)
@@ -72,7 +84,7 @@ function onLoad() {
       // if (element.buffered.length) {
       //   console.log(element.buffered.length, element.buffered.start(0), element.buffered.end(0))
       // }
-      // chart.update()
+      chart.update()
     },
     onDisconnect: status => {
       console.log('Websocket status:', status)
@@ -133,47 +145,47 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  // const ctx = document.getElementById('myChart').getContext('2d')
+  const ctx = document.getElementById('myChart').getContext('2d')
 
-  // const chart = new Chart(ctx, {
-  //   // The type of chart we want to create
-  //   type: 'line',
+  const chart = new Chart(ctx, {
+    // The type of chart we want to create
+    type: 'bar',
 
-  //   // The data for our dataset
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'Video Buffer',
-  //         backgroundColor: 'rgb(255, 99, 132)',
-  //         borderColor: 'rgb(255, 99, 132)',
-  //         fill: false,
-  //         data: graphSegmentsVideo,
-  //       },
-  //       {
-  //         label: 'Audio Buffer',
-  //         backgroundColor: '#63d4ff',
-  //         borderColor: '#63d4ff',
-  //         fill: false,
-  //         data: graphSegmentsAudio,
-  //       },
-  //     ],
-  //   },
+    // The data for our dataset
+    data: {
+      labels: graphUTCLabels,
+      datasets: [
+        {
+          label: 'Video Buffer',
+          backgroundColor: 'rgb(255, 99, 132)',
+          borderColor: 'rgb(255, 99, 132)',
+          fill: false,
+          data: graphSegmentsVideo,
+        },
+        {
+          label: 'Segments',
+          backgroundColor: '#63d4ff',
+          borderColor: '#63d4ff',
+          fill: false,
+          data: graphSegmentsAudio,
+        },
+      ],
+    },
 
-  //   // Configuration options go here
-  //   options: {
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 0, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
+    // Configuration options go here
+    options: {
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 0, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
 }
