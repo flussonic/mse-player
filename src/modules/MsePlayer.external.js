@@ -222,7 +222,6 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
-    // debugger
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -253,16 +252,6 @@ export default class MSEPlayer {
       .join('')
 
     this.onStartStalling()
-
-    // console.log({videoTracksStr, audioTracksStr}, this.sb)
-    // if (!audioTracksStr && this.sb.sourceBuffer.audio) {
-    //   console.log('work')
-    //   this.stop().then(() => {
-    //     this.init()
-    //     this.retryConnection(undefined, videoTracksStr)
-    //   })
-    // }
-
     this.ws.setTracks(videoTracksStr, audioTracksStr)
 
     this.videoTrack = videoTracksStr
@@ -561,14 +550,10 @@ export default class MSEPlayer {
       return
     }
 
-    // if (this.media.readyState === 2 && !this.ws.paused && this.sb.segments.length > 300) {
-    //   this.ws.pause();
-    // }
-
     const rawData = e.data
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
-    // mseUtils.logDM(isDataAB, parsedData)
+    mseUtils.logDM(isDataAB, parsedData)
 
     try {
       // ArrayBuffer data
@@ -649,9 +634,17 @@ export default class MSEPlayer {
       if (parsedData && parsedData.type === MSE_INIT_SEGMENT) {
         return this.procInitSegment(rawData)
       }
+
     } catch (err) {
-      this.ws.pause()
       mseUtils.showDispatchError.bind(this)(e, err)
+      try {
+        if (this.mediaInfo && this.mediaInfo.activeStreams) {
+          const { activeStreams } = this.mediaInfo
+          this.setTracks([activeStreams.video ? activeStreams.video : '', activeStreams.audio ? activeStreams.audio : ''])
+        }
+      } catch (err) {
+        this.ws.pause()
+      }
     }
   }
 
@@ -667,17 +660,18 @@ export default class MSEPlayer {
     }
 
     if (this.sb.isBuffered()) {
-      this.media.pause()
-      this.previouslyPaused = false
-      this._setTracksFlag = true
-      this.immediateSwitch = true
-      const startOffset = 0
-      const endOffset = Infinity
-      // TODO: should invoke remove method of SourceBuffer's
-      this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
-      // attempt flush immediately
-      this.sb.flushBufferCounter = 0
-      this.sb.doFlush()
+      // this.media.pause()
+      // this.previouslyPaused = false
+      // this._setTracksFlag = true
+      // this.immediateSwitch = true
+      // const startOffset = 0
+      // const endOffset = Infinity
+      // // TODO: should invoke remove method of SourceBuffer's
+      // this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
+      // // attempt flush immediately
+      // this.sb.flushBufferCounter = 0
+      // this.sb.doFlush()
+      this.sb.seek()
     }
 
     // calc this.audioTrackId this.videoTrackId
@@ -713,11 +707,6 @@ export default class MSEPlayer {
 
     this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})
     logger.log('%cprocInitSegment:', 'background: lightpink;', data)
-
-    // if (!this.sb.audioTrackId && this.sb.sourceBuffer.audio) {
-    //   console.log('work')
-    //   this.retryConnection(undefined, activeStreams.video)
-    // }
 
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.sb.setMediaSource(this.mediaSource)

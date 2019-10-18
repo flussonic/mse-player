@@ -70,20 +70,15 @@ function onLoad() {
       }
       if (window.player) {
         // console.log(window.player.sb.segments.length)
-        graphSegmentsAudio.push(window.player.sb.segments.length)
+        graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
         if (graphSegmentsAudio.length === 200) {
           graphSegmentsAudio.shift()
         }
+        graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
+        if (graphSegmentsVideo.length === 200) {
+          graphSegmentsVideo.shift()
+        }
       }
-      // if (window.player) {
-      //   graphSegmentsVideo.push(window.player.sb.segments.length)
-      // }
-      // if (segments.type && segments.type === 'video') {
-      //   graphSegmentsVideo.push(segments.data.length)
-      // }
-      // if (element.buffered.length) {
-      //   console.log(element.buffered.length, element.buffered.start(0), element.buffered.end(0))
-      // }
       chart.update()
     },
     onDisconnect: status => {
@@ -156,14 +151,14 @@ function onLoad() {
       labels: graphUTCLabels,
       datasets: [
         {
-          label: 'Video Buffer',
+          label: 'Video Segments',
           backgroundColor: 'rgb(255, 99, 132)',
           borderColor: 'rgb(255, 99, 132)',
           fill: false,
           data: graphSegmentsVideo,
         },
         {
-          label: 'Segments',
+          label: 'Audio Segments',
           backgroundColor: '#63d4ff',
           borderColor: '#63d4ff',
           fill: false,

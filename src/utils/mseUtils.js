@@ -54,8 +54,7 @@ export function getRealUtcFromData(view) {
   return realUtc
 }
 
-export function doArrayBuffer() {
-  const segment = this.segments.shift()
+export function doArrayBuffer(segment) {
 
   if (!segment.isInit) {
     // last loaded frame's utc
@@ -63,7 +62,7 @@ export function doArrayBuffer() {
     this.lastLoadedUTC = this.utc
   }
 
-  this.maybeAppend(segment)
+  // this.maybeAppend(segment, isVideo)
 }
 
 export function debugData(rawData) {
