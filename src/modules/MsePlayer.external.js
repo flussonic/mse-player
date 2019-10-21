@@ -607,22 +607,29 @@ export default class MSEPlayer {
               this.playPromise = Promise.reject()
                 .then(success => {
                   // не вызывается
+                  this.media.pause()
                 })
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
-                  logger.log(error)
-                  this.ws.pause()
-                  // this.media.pause()
 
-                  // this.oncvp = null
 
-                  // this.mediaSource = null
-              
-                  // this.init()
-                  // this.ws.destroy()
-                  // this.sb.destroy()
-
-                  // this.handlerMediaDetaching()
+                  if (this.ws.connectionPromise) {
+                    this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+                  }
+                  this._pause = true
+      
+                  if (this.onError) {
+                    this.onError({
+                      error: 'play_promise_reject',
+                      error,
+                    })
+                  }
+      
+                  if (this.rejectThenMediaSourceOpen) {
+                    this.rejectThenMediaSourceOpen()
+                    this.resolveThenMediaSourceOpen = void 0
+                    this.rejectThenMediaSourceOpen = void 0
+                  }
                 })
               this.liveError = true
             }
