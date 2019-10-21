@@ -553,7 +553,7 @@ export default class MSEPlayer {
     const rawData = e.data
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
-    mseUtils.logDM(isDataAB, parsedData)
+    // mseUtils.logDM(isDataAB, parsedData)
 
     try {
       // ArrayBuffer data
@@ -611,10 +611,18 @@ export default class MSEPlayer {
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
                   logger.log(error)
-                  if (!this.retryConnectionTimer) {
-                    this.onConnectionRetry()
-                  }
-                  // throw error // повторно выбрасываем ошибку, вызывая новый reject
+                  this.ws.pause()
+                  // this.media.pause()
+
+                  // this.oncvp = null
+
+                  // this.mediaSource = null
+              
+                  // this.init()
+                  // this.ws.destroy()
+                  // this.sb.destroy()
+
+                  // this.handlerMediaDetaching()
                 })
               this.liveError = true
             }

@@ -70,10 +70,12 @@ function onLoad() {
       }
       if (window.player) {
         // console.log(window.player.sb.segments.length)
+        // const audioBytes = JSON.stringify(window.player.sb.segmentsAudio).length * 8
         graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
         if (graphSegmentsAudio.length === 200) {
           graphSegmentsAudio.shift()
         }
+        // const videoBytes = JSON.stringify(window.player.sb.segmentsVideo).length * 8
         graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
         if (graphSegmentsVideo.length === 200) {
           graphSegmentsVideo.shift()
