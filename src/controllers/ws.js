@@ -46,11 +46,13 @@ export default class WebSocketController {
       // TODO: to think cases when ws can fall
       this._openingReject = rej
     })
+
     return this.connectionPromise
   }
 
   open() {
     this.opened = true
+    this.paused = true
     this._openingResolve() // #6809
     this.resume()
     this.websocket.removeEventListener(EVENTS.WS_OPEN, this.onwso)
@@ -67,6 +69,7 @@ export default class WebSocketController {
       return setTimeout(() => this.resume(), 500)
     } else {
       this.websocket.send('resume')
+      this.paused = false
     }
   }
 
@@ -80,6 +83,7 @@ export default class WebSocketController {
      */
     if (this.websocket.readyState === 1) {
       this.websocket.send('pause')
+      this.paused = true
     }
   }
 
@@ -108,6 +112,7 @@ export default class WebSocketController {
     if (this.opts.wsReconnect) {
       if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
         logger.log('Clean websocket stop')
+        this.destroy()
       } else {
         const {url, time, videoTrack, audioTack} = this.socketURL
         this.reconnect = setTimeout(() => {

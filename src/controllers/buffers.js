@@ -15,13 +15,16 @@ export default class BuffersController {
     this.doArrayBuffer = doArrayBuffer.bind(this)
     this.maybeAppend = this.maybeAppend.bind(this)
     this.onSBUpdateEnd = this.onSBUpdateEnd.bind(this)
+    this.onAudioSBUpdateEnd = this.onAudioSBUpdateEnd.bind(this)
   }
 
   init(opts = {}) {
     this.flushRange = []
     this.appended = 0
     this.mediaSource = opts.mediaSource
-    this.segments = []
+    // this.segments = []
+    this.segmentsVideo = []
+    this.segmentsAudio = []
     this.sourceBuffer = {}
   }
 
@@ -31,20 +34,24 @@ export default class BuffersController {
 
   createSourceBuffers(data) {
     const sb = this.sourceBuffer
-
     data.tracks.forEach(s => {
       const isVideo = s.content === VIDEO
       const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
 
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType)
+      // sb[s.content].timestampOffset = 0.25
       const buffer = sb[s.content]
-
-      buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
+      if (isVideo) {
+        buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
+      } else {
+        buffer.addEventListener(BUFFER_UPDATE_END, this.onAudioSBUpdateEnd)
+      }
     })
   }
 
   onSBUpdateEnd() {
     if (this._needsFlush) {
+      logger.log('flushing buffer')
       this.doFlush()
     }
 
@@ -52,8 +59,43 @@ export default class BuffersController {
       this.checkEos()
     }
 
-    if (!this._needsFlush && this.segments.length) {
-      this.doArrayBuffer()
+    if (!this._needsFlush && this.segmentsVideo.length) {
+
+      const buffer = this.sourceBuffer.video
+      if (buffer) {
+        if (buffer.updating) {
+          return
+        }
+        const segment = this.segmentsVideo[0]
+        buffer.appendBuffer(segment.data)
+        this.segmentsVideo.shift()
+        this.appended++
+      }
+    }
+  }
+
+  onAudioSBUpdateEnd() {
+    if (this._needsFlush) {
+      logger.log('flushing buffer')
+      this.doFlush()
+    }
+
+    if (this._needsEos) {
+      this.checkEos()
+    }
+
+    if (!this._needsFlush && this.segmentsAudio.length) {
+
+      const buffer = this.sourceBuffer.audio
+      if (buffer) {
+        if (buffer.updating) {
+          return
+        }
+        const segment = this.segmentsAudio[0]
+        buffer.appendBuffer(segment.data)
+        this.segmentsAudio.shift()
+        this.appended++
+      }
     }
   }
 
@@ -71,23 +113,40 @@ export default class BuffersController {
 
   maybeAppend(segment) {
     if (this._needsFlush) {
-      this.segments.unshift(segment)
+      // this.segments.unshift(segment)
       return
     }
-
+    if (!this.media || this.media.error) {
+      if (segment.type === 'audio') {
+        this.segmentsAudio = []
+      } else {
+        this.segmentsVideo = []
+      }
+      logger.error('trying to append although a media error occured, flush segment and abort')
+      return
+    }
     const buffer = this.sourceBuffer[segment.type]
     if (buffer) {
       if (buffer.updating) {
-        this.segments.unshift(segment)
-      } else {
-        buffer.appendBuffer(segment.data)
-        this.appended++
+        // this.segments.unshift(segment)
+        return
       }
+
+      buffer.appendBuffer(segment.data)
+      if (segment.type === 'audio') {
+        this.segmentsAudio.shift()
+      } else {
+        this.segmentsVideo.shift()
+      }
+      this.appended++
     }
   }
 
   setTracksByType(data) {
     const type = data.tracks ? 'tracks' : 'streams'
+    if (data[type].length === 1) {
+      this.audioTrackId = null
+    }
     data[type].forEach(s => {
       this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
     })
@@ -99,8 +158,21 @@ export default class BuffersController {
 
   procArrayBuffer(rawData) {
     const segment = this.rawDataToSegmnet(rawData)
-    this.segments.push(segment)
-    this.doArrayBuffer()
+    if (segment.type === 'audio') {
+      this.segmentsAudio.push(segment)
+    } else {
+      this.segmentsVideo.push(segment)
+    }
+
+    this.doArrayBuffer(segment)
+    if (this.sourceBuffer) {
+      if (this.sourceBuffer.video && !this.sourceBuffer.video.updating) {
+        this.onSBUpdateEnd()
+      }
+      if (this.sourceBuffer.audio && !this.sourceBuffer.audio.updating) {
+        this.onAudioSBUpdateEnd()
+      }
+    }
   }
 
   seek() {
@@ -109,7 +181,8 @@ export default class BuffersController {
       this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
     }
 
-    this.segments = []
+    this.segmentsVideo = []
+    this.segmentsAudio = []
   }
 
   isBuffered() {
@@ -208,9 +281,7 @@ export default class BuffersController {
                 if (Math.min(flushEnd, bufEnd) - flushStart > 0.5) {
                   this.flushBufferCounter++
                   logger.log(
-                    `flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${
-                      this.media.currentTime
-                    }`
+                    `flush ${type} [${flushStart},${flushEnd}], of [${bufStart},${bufEnd}], pos:${this.media.currentTime}`
                   )
                   sb.remove(flushStart, flushEnd)
                   return false
@@ -237,7 +308,7 @@ export default class BuffersController {
   }
 
   rawDataToSegmnet(rawData) {
-    const view = RawDataToUint8Array(rawData)
+    const view = new Uint8Array(rawData)
     const trackId = getTrackId(view)
     const trackType = this.getTypeBytrackId(trackId)
     return {type: trackType, data: view}

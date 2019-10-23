@@ -18,13 +18,14 @@ const WS_EVENT_SEEKED = 'seeked'
 const WS_EVENT_SWITCHED_TO_LIVE = 'switched_to_live'
 const WS_EVENT_EOS = 'recordings_ended'
 const WS_EVENT_NO_LIVE = 'stream_unavailable'
+const WS_EVENT_TRACKS_SWITCHED = 'tracks_switched'
 const WS_TRY_RECONNECT = false
 
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
-const DEFAULT_CONNECTIONS_RETRIES = 10
+const DEFAULT_CONNECTIONS_RETRIES = 0
 
 export default class MSEPlayer {
   static get version() {
@@ -44,7 +45,9 @@ export default class MSEPlayer {
    * @param urlStream
    * @param opts
    */
+
   constructor(media, urlStream, opts = {}) {
+    // debugger
     if (opts.debug) {
       enableLogs(true)
       window.humanTime = mseUtils.humanTime
@@ -66,19 +69,15 @@ export default class MSEPlayer {
       throw new Error('invalid errorsBeforeStop param, should be number')
     }
 
-    this.opts.connectionRetries = this.opts.connectionRetries
-      ? this.opts.connectionRetries
-      : DEFAULT_CONNECTIONS_RETRIES
+    this.opts.connectionRetries = this.opts.connectionRetries || DEFAULT_CONNECTIONS_RETRIES
 
     if (typeof this.opts.connectionRetries !== 'number' || isNaN(this.opts.connectionRetries)) {
       throw new Error('invalid connectionRetries param, should be number')
     }
 
-    this.opts.wsReconnect = this.opts.wsReconnect
-      ? this.opts.wsReconnect
-      : WS_TRY_RECONNECT
+    this.opts.wsReconnect = this.opts.wsReconnect ? this.opts.wsReconnect : WS_TRY_RECONNECT
 
-    if (typeof this.opts.wsReconnect !== "boolean") {
+    if (typeof this.opts.wsReconnect !== 'boolean') {
       throw new Error('invalid wsReconnect param, should be boolean')
     }
 
@@ -100,24 +99,40 @@ export default class MSEPlayer {
 
     if (media instanceof HTMLMediaElement) {
       this.onAttachMedia({media})
+      // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
+      // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
+      // this.media.onerror = function() {
+      //   console.log("Error " + videoElement.error.code + "; details: " + videoElement.error.message);
+      // }
+      // this.media.addEventListener('onpause', (err) => { console.log('onpause', err)})
+
+      // this.media.addEventListener('pause', (event) => {
+      //   console.log('paused !!!', event);
+      // });
     }
 
     this.ws = new WebSocketController({
       message: this.dispatchMessage.bind(this),
       closed: this.onDisconnect.bind(this),
       error: this.onError,
-      wsReconnect: this.opts.wsReconnect
+      wsReconnect: this.opts.wsReconnect,
     })
+
     /*
      * SourceBuffers Controller
      */
-
     this.sb = new BuffersController({media})
   }
 
-  play(time, videoTrack, audioTack) {
+  play(time, videoTrack, audioTrack) {
     logger.log('[mse-player]: play()')
-    return this._play(time, videoTrack, audioTack)
+    return this._play(time, videoTrack, audioTrack)
+      .then(() => {
+        this.playing = true
+      })
+      .catch(() => {
+        this.playing = false
+      })
   }
 
   stop() {
@@ -125,20 +140,22 @@ export default class MSEPlayer {
   }
 
   seek(utc) {
-    try {
-      if (!utc) {
-        throw new Error('utc should be "live" or UTC value')
+    if (this.playing) {
+      try {
+        if (!utc) {
+          throw new Error('utc should be "live" or UTC value')
+        }
+        this.ws.seek(utc)
+        this.sb.seek()
+        this.onStartStalling()
+        // need for determine old frames
+        this.seekValue = utc
+        this.media.pause()
+        this._pause = true
+        this.playing = false
+      } catch (err) {
+        logger.warn(`seek:${err.message}`)
       }
-      this.ws.seek(utc)
-      this.sb.seek()
-      this.onStartStalling()
-      // need for determine old frames
-      this.seekValue = utc
-      this.media.pause()
-      this._pause = true
-      this.playing = false
-    } catch (err) {
-      logger.warn(`seek:${err.message}`)
     }
   }
 
@@ -167,6 +184,7 @@ export default class MSEPlayer {
     function canPause() {
       if (
         this._pause ||
+        !this.playing ||
         !this.media ||
         !this.ws ||
         !this.mediaSource ||
@@ -185,21 +203,21 @@ export default class MSEPlayer {
     this.playing = false
     this.ws.destroy()
     this.ws.init()
-    this.ws.start(this.url, from, this.videoTrack, this.audioTack)
+    this.ws.start(this.url, from, this.videoTrack, this.audioTrack)
   }
 
-  retryConnection() {
+  retryConnection(time = null, videoTrack = null, audioTrack = null) {
     if (this.retry >= this.opts.connectionRetries) {
       clearInterval(this.retryConnectionTimer)
       return
     }
     logger.log('%cconnectionRetry:', 'background: orange;', `Retrying ${this.retry + 1}`)
-    this.mediaSource = null
+    this.mediaSource = void 0
     this.init()
     this.ws.destroy()
     this.sb.destroy()
 
-    this.play()
+    this.play(time, videoTrack, audioTrack)
     this.retry = this.retry + 1
   }
 
@@ -225,12 +243,14 @@ export default class MSEPlayer {
     const audioTracksStr = tracks
       .filter(id => {
         const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
-        if (stream.bitrate && stream.bitrate !== 0) {
+        if (stream && stream.bitrate && stream.bitrate !== 0) {
+          return !!stream && stream.content === TYPE_CONTENT_AUDIO
+        } else {
           return null
         }
-        return !!stream && stream.content === TYPE_CONTENT_AUDIO
       })
       .join('')
+
     this.onStartStalling()
     this.ws.setTracks(videoTracksStr, audioTracksStr)
 
@@ -247,10 +267,12 @@ export default class MSEPlayer {
    *
    */
 
-  _play(from, videoTrack, audioTack) {
+  _play(from, videoTrack, audioTrack) {
+    // debugger
     this.liveError = false
     return new Promise((resolve, reject) => {
-      logger.log('_play', from, videoTrack, audioTack)
+      logger.log('_play', from, videoTrack, audioTrack)
+
       if (this.playing) {
         const message = '[mse-player] _play: terminate because already has been playing'
         logger.log(message)
@@ -270,7 +292,6 @@ export default class MSEPlayer {
         } else {
           logger.log('WebSocket is in opened state, resuming')
           this._pause = false
-          this.playing = true
           this._resume() // ws
         }
 
@@ -281,41 +302,39 @@ export default class MSEPlayer {
 
       this.playTime = from
       this.videoTrack = videoTrack
-      this.audioTack = audioTack
+      this.audioTrack = audioTrack
       this._pause = false
 
       // TODO: to observe this case, I have no idea when it fired
       if (!this.mediaSource) {
-        this.onAttachMedia({media: this.media})
-        this.onsoa = this._play.bind(this, from, videoTrack, audioTack)
-        this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
-        logger.warn('mediaSource did not create')
-        this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
-        this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
-        return
+        this.onAttachMedia({media: this.media}).then(() => {
+          this.onsoa = this._play.bind(this, from, videoTrack, audioTrack)
+          this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
+          logger.warn('mediaSource did not create')
+          this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
+          this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
+          return
+        })
       }
 
       // deferring execution
       if (this.mediaSource && this.mediaSource.readyState !== 'open') {
-        logger.warn('readyState is not "open"', this.mediaSource.readyState)
+        logger.warn('readyState is not "open", it\'s currently ', this.mediaSource.readyState)
         this.shouldPlay = true
         this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
         this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
         return
       }
 
-      this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTack)
+      this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTrack).then(() => {
+        // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+        this.playPromise = this.media.play()
+        this.startProgressTimer()
 
-      // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-      this.playPromise = this.media.play()
-      this.startProgressTimer()
-
-      this.playPromise
-        .then(
-          () => {
+        this.playPromise
+          .then(() => {
             this.onStartStalling() // switch off at progress checker
             if (this.resolveThenMediaSourceOpen) {
-              this.playing = true
               this._stop = false
               this.resolveThenMediaSourceOpen()
               this.resolveThenMediaSourceOpen = void 0
@@ -323,19 +342,19 @@ export default class MSEPlayer {
               clearInterval(this.retryConnectionTimer)
               this.retry = 0
             }
-          },
-          () => {
-            logger.log('playPromise rejection. this.playing false')
+          })
+          .catch(err => {
+            logger.log('playPromise rejection. this.playing false', err)
             // if error, this.ws.connectionPromise can be undefined
             if (this.ws.connectionPromise) {
               this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
             }
             this._pause = true
-            this.playing = false
 
             if (this.onError) {
               this.onError({
                 error: 'play_promise_reject',
+                err,
               })
             }
 
@@ -346,18 +365,10 @@ export default class MSEPlayer {
             }
 
             this.restart()
-          }
-        )
-        .catch(err => {
-          if (!this.retryConnectionTimer) {
-            this.onConnectionRetry()
-          } else {
-            this.stop()
-          }
-          reject(err)
-        })
+          })
 
-      return this.playPromise
+        return this.playPromise
+      })
     })
   }
 
@@ -368,7 +379,7 @@ export default class MSEPlayer {
     this.shouldPlay = false
     // store to execute pended method play
     this.playTime = void 0
-    this.audioTack = ''
+    this.audioTrack = ''
     this.videoTrack = ''
     this.endProgressTimer()
   }
@@ -458,7 +469,7 @@ export default class MSEPlayer {
 
     // Detach properly the MediaSource from the HTMLMediaElement as
     // suggested in https://github.com/w3c/media-source/issues/53.
-    URL.revokeObjectURL(this.media.src)
+    // URL.revokeObjectURL(this.media.src)
     this.media.removeAttribute('src')
     this.media.load()
   }
@@ -490,6 +501,7 @@ export default class MSEPlayer {
       // link video and media Source
       media.src = URL.createObjectURL(ms)
 
+      // this.oncvp = this.debounce(mseUtils.checkVideoProgress(media, this).bind(this), 500)
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
       if (this.liveError) {
@@ -511,17 +523,19 @@ export default class MSEPlayer {
       mediaSource.removeEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
     }
 
+    URL.revokeObjectURL(this.media.src)
+
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
       logger.info(
         `readyState now is ${this.mediaSource.readyState}, and will be played`,
         this.playTime,
-        this.audioTack,
+        this.audioTrack,
         this.videoTrack
       )
       this.shouldPlay = false
-      this._play(this.playTime, this.audioTack, this.videoTrack)
+      this._play(this.playTime, this.audioTrack, this.videoTrack)
     }
   }
 
@@ -539,7 +553,7 @@ export default class MSEPlayer {
     const rawData = e.data
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
-    mseUtils.logDM(isDataAB, parsedData)
+    // mseUtils.logDM(isDataAB, parsedData)
 
     try {
       // ArrayBuffer data
@@ -554,9 +568,13 @@ export default class MSEPlayer {
       /*
        * EVENTS
        */
-
       if (parsedData && parsedData.type === EVENT_SEGMENT) {
         const eventType = parsedData[EVENT_SEGMENT]
+        logger.log(
+          `%c ${parsedData.type} ${parsedData.type === 'event' ? parsedData.event : 'mse_init_segment'}`,
+          'background: aquamarine;',
+          parsedData
+        )
         switch (eventType) {
           case WS_EVENT_RESUMED:
             if (this._pause && !this.playing) {
@@ -589,17 +607,34 @@ export default class MSEPlayer {
               this.playPromise = Promise.reject()
                 .then(success => {
                   // не вызывается
+                  this.media.pause()
                 })
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
-                  logger.log(error)
-                  if (!this.retryConnectionTimer) {
-                    this.onConnectionRetry()
+
+
+                  if (this.ws.connectionPromise) {
+                    this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
                   }
-                  // throw error // повторно выбрасываем ошибку, вызывая новый reject
+                  this._pause = true
+      
+                  if (this.onError) {
+                    this.onError({
+                      error: 'play_promise_reject',
+                      error,
+                    })
+                  }
+      
+                  if (this.rejectThenMediaSourceOpen) {
+                    this.rejectThenMediaSourceOpen()
+                    this.resolveThenMediaSourceOpen = void 0
+                    this.rejectThenMediaSourceOpen = void 0
+                  }
                 })
               this.liveError = true
             }
+            break
+          case WS_EVENT_TRACKS_SWITCHED:
             break
           default:
             if (this.opts.onError) {
@@ -614,9 +649,17 @@ export default class MSEPlayer {
       if (parsedData && parsedData.type === MSE_INIT_SEGMENT) {
         return this.procInitSegment(rawData)
       }
+
     } catch (err) {
-      this.ws.pause()
       mseUtils.showDispatchError.bind(this)(e, err)
+      try {
+        if (this.mediaInfo && this.mediaInfo.activeStreams) {
+          const { activeStreams } = this.mediaInfo
+          this.setTracks([activeStreams.video ? activeStreams.video : '', activeStreams.audio ? activeStreams.audio : ''])
+        }
+      } catch (err) {
+        this.ws.pause()
+      }
     }
   }
 
@@ -632,17 +675,18 @@ export default class MSEPlayer {
     }
 
     if (this.sb.isBuffered()) {
-      this.media.pause()
-      this.previouslyPaused = false
-      this._setTracksFlag = true
-      this.immediateSwitch = true
-      const startOffset = 0
-      const endOffset = Infinity
-      // TODO: should invoke remove method of SourceBuffer's
-      this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
-      // attempt flush immediately
-      this.sb.flushBufferCounter = 0
-      this.sb.doFlush()
+      // this.media.pause()
+      // this.previouslyPaused = false
+      // this._setTracksFlag = true
+      // this.immediateSwitch = true
+      // const startOffset = 0
+      // const endOffset = Infinity
+      // // TODO: should invoke remove method of SourceBuffer's
+      // this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
+      // // attempt flush immediately
+      // this.sb.flushBufferCounter = 0
+      // this.sb.doFlush()
+      this.sb.seek()
     }
 
     // calc this.audioTrackId this.videoTrackId
@@ -671,6 +715,9 @@ export default class MSEPlayer {
       if (streams[this.sb.audioTrackId - 1] && streams[this.sb.audioTrackId - 1]['track_id']) {
         activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
       }
+    } else {
+      if (this.mediaSource && this.sb.sourceBuffer && this.sb.sourceBuffer.audio)
+        this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio)
     }
 
     this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})

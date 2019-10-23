@@ -1,6 +1,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
   </head>
   <style>
     .player-container {
@@ -25,10 +26,18 @@
     .mbr-controls {
       display: none;
     }
+
+    .controls-panel {
+      margin: 16px 0;
+    }
+
+    button {
+      margin: 8px 0;
+    }
   </style>
 <body>
   <div class="player-container">
-    <video id="player" controls="true"></video>
+    <video id="player" controls="false" muted></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
@@ -36,6 +45,9 @@
   <div class="controls-panel">
     <div class="utc">
       <span id="utc">00:00:00</span>
+    </div>
+    <div class="real">
+      <span id="real">00:00:00</span>
     </div>
     <div class="mbr-controls">
       <div>
@@ -55,9 +67,8 @@
       <input type="text" id="seek" value="1538561793"/>
       <button onclick="seek()">seek</button>
     </div>
+    <canvas id="myChart" height="200"></canvas>
   </div>
-  <script type="text/javascript" src="FlussonicMsePlayer.js"></script>
   <script type="text/javascript" src="index.js"></script>
-
 </body>
 </html>
