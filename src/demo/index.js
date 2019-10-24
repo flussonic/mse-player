@@ -1,7 +1,7 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
-import Chart from 'chart.js'
+// import Chart from 'chart.js'
 
 window.onload = onLoad()
 
@@ -35,10 +35,10 @@ function onLoad() {
 
   let showFirstFrameUTC = false
 
-  let graphUTC = []
-  let graphUTCLabels = []
-  let graphSegmentsVideo = []
-  let graphSegmentsAudio = []
+  // let graphUTC = []
+  // let graphUTCLabels = []
+  // let graphSegmentsVideo = []
+  // let graphSegmentsAudio = []
 
   const opts = {
     debug: true,
@@ -61,27 +61,27 @@ function onLoad() {
         showFirstFrameUTC = false
       }
 
-      graphUTC.push(utc)
-      if (!graphUTCLabels.includes(humanTime(utc))) {
-        graphUTCLabels.push(humanTime(utc))
-        if (graphUTCLabels.length === 200) {
-          graphUTCLabels.shift()
-        }
-      }
-      if (window.player) {
-        // console.log(window.player.sb.segments.length)
-        // const audioBytes = JSON.stringify(window.player.sb.segmentsAudio).length * 8
-        graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
-        if (graphSegmentsAudio.length === 200) {
-          graphSegmentsAudio.shift()
-        }
-        // const videoBytes = JSON.stringify(window.player.sb.segmentsVideo).length * 8
-        graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
-        if (graphSegmentsVideo.length === 200) {
-          graphSegmentsVideo.shift()
-        }
-      }
-      chart.update()
+      // graphUTC.push(utc)
+      // if (!graphUTCLabels.includes(humanTime(utc))) {
+      //   graphUTCLabels.push(humanTime(utc))
+      //   if (graphUTCLabels.length === 200) {
+      //     graphUTCLabels.shift()
+      //   }
+      // }
+      // if (window.player) {
+      //   // console.log(window.player.sb.segments.length)
+      //   // const audioBytes = JSON.stringify(window.player.sb.segmentsAudio).length * 8
+      //   graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
+      //   if (graphSegmentsAudio.length === 200) {
+      //     graphSegmentsAudio.shift()
+      //   }
+      //   // const videoBytes = JSON.stringify(window.player.sb.segmentsVideo).length * 8
+      //   graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
+      //   if (graphSegmentsVideo.length === 200) {
+      //     graphSegmentsVideo.shift()
+      //   }
+      // }
+      // chart.update()
     },
     onDisconnect: status => {
       console.log('Websocket status:', status)
@@ -144,45 +144,45 @@ function onLoad() {
 
   const ctx = document.getElementById('myChart').getContext('2d')
 
-  const chart = new Chart(ctx, {
-    // The type of chart we want to create
-    type: 'bar',
+  // const chart = new Chart(ctx, {
+  //   // The type of chart we want to create
+  //   type: 'bar',
 
-    // The data for our dataset
-    data: {
-      labels: graphUTCLabels,
-      datasets: [
-        {
-          label: 'Video Segments',
-          backgroundColor: 'rgb(255, 99, 132)',
-          borderColor: 'rgb(255, 99, 132)',
-          fill: false,
-          data: graphSegmentsVideo,
-        },
-        {
-          label: 'Audio Segments',
-          backgroundColor: '#63d4ff',
-          borderColor: '#63d4ff',
-          fill: false,
-          data: graphSegmentsAudio,
-        },
-      ],
-    },
+  //   // The data for our dataset
+  //   data: {
+  //     labels: graphUTCLabels,
+  //     datasets: [
+  //       {
+  //         label: 'Video Segments',
+  //         backgroundColor: 'rgb(255, 99, 132)',
+  //         borderColor: 'rgb(255, 99, 132)',
+  //         fill: false,
+  //         data: graphSegmentsVideo,
+  //       },
+  //       {
+  //         label: 'Audio Segments',
+  //         backgroundColor: '#63d4ff',
+  //         borderColor: '#63d4ff',
+  //         fill: false,
+  //         data: graphSegmentsAudio,
+  //       },
+  //     ],
+  //   },
 
-    // Configuration options go here
-    options: {
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
-        },
-      },
-      animation: {
-        duration: 0, // general animation time
-      },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
-      },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
-  })
+  //   // Configuration options go here
+  //   options: {
+  //     elements: {
+  //       line: {
+  //         tension: 0, // disables bezier curves
+  //       },
+  //     },
+  //     animation: {
+  //       duration: 0, // general animation time
+  //     },
+  //     hover: {
+  //       animationDuration: 0, // duration of animations when hovering an item
+  //     },
+  //     responsiveAnimationDuration: 0, // animation duration after a resize
+  //   },
+  // })
 }
