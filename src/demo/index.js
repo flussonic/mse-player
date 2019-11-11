@@ -142,7 +142,7 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  const ctx = document.getElementById('myChart').getContext('2d')
+  // const ctx = document.getElementById('myChart').getContext('2d')
 
   // const chart = new Chart(ctx, {
   //   // The type of chart we want to create
