@@ -44,6 +44,7 @@ function onLoad() {
     debug: true,
     connectionRetries: 1,
     errorsBeforeStop: 10,
+    retryMuted: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },

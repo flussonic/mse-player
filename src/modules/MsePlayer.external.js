@@ -26,6 +26,7 @@ const TYPE_CONTENT_AUDIO = AUDIO
 const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
 const DEFAULT_CONNECTIONS_RETRIES = 0
+const DEFAULT_RETRY_MUTED = false
 
 export default class MSEPlayer {
   static get version() {
@@ -83,6 +84,12 @@ export default class MSEPlayer {
 
     this.retry = 0
     this.retryConnectionTimer
+
+    this.opts.retryMuted = this.opts.retryMuted ? this.opts.retryMuted : DEFAULT_RETRY_MUTED
+
+    if (typeof this.opts.retryMuted !== 'boolean') {
+      throw new Error('invalid retryMuted param, should be boolean')
+    }
 
     this.onProgress = opts && opts.onProgress
     if (opts && opts.onDisconnect) {
@@ -351,6 +358,11 @@ export default class MSEPlayer {
             }
             this._pause = true
 
+            if (this.opts.retryMuted && this.media.muted == false) {
+              this.media.muted = true;
+              this._play(from, videoTrack, audioTrack)
+            }
+
             if (this.onError) {
               this.onError({
                 error: 'play_promise_reject',
@@ -489,10 +501,11 @@ export default class MSEPlayer {
       throw new Error(MSG.NOT_HTML_MEDIA_ELEMENT)
     }
     if (media) {
+      // iOS autoplay with no fullscreen fix
+      media.WebKitPlaysInline = true;
       // setup the media source
       const ms = (this.mediaSource = new MediaSource())
       //Media Source listeners
-
       this.onmse = this.onMediaSourceEnded.bind(this)
       this.onmsc = this.onMediaSourceClose.bind(this)
 
@@ -612,19 +625,18 @@ export default class MSEPlayer {
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
 
-
                   if (this.ws.connectionPromise) {
                     this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
                   }
                   this._pause = true
-      
+
                   if (this.onError) {
                     this.onError({
                       error: 'play_promise_reject',
                       error,
                     })
                   }
-      
+
                   if (this.rejectThenMediaSourceOpen) {
                     this.rejectThenMediaSourceOpen()
                     this.resolveThenMediaSourceOpen = void 0
@@ -649,13 +661,15 @@ export default class MSEPlayer {
       if (parsedData && parsedData.type === MSE_INIT_SEGMENT) {
         return this.procInitSegment(rawData)
       }
-
     } catch (err) {
       mseUtils.showDispatchError.bind(this)(e, err)
       try {
         if (this.mediaInfo && this.mediaInfo.activeStreams) {
-          const { activeStreams } = this.mediaInfo
-          this.setTracks([activeStreams.video ? activeStreams.video : '', activeStreams.audio ? activeStreams.audio : ''])
+          const {activeStreams} = this.mediaInfo
+          this.setTracks([
+            activeStreams.video ? activeStreams.video : '',
+            activeStreams.audio ? activeStreams.audio : '',
+          ])
         }
       } catch (err) {
         this.ws.pause()
