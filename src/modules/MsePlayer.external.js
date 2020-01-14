@@ -27,6 +27,7 @@ const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
 const DEFAULT_CONNECTIONS_RETRIES = 0
 const DEFAULT_RETRY_MUTED = false
+const DEFAULT_AUTOPLAY_ON_INTERACTION = false
 
 export default class MSEPlayer {
   static get version() {
@@ -89,6 +90,14 @@ export default class MSEPlayer {
 
     if (typeof this.opts.retryMuted !== 'boolean') {
       throw new Error('invalid retryMuted param, should be boolean')
+    }
+
+    this.opts.autoplayOnInteraction = this.opts.autoplayOnInteraction
+      ? this.opts.autoplayOnInteraction
+      : DEFAULT_AUTOPLAY_ON_INTERACTION
+
+    if (typeof this.opts.autoplayOnInteraction !== 'boolean') {
+      throw new Error('invalid autoplayOnInteraction param, should be boolean')
     }
 
     this.onProgress = opts && opts.onProgress
@@ -349,6 +358,7 @@ export default class MSEPlayer {
               clearInterval(this.retryConnectionTimer)
               this.retry = 0
             }
+            return resolve()
           })
           .catch(err => {
             logger.log('playPromise rejection. this.playing false', err)
@@ -359,7 +369,7 @@ export default class MSEPlayer {
             this._pause = true
 
             if (this.opts.retryMuted && this.media.muted == false) {
-              this.media.muted = true;
+              this.media.muted = true
               this._play(from, videoTrack, audioTrack)
             }
 
@@ -377,6 +387,7 @@ export default class MSEPlayer {
             }
 
             this.restart()
+            return reject()
           })
 
         return this.playPromise
@@ -501,11 +512,23 @@ export default class MSEPlayer {
       throw new Error(MSG.NOT_HTML_MEDIA_ELEMENT)
     }
     if (media) {
+      // for autoplay on interaction
+      if (this.opts.autoplayOnInteraction) {
+        this.media.muted = true
+        this.canStartUnmuted = this.canStartUnmuted.bind(this)
+        window.addEventListener('click', this.canStartUnmuted)
+        window.addEventListener('touchstart', this.canStartUnmuted)
+        if (this.onError) {
+          this.onError({
+            error: 'need_to_show_play_button',
+          })
+        }
+      }
       // iOS autoplay with no fullscreen fix
-      media.WebKitPlaysInline = true;
+      media.WebKitPlaysInline = true
       // setup the media source
       const ms = (this.mediaSource = new MediaSource())
-      //Media Source listeners
+      // Media Source listeners
       this.onmse = this.onMediaSourceEnded.bind(this)
       this.onmsc = this.onMediaSourceClose.bind(this)
 
@@ -541,20 +564,38 @@ export default class MSEPlayer {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      logger.info(
-        `readyState now is ${this.mediaSource.readyState}, and will be played`,
-        this.playTime,
-        this.audioTrack,
-        this.videoTrack
-      )
-      this.shouldPlay = false
-      this._play(this.playTime, this.audioTrack, this.videoTrack)
+      if (!this.opts.autoplayOnInteraction) {
+        this.shouldPlay = false
+        logger.info(
+          `readyState now is ${this.mediaSource.readyState}, and will be played`,
+          this.playTime,
+          this.audioTrack,
+          this.videoTrack
+        )
+        this._play(this.playTime, this.audioTrack, this.videoTrack)
+      }
     }
   }
 
   onDisconnect(event) {
     if (this.opts.onDisconnect) {
       this.opts.onDisconnect(event)
+    }
+  }
+
+  canStartUnmuted() {
+    if (this.media.muted == false) {
+      window.removeEventListener('click', this.canStartUnmuted)
+      window.removeEventListener('touchstart', this.canStartUnmuted)
+      return
+    }
+    if (!this.playing && this.shouldPlay) {
+      this.shouldPlay = false
+      this._play(this.playTime, this.audioTrack, this.videoTrack).then(() => {
+        this.media.muted = false
+        window.removeEventListener('click', this.canStartUnmuted)
+        window.removeEventListener('touchstart', this.canStartUnmuted)
+      })
     }
   }
 
