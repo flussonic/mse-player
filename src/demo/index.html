@@ -23,6 +23,22 @@
       background: #000;
     }
 
+    .playButton {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-size: 180px;
+      margin-left: 46px;
+      color: #fff;
+      cursor: pointer;
+    }
+
     .mbr-controls {
       display: none;
     }
@@ -37,10 +53,11 @@
   </style>
 <body>
   <div class="player-container">
-    <video id="player" controls="false" muted></video>
+    <video id="player" controls="false" autoplay="true"></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
+    <div id="playButton" class="playButton" onclick="window.hidePlayButton()">▶</div>
   </div>
   <div class="controls-panel">
     <div class="utc">

@@ -6,13 +6,13 @@ import {decode} from 'querystring'
 window.onload = onLoad()
 
 function onLoad() {
-  var streamer_ws = 'ws://localhost:8080'
-  var stream_name = 'clock'
+  let streamer_ws = 'ws://localhost:8080'
+  let stream_name = 'clock'
 
   // parse query string
-  var query = window.location.search
+  let query = window.location.search
   if (query) {
-    var qs = decode(query.replace(/^\?/, ''))
+    let qs = decode(query.replace(/^\?/, ''))
     if (qs.host) {
       streamer_ws = qs.host
     }
@@ -20,7 +20,7 @@ function onLoad() {
       stream_name = qs.name
     }
   }
-  var url = streamer_ws + '/' + stream_name + '/mse_ld'
+  let url = streamer_ws + '/' + stream_name + '/mse_ld'
 
   const element = document.getElementById('player')
   const videoTracksSelect = document.getElementById('videoTracks')
@@ -44,6 +44,8 @@ function onLoad() {
     debug: true,
     connectionRetries: 1,
     errorsBeforeStop: 10,
+    retryMuted: false,
+    autoplayOnInteraction: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -53,9 +55,9 @@ function onLoad() {
     onSeeked: () => {
       showFirstFrameUTC = true
     },
-    onProgress: (utc) => {
+    onProgress: utc => {
       utcLabel.innerText = humanTime(utc)
-      realLabel.innerText = humanTime(new Date().getTime()/1000)
+      realLabel.innerText = humanTime(new Date().getTime() / 1000)
       if (showFirstFrameUTC) {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
@@ -106,6 +108,12 @@ function onLoad() {
     },
     onError: err => {
       console.log('••••• ERRROR', err)
+      if (err.error && err.error === 'need_to_show_play_button') {
+        const element = document.getElementById('playButton')
+        element.style.display = 'flex'
+        window.addEventListener('click', window.hidePlayButton)
+        window.addEventListener('touchstart', window.hidePlayButton)
+      }
     },
   }
 
@@ -142,7 +150,14 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  const ctx = document.getElementById('myChart').getContext('2d')
+  window.hidePlayButton = () => {
+    const element = document.getElementById('playButton')
+    element.style.display = 'none'
+    window.removeEventListener('click', window.hidePlayButton)
+    window.removeEventListener('touchstart', window.hidePlayButton)
+  }
+
+  // const ctx = document.getElementById('myChart').getContext('2d')
 
   // const chart = new Chart(ctx, {
   //   // The type of chart we want to create
