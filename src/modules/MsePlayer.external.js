@@ -513,7 +513,7 @@ export default class MSEPlayer {
     }
     if (media) {
       // for autoplay on interaction
-      if (this.opts.autoplayOnInteraction) {
+      if (this.opts.autoplayOnInteraction && this.media.autoplay) {
         this.media.muted = true
         this.canStartUnmuted = this.canStartUnmuted.bind(this)
         window.addEventListener('click', this.canStartUnmuted)
