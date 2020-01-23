@@ -666,11 +666,6 @@ export default class MSEPlayer {
                 .catch(error => {
                   logger.log('no live record') // печатает "провал" + Stacktrace
 
-                  if (this.ws.connectionPromise) {
-                    this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-                  }
-                  this._pause = true
-
                   if (this.onError) {
                     this.onError({
                       error: 'play_promise_reject',
@@ -678,11 +673,18 @@ export default class MSEPlayer {
                     })
                   }
 
+                  if (this.ws.connectionPromise) {
+                    this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+                  }
+                  this._pause = true
+
                   if (this.rejectThenMediaSourceOpen) {
                     this.rejectThenMediaSourceOpen()
                     this.resolveThenMediaSourceOpen = void 0
                     this.rejectThenMediaSourceOpen = void 0
                   }
+                  
+                  return reject()
                 })
               this.liveError = true
             }

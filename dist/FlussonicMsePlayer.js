@@ -727,6 +727,8 @@ var TYPE_CONTENT_AUDIO = _common.AUDIO;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
 var DEFAULT_CONNECTIONS_RETRIES = 0;
+var DEFAULT_RETRY_MUTED = false;
+var DEFAULT_AUTOPLAY_ON_INTERACTION = false;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -746,7 +748,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.10.4";
+      return "20.1.2";
     }
   }]);
 
@@ -791,6 +793,18 @@ var MSEPlayer = function () {
 
     this.retry = 0;
     this.retryConnectionTimer;
+
+    this.opts.retryMuted = this.opts.retryMuted ? this.opts.retryMuted : DEFAULT_RETRY_MUTED;
+
+    if (typeof this.opts.retryMuted !== 'boolean') {
+      throw new Error('invalid retryMuted param, should be boolean');
+    }
+
+    this.opts.autoplayOnInteraction = this.opts.autoplayOnInteraction ? this.opts.autoplayOnInteraction : DEFAULT_AUTOPLAY_ON_INTERACTION;
+
+    if (typeof this.opts.autoplayOnInteraction !== 'boolean') {
+      throw new Error('invalid autoplayOnInteraction param, should be boolean');
+    }
 
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
@@ -1051,6 +1065,7 @@ var MSEPlayer = function () {
             clearInterval(_this3.retryConnectionTimer);
             _this3.retry = 0;
           }
+          return resolve();
         }).catch(function (err) {
           _logger.logger.log('playPromise rejection. this.playing false', err);
           // if error, this.ws.connectionPromise can be undefined
@@ -1060,6 +1075,11 @@ var MSEPlayer = function () {
             }); // #6694
           }
           _this3._pause = true;
+
+          if (_this3.opts.retryMuted && _this3.media.muted == false) {
+            _this3.media.muted = true;
+            _this3._play(from, videoTrack, audioTrack);
+          }
 
           if (_this3.onError) {
             _this3.onError({
@@ -1075,6 +1095,7 @@ var MSEPlayer = function () {
           }
 
           _this3.restart();
+          return reject();
         });
 
         return _this3.playPromise;
@@ -1205,10 +1226,23 @@ var MSEPlayer = function () {
       throw new Error(_messages2.default.NOT_HTML_MEDIA_ELEMENT);
     }
     if (media) {
+      // for autoplay on interaction
+      if (this.opts.autoplayOnInteraction && this.media.autoplay && !this.media.muted) {
+        this.media.muted = true;
+        this.canStartUnmuted = this.canStartUnmuted.bind(this);
+        window.addEventListener('click', this.canStartUnmuted);
+        window.addEventListener('touchstart', this.canStartUnmuted);
+        if (this.onError) {
+          this.onError({
+            error: 'need_to_show_play_button'
+          });
+        }
+      }
+      // iOS autoplay with no fullscreen fix
+      media.WebKitPlaysInline = true;
       // setup the media source
       var ms = this.mediaSource = new MediaSource();
-      //Media Source listeners
-
+      // Media Source listeners
       this.onmse = this.onMediaSourceEnded.bind(this);
       this.onmsc = this.onMediaSourceClose.bind(this);
 
@@ -1244,9 +1278,11 @@ var MSEPlayer = function () {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
-      this.shouldPlay = false;
-      this._play(this.playTime, this.audioTrack, this.videoTrack);
+      if (!this.opts.autoplayOnInteraction) {
+        this.shouldPlay = false;
+        _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
+        this._play(this.playTime, this.audioTrack, this.videoTrack);
+      }
     }
   };
 
@@ -1256,8 +1292,26 @@ var MSEPlayer = function () {
     }
   };
 
-  MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
+  MSEPlayer.prototype.canStartUnmuted = function canStartUnmuted() {
     var _this7 = this;
+
+    if (this.media.muted == false) {
+      window.removeEventListener('click', this.canStartUnmuted);
+      window.removeEventListener('touchstart', this.canStartUnmuted);
+      return;
+    }
+    if (!this.playing && this.shouldPlay) {
+      this.shouldPlay = false;
+      this._play(this.playTime, this.audioTrack, this.videoTrack).then(function () {
+        _this7.media.muted = false;
+        window.removeEventListener('click', _this7.canStartUnmuted);
+        window.removeEventListener('touchstart', _this7.canStartUnmuted);
+      });
+    }
+  };
+
+  MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
+    var _this8 = this;
 
     if (this.stopRunning) {
       return;
@@ -1315,29 +1369,30 @@ var MSEPlayer = function () {
             if (!this.liveError) {
               this.playPromise = Promise.reject().then(function (success) {
                 // не вызывается
-                _this7.media.pause();
+                _this8.media.pause();
               }).catch(function (error) {
                 _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
 
-
-                if (_this7.ws.connectionPromise) {
-                  _this7.ws.connectionPromise.then(function () {
-                    return _this7.ws.pause();
-                  }); // #6694
-                }
-                _this7._pause = true;
-
-                if (_this7.onError) {
-                  _this7.onError(_defineProperty({
+                if (_this8.onError) {
+                  _this8.onError(_defineProperty({
                     error: 'play_promise_reject'
                   }, 'error', error));
                 }
 
-                if (_this7.rejectThenMediaSourceOpen) {
-                  _this7.rejectThenMediaSourceOpen();
-                  _this7.resolveThenMediaSourceOpen = void 0;
-                  _this7.rejectThenMediaSourceOpen = void 0;
+                if (_this8.ws.connectionPromise) {
+                  _this8.ws.connectionPromise.then(function () {
+                    return _this8.ws.pause();
+                  }); // #6694
                 }
+                _this8._pause = true;
+
+                if (_this8.rejectThenMediaSourceOpen) {
+                  _this8.rejectThenMediaSourceOpen();
+                  _this8.resolveThenMediaSourceOpen = void 0;
+                  _this8.rejectThenMediaSourceOpen = void 0;
+                }
+
+                return reject();
               });
               this.liveError = true;
             }
@@ -1478,7 +1533,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this8 = this;
+    var _this9 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1490,8 +1545,8 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this8._pause = false;
-          _this8.playing = true;
+          _this9._pause = false;
+          _this9.playing = true;
         });
       }
     }
@@ -1570,12 +1625,12 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onConnectionRetry = function onConnectionRetry() {
-    var _this9 = this;
+    var _this10 = this;
 
     if (!this.retryConnectionTimer && !this._stop) {
       if (this.retry < this.opts.connectionRetries) {
         this.retryConnectionTimer = setInterval(function () {
-          return _this9.retryConnection();
+          return _this10.retryConnection();
         }, 5000);
       }
     } else if (this.retry >= this.opts.connectionRetries) {
