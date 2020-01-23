@@ -748,7 +748,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.1.2";
+      return "20.1.3";
     }
   }]);
 
@@ -1093,9 +1093,7 @@ var MSEPlayer = function () {
             _this3.resolveThenMediaSourceOpen = void 0;
             _this3.rejectThenMediaSourceOpen = void 0;
           }
-
-          _this3.restart();
-          return reject();
+          // this.restart()
         });
 
         return _this3.playPromise;

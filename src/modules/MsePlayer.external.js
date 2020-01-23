@@ -385,9 +385,7 @@ export default class MSEPlayer {
               this.resolveThenMediaSourceOpen = void 0
               this.rejectThenMediaSourceOpen = void 0
             }
-
-            this.restart()
-            return reject()
+            // this.restart()
           })
 
         return this.playPromise
