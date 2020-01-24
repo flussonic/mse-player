@@ -681,8 +681,6 @@ export default class MSEPlayer {
                     this.resolveThenMediaSourceOpen = void 0
                     this.rejectThenMediaSourceOpen = void 0
                   }
-                  
-                  return reject()
                 })
               this.liveError = true
             }
