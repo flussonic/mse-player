@@ -346,7 +346,6 @@ export default class MSEPlayer {
         // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
         this.playPromise = this.media.play()
         this.startProgressTimer()
-
         this.playPromise
           .then(() => {
             this.onStartStalling() // switch off at progress checker
@@ -358,7 +357,6 @@ export default class MSEPlayer {
               clearInterval(this.retryConnectionTimer)
               this.retry = 0
             }
-            return resolve()
           })
           .catch(err => {
             logger.log('playPromise rejection. this.playing false', err)
@@ -366,7 +364,7 @@ export default class MSEPlayer {
             if (this.ws.connectionPromise) {
               this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
             }
-            this._pause = true
+            // this._pause = true
 
             if (this.opts.retryMuted && this.media.muted == false) {
               this.media.muted = true
@@ -385,7 +383,8 @@ export default class MSEPlayer {
               this.resolveThenMediaSourceOpen = void 0
               this.rejectThenMediaSourceOpen = void 0
             }
-            // this.restart()
+
+            this.stop()
           })
 
         return this.playPromise
@@ -653,37 +652,26 @@ export default class MSEPlayer {
             break
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            logger.log('do playPromise reject with error' /*, noLiveError*/)
-            // make playPromise rejected
+            logger.log('do playPromise reject with error')
+            if (this.ws.connectionPromise) {
+              this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+            }
             if (!this.liveError) {
-              this.playPromise = Promise.reject()
-                .then(success => {
-                  // не вызывается
-                  this.media.pause()
+              if (this.opts.onError) {
+                this.opts.onError({
+                  error: 'playPromise reject - stream unavaible',
                 })
-                .catch(error => {
-                  logger.log('no live record') // печатает "провал" + Stacktrace
-
-                  if (this.onError) {
-                    this.onError({
-                      error: 'play_promise_reject',
-                      error,
-                    })
-                  }
-
-                  if (this.ws.connectionPromise) {
-                    this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-                  }
-                  this._pause = true
-
-                  if (this.rejectThenMediaSourceOpen) {
-                    this.rejectThenMediaSourceOpen()
-                    this.resolveThenMediaSourceOpen = void 0
-                    this.rejectThenMediaSourceOpen = void 0
-                  }
-                })
+              }
               this.liveError = true
             }
+
+            if (this.rejectThenMediaSourceOpen) {
+              this.rejectThenMediaSourceOpen()
+              this.resolveThenMediaSourceOpen = void 0
+              this.rejectThenMediaSourceOpen = void 0
+            }
+            this.playPromise = Promise.reject('stream unavaible')
+            this.mediaSource.endOfStream()
             break
           case WS_EVENT_TRACKS_SWITCHED:
             break

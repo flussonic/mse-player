@@ -709,8 +709,6 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var WS_EVENT_PAUSED = 'paused';
@@ -748,7 +746,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.1.4";
+      return "20.1.5";
     }
   }]);
 
@@ -1054,7 +1052,6 @@ var MSEPlayer = function () {
         // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
         _this3.playPromise = _this3.media.play();
         _this3.startProgressTimer();
-
         _this3.playPromise.then(function () {
           _this3.onStartStalling(); // switch off at progress checker
           if (_this3.resolveThenMediaSourceOpen) {
@@ -1065,7 +1062,6 @@ var MSEPlayer = function () {
             clearInterval(_this3.retryConnectionTimer);
             _this3.retry = 0;
           }
-          return resolve();
         }).catch(function (err) {
           _logger.logger.log('playPromise rejection. this.playing false', err);
           // if error, this.ws.connectionPromise can be undefined
@@ -1074,7 +1070,7 @@ var MSEPlayer = function () {
               return _this3.ws.pause();
             }); // #6694
           }
-          _this3._pause = true;
+          // this._pause = true
 
           if (_this3.opts.retryMuted && _this3.media.muted == false) {
             _this3.media.muted = true;
@@ -1093,7 +1089,8 @@ var MSEPlayer = function () {
             _this3.resolveThenMediaSourceOpen = void 0;
             _this3.rejectThenMediaSourceOpen = void 0;
           }
-          // this.restart()
+
+          _this3.stop();
         });
 
         return _this3.playPromise;
@@ -1362,36 +1359,28 @@ var MSEPlayer = function () {
             break;
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            _logger.logger.log('do playPromise reject with error' /*, noLiveError*/);
-            // make playPromise rejected
+            _logger.logger.log('do playPromise reject with error');
+            if (this.ws.connectionPromise) {
+              this.ws.connectionPromise.then(function () {
+                return _this8.ws.pause();
+              }); // #6694
+            }
             if (!this.liveError) {
-              this.playPromise = Promise.reject().then(function (success) {
-                // не вызывается
-                _this8.media.pause();
-              }).catch(function (error) {
-                _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
-
-                if (_this8.onError) {
-                  _this8.onError(_defineProperty({
-                    error: 'play_promise_reject'
-                  }, 'error', error));
-                }
-
-                if (_this8.ws.connectionPromise) {
-                  _this8.ws.connectionPromise.then(function () {
-                    return _this8.ws.pause();
-                  }); // #6694
-                }
-                _this8._pause = true;
-
-                if (_this8.rejectThenMediaSourceOpen) {
-                  _this8.rejectThenMediaSourceOpen();
-                  _this8.resolveThenMediaSourceOpen = void 0;
-                  _this8.rejectThenMediaSourceOpen = void 0;
-                }
-              });
+              if (this.opts.onError) {
+                this.opts.onError({
+                  error: 'playPromise reject - stream unavaible'
+                });
+              }
               this.liveError = true;
             }
+
+            if (this.rejectThenMediaSourceOpen) {
+              this.rejectThenMediaSourceOpen();
+              this.resolveThenMediaSourceOpen = void 0;
+              this.rejectThenMediaSourceOpen = void 0;
+            }
+            this.playPromise = Promise.reject('stream unavaible');
+            this.mediaSource.endOfStream();
             break;
           case WS_EVENT_TRACKS_SWITCHED:
             break;
