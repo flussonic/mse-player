@@ -110,6 +110,7 @@ export default class MSEPlayer {
     }
     this.onMediaInfo = opts && opts.onMediaInfo
     this.onError = opts && opts.onError
+    this.onAutoplay = opts && opts.onAutoplay
 
     this.init()
 
@@ -510,8 +511,7 @@ export default class MSEPlayer {
     }
     if (media) {
       // for autoplay on interaction
-      if (this.opts.autoplayOnInteraction && this.media.autoplay && !this.media.muted) {
-        this.media.muted = true
+      if (this.opts.autoplayOnInteraction && this.media.autoplay && this.media.muted !== true) {
         this.canStartUnmuted = this.canStartUnmuted.bind(this)
         window.addEventListener('click', this.canStartUnmuted)
         window.addEventListener('touchstart', this.canStartUnmuted)
@@ -519,6 +519,9 @@ export default class MSEPlayer {
           this.onError({
             error: 'need_to_show_play_button',
           })
+        }
+        if (this.onAutoplay) {
+          this.onAutoplay()
         }
       }
       // iOS autoplay with no fullscreen fix
@@ -581,11 +584,6 @@ export default class MSEPlayer {
   }
 
   canStartUnmuted() {
-    if (this.media.muted == false) {
-      window.removeEventListener('click', this.canStartUnmuted)
-      window.removeEventListener('touchstart', this.canStartUnmuted)
-      return
-    }
     if (!this.playing && this.shouldPlay) {
       this.shouldPlay = false
       this._play(this.playTime, this.audioTrack, this.videoTrack).then(() => {

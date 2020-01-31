@@ -746,7 +746,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.1.5";
+      return "20.1.6";
     }
   }]);
 
@@ -814,6 +814,7 @@ var MSEPlayer = function () {
     }
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
+    this.onAutoplay = opts && opts.onAutoplay;
 
     this.init();
 
@@ -1222,8 +1223,7 @@ var MSEPlayer = function () {
     }
     if (media) {
       // for autoplay on interaction
-      if (this.opts.autoplayOnInteraction && this.media.autoplay && !this.media.muted) {
-        this.media.muted = true;
+      if (this.opts.autoplayOnInteraction && this.media.autoplay && this.media.muted !== true) {
         this.canStartUnmuted = this.canStartUnmuted.bind(this);
         window.addEventListener('click', this.canStartUnmuted);
         window.addEventListener('touchstart', this.canStartUnmuted);
@@ -1231,6 +1231,9 @@ var MSEPlayer = function () {
           this.onError({
             error: 'need_to_show_play_button'
           });
+        }
+        if (this.onAutoplay) {
+          this.onAutoplay();
         }
       }
       // iOS autoplay with no fullscreen fix
@@ -1290,11 +1293,6 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.canStartUnmuted = function canStartUnmuted() {
     var _this7 = this;
 
-    if (this.media.muted == false) {
-      window.removeEventListener('click', this.canStartUnmuted);
-      window.removeEventListener('touchstart', this.canStartUnmuted);
-      return;
-    }
     if (!this.playing && this.shouldPlay) {
       this.shouldPlay = false;
       this._play(this.playTime, this.audioTrack, this.videoTrack).then(function () {

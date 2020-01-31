@@ -115,6 +115,9 @@ function onLoad() {
         window.addEventListener('touchstart', window.hidePlayButton)
       }
     },
+    onAutoplay: () => {
+      console.log('onAutoplay')
+    },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
