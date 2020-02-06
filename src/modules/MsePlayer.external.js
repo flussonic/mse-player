@@ -27,7 +27,7 @@ const DEFAULT_ERRORS_BEFORE_STOP = 1
 const DEFAULT_UPDATE = 100
 const DEFAULT_CONNECTIONS_RETRIES = 0
 const DEFAULT_RETRY_MUTED = false
-const DEFAULT_AUTOPLAY_ON_INTERACTION = false
+const DEFAULT_FORCE_UNMUTED = false
 
 export default class MSEPlayer {
   static get version() {
@@ -92,14 +92,6 @@ export default class MSEPlayer {
       throw new Error('invalid retryMuted param, should be boolean')
     }
 
-    this.opts.autoplayOnInteraction = this.opts.autoplayOnInteraction
-      ? this.opts.autoplayOnInteraction
-      : DEFAULT_AUTOPLAY_ON_INTERACTION
-
-    if (typeof this.opts.autoplayOnInteraction !== 'boolean') {
-      throw new Error('invalid autoplayOnInteraction param, should be boolean')
-    }
-
     this.onProgress = opts && opts.onProgress
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect
@@ -115,7 +107,8 @@ export default class MSEPlayer {
     this.init()
 
     if (media instanceof HTMLMediaElement) {
-      this.onAttachMedia({media})
+      // iOS autoplay with no fullscreen fix
+      media.WebKitPlaysInline = true
       // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
       // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
       // this.media.onerror = function() {
@@ -287,6 +280,7 @@ export default class MSEPlayer {
   _play(from, videoTrack, audioTrack) {
     // debugger
     this.liveError = false
+    let canPlay = false
     return new Promise((resolve, reject) => {
       logger.log('_play', from, videoTrack, audioTrack)
 
@@ -343,52 +337,75 @@ export default class MSEPlayer {
         return
       }
 
-      this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTrack).then(() => {
-        // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-        this.playPromise = this.media.play()
-        this.startProgressTimer()
-        this.playPromise
-          .then(() => {
-            this.onStartStalling() // switch off at progress checker
-            if (this.resolveThenMediaSourceOpen) {
-              this._stop = false
-              this.resolveThenMediaSourceOpen()
-              this.resolveThenMediaSourceOpen = void 0
-              this.rejectThenMediaSourceOpen = void 0
-              clearInterval(this.retryConnectionTimer)
-              this.retry = 0
-            }
-          })
-          .catch(err => {
-            logger.log('playPromise rejection. this.playing false', err)
-            // if error, this.ws.connectionPromise can be undefined
-            if (this.ws.connectionPromise) {
-              this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-            }
-            // this._pause = true
+      // if (this.opts.forceUnmuted) {
+      //   this.media.muted = false
+      // }
 
-            if (this.opts.retryMuted && this.media.muted == false) {
-              this.media.muted = true
-              this._play(from, videoTrack, audioTrack)
-            }
+      // for autoplay on interaction
+      const autoPlayFunc = new Promise((resolve, reject) => {
+        if (this.media.autoplay && this.media.muted !== true) {
+          if (this.onAutoplay) {
+            this.onAutoplay(() => {
+              this.media.muted = false
+              return resolve()
+            })
+          } else {
+            this.media.muted = true
+            return resolve()
+          }
+        } else {
+          return resolve()
+        }
+      })
 
-            if (this.onError) {
-              this.onError({
-                error: 'play_promise_reject',
-                err,
-              })
-            }
+      autoPlayFunc.then(() => {
+        this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTrack).then(() => {
+          // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+          this.playPromise = this.media.play()
+          this.startProgressTimer()
+          this.playPromise
+            .then(() => {
+              this.onStartStalling() // switch off at progress checker
+              if (this.resolveThenMediaSourceOpen) {
+                this._stop = false
+                this.resolveThenMediaSourceOpen()
+                this.resolveThenMediaSourceOpen = void 0
+                this.rejectThenMediaSourceOpen = void 0
+                clearInterval(this.retryConnectionTimer)
+                this.retry = 0
+              }
+            })
+            .catch(err => {
+              logger.log('playPromise rejection. this.playing false', err)
+              // if error, this.ws.connectionPromise can be undefined
+              if (this.ws.connectionPromise) {
+                this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+              }
+              // this._pause = true
 
-            if (this.rejectThenMediaSourceOpen) {
-              this.rejectThenMediaSourceOpen()
-              this.resolveThenMediaSourceOpen = void 0
-              this.rejectThenMediaSourceOpen = void 0
-            }
+              if (this.opts.retryMuted && this.media.muted == false) {
+                this.media.muted = true
+                this._play(from, videoTrack, audioTrack)
+              }
 
-            this.stop()
-          })
+              if (this.onError) {
+                this.onError({
+                  error: 'play_promise_reject',
+                  err,
+                })
+              }
 
-        return this.playPromise
+              if (this.rejectThenMediaSourceOpen) {
+                this.rejectThenMediaSourceOpen()
+                this.resolveThenMediaSourceOpen = void 0
+                this.rejectThenMediaSourceOpen = void 0
+              }
+
+              this.stop()
+            })
+
+          return this.playPromise
+        })
       })
     })
   }
@@ -510,22 +527,6 @@ export default class MSEPlayer {
       throw new Error(MSG.NOT_HTML_MEDIA_ELEMENT)
     }
     if (media) {
-      // for autoplay on interaction
-      if (this.opts.autoplayOnInteraction && this.media.autoplay && this.media.muted !== true) {
-        this.canStartUnmuted = this.canStartUnmuted.bind(this)
-        window.addEventListener('click', this.canStartUnmuted)
-        window.addEventListener('touchstart', this.canStartUnmuted)
-        if (this.onError) {
-          this.onError({
-            error: 'need_to_show_play_button',
-          })
-        }
-        if (this.onAutoplay) {
-          this.onAutoplay()
-        }
-      }
-      // iOS autoplay with no fullscreen fix
-      media.WebKitPlaysInline = true
       // setup the media source
       const ms = (this.mediaSource = new MediaSource())
       // Media Source listeners
@@ -564,16 +565,14 @@ export default class MSEPlayer {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      if (!this.opts.autoplayOnInteraction) {
-        this.shouldPlay = false
-        logger.info(
-          `readyState now is ${this.mediaSource.readyState}, and will be played`,
-          this.playTime,
-          this.audioTrack,
-          this.videoTrack
-        )
-        this._play(this.playTime, this.audioTrack, this.videoTrack)
-      }
+      this.shouldPlay = false
+      logger.info(
+        `readyState now is ${this.mediaSource.readyState}, and will be played`,
+        this.playTime,
+        this.audioTrack,
+        this.videoTrack
+      )
+      this._play(this.playTime, this.audioTrack, this.videoTrack)
     }
   }
 
@@ -583,16 +582,16 @@ export default class MSEPlayer {
     }
   }
 
-  canStartUnmuted() {
-    if (!this.playing && this.shouldPlay) {
-      this.shouldPlay = false
-      this._play(this.playTime, this.audioTrack, this.videoTrack).then(() => {
-        this.media.muted = false
-        window.removeEventListener('click', this.canStartUnmuted)
-        window.removeEventListener('touchstart', this.canStartUnmuted)
-      })
-    }
-  }
+  // canStartUnmuted() {
+  //   if (!this.playing && this.shouldPlay) {
+  //     this.shouldPlay = false
+  //     this._play(this.playTime, this.audioTrack, this.videoTrack).then(() => {
+  //       this.media.muted = false
+  //       window.removeEventListener('click', this.canStartUnmuted)
+  //       window.removeEventListener('touchstart', this.canStartUnmuted)
+  //     })
+  //   }
+  // }
 
   dispatchMessage(e) {
     if (this.stopRunning) {

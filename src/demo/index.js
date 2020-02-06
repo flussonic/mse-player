@@ -42,10 +42,9 @@ function onLoad() {
 
   const opts = {
     debug: true,
-    connectionRetries: 1,
+    connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: false,
-    autoplayOnInteraction: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -108,27 +107,38 @@ function onLoad() {
     },
     onError: err => {
       console.log('••••• ERRROR', err)
-      if (err.error && err.error === 'need_to_show_play_button') {
-        const element = document.getElementById('playButton')
-        element.style.display = 'flex'
-        window.addEventListener('click', window.hidePlayButton)
-        window.addEventListener('touchstart', window.hidePlayButton)
-      }
     },
-    onAutoplay: () => {
-      console.log('onAutoplay')
+    onAutoplay: (func) => {
+      // console.log('onAutoplay', func)
+      const element = document.getElementById('playButton')
+      element.style.display = 'flex'
+      window.autoplayFunc = func.bind(this)
+      window.addEventListener('click',  window.hidePlayButton)
+      window.addEventListener('touchstart', window.hidePlayButton)
     },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
-  window.player
-    .play()
-    .then(success => {
-      console.log('resolve', success)
-    })
-    .catch(err => {
-      console.log(err)
-    })
+  window.play = () => {
+    window.player
+      .play()
+      .then(success => {
+        console.log('resolve', success)
+      })
+      .catch(err => {
+        console.log(err)
+      })
+  }
+
+  window.hidePlayButton = () => {
+    const element = document.getElementById('playButton')
+    element.style.display = 'none'
+    window.removeEventListener('click', window.hidePlayButton)
+    window.removeEventListener('touchstart', window.hidePlayButton)
+    window.autoplayFunc()
+  }
+
+  window.play()
 
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
@@ -151,13 +161,6 @@ function onLoad() {
     if (value) {
       window.player.seek(value)
     } else throw new Error('incorrect input!')
-  }
-
-  window.hidePlayButton = () => {
-    const element = document.getElementById('playButton')
-    element.style.display = 'none'
-    window.removeEventListener('click', window.hidePlayButton)
-    window.removeEventListener('touchstart', window.hidePlayButton)
   }
 
   // const ctx = document.getElementById('myChart').getContext('2d')

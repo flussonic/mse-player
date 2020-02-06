@@ -34,7 +34,7 @@
       justify-content: center;
       align-items: center;
       font-size: 180px;
-      margin-left: 46px;
+      background: #000;
       color: #fff;
       cursor: pointer;
     }
@@ -53,11 +53,11 @@
   </style>
 <body>
   <div class="player-container">
-    <video id="player" controls="false" autoplay="true"></video>
+    <video id="player" controls="false" autoplay="false"></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
-    <div id="playButton" class="playButton" onclick="window.hidePlayButton()">▶</div>
+    <div id="playButton" class="playButton">▶</div>
   </div>
   <div class="controls-panel">
     <div class="utc">

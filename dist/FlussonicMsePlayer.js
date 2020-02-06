@@ -726,7 +726,7 @@ var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
 var DEFAULT_CONNECTIONS_RETRIES = 0;
 var DEFAULT_RETRY_MUTED = false;
-var DEFAULT_AUTOPLAY_ON_INTERACTION = false;
+var DEFAULT_FORCE_UNMUTED = false;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -746,7 +746,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.1.6";
+      return "20.2.1";
     }
   }]);
 
@@ -798,10 +798,10 @@ var MSEPlayer = function () {
       throw new Error('invalid retryMuted param, should be boolean');
     }
 
-    this.opts.autoplayOnInteraction = this.opts.autoplayOnInteraction ? this.opts.autoplayOnInteraction : DEFAULT_AUTOPLAY_ON_INTERACTION;
+    this.opts.forceUnmuted = this.opts.forceUnmuted ? this.opts.forceUnmuted : DEFAULT_FORCE_UNMUTED;
 
-    if (typeof this.opts.autoplayOnInteraction !== 'boolean') {
-      throw new Error('invalid autoplayOnInteraction param, should be boolean');
+    if (typeof this.opts.forceUnmuted !== 'boolean') {
+      throw new Error('invalid forceUnmuted param, should be boolean');
     }
 
     this.onProgress = opts && opts.onProgress;
@@ -819,6 +819,21 @@ var MSEPlayer = function () {
     this.init();
 
     if (media instanceof HTMLMediaElement) {
+      // for autoplay on interaction
+      if (this.media.autoplay && this.media.muted !== true) {
+        if (this.onError) {
+          this.onError({
+            error: 'need_to_show_play_button'
+          });
+        }
+        if (this.onAutoplay) {
+          this.onAutoplay();
+        }
+      }
+
+      // iOS autoplay with no fullscreen fix
+      media.WebKitPlaysInline = true;
+
       this.onAttachMedia({ media: media });
       // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
       // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
@@ -1049,6 +1064,10 @@ var MSEPlayer = function () {
         return;
       }
 
+      if (_this3.opts.forceUnmuted) {
+        _this3.media.muted = false;
+      }
+
       _this3.ws.start(_this3.url, _this3.playTime, _this3.videoTrack, _this3.audioTrack).then(function () {
         // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
         _this3.playPromise = _this3.media.play();
@@ -1222,22 +1241,6 @@ var MSEPlayer = function () {
       throw new Error(_messages2.default.NOT_HTML_MEDIA_ELEMENT);
     }
     if (media) {
-      // for autoplay on interaction
-      if (this.opts.autoplayOnInteraction && this.media.autoplay && this.media.muted !== true) {
-        this.canStartUnmuted = this.canStartUnmuted.bind(this);
-        window.addEventListener('click', this.canStartUnmuted);
-        window.addEventListener('touchstart', this.canStartUnmuted);
-        if (this.onError) {
-          this.onError({
-            error: 'need_to_show_play_button'
-          });
-        }
-        if (this.onAutoplay) {
-          this.onAutoplay();
-        }
-      }
-      // iOS autoplay with no fullscreen fix
-      media.WebKitPlaysInline = true;
       // setup the media source
       var ms = this.mediaSource = new MediaSource();
       // Media Source listeners
@@ -1276,11 +1279,9 @@ var MSEPlayer = function () {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      if (!this.opts.autoplayOnInteraction) {
-        this.shouldPlay = false;
-        _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
-        this._play(this.playTime, this.audioTrack, this.videoTrack);
-      }
+      this.shouldPlay = false;
+      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
+      this._play(this.playTime, this.audioTrack, this.videoTrack);
     }
   };
 
@@ -1290,21 +1291,19 @@ var MSEPlayer = function () {
     }
   };
 
-  MSEPlayer.prototype.canStartUnmuted = function canStartUnmuted() {
-    var _this7 = this;
-
-    if (!this.playing && this.shouldPlay) {
-      this.shouldPlay = false;
-      this._play(this.playTime, this.audioTrack, this.videoTrack).then(function () {
-        _this7.media.muted = false;
-        window.removeEventListener('click', _this7.canStartUnmuted);
-        window.removeEventListener('touchstart', _this7.canStartUnmuted);
-      });
-    }
-  };
+  // canStartUnmuted() {
+  //   if (!this.playing && this.shouldPlay) {
+  //     this.shouldPlay = false
+  //     this._play(this.playTime, this.audioTrack, this.videoTrack).then(() => {
+  //       this.media.muted = false
+  //       window.removeEventListener('click', this.canStartUnmuted)
+  //       window.removeEventListener('touchstart', this.canStartUnmuted)
+  //     })
+  //   }
+  // }
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
-    var _this8 = this;
+    var _this7 = this;
 
     if (this.stopRunning) {
       return;
@@ -1360,7 +1359,7 @@ var MSEPlayer = function () {
             _logger.logger.log('do playPromise reject with error');
             if (this.ws.connectionPromise) {
               this.ws.connectionPromise.then(function () {
-                return _this8.ws.pause();
+                return _this7.ws.pause();
               }); // #6694
             }
             if (!this.liveError) {
@@ -1516,7 +1515,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this9 = this;
+    var _this8 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1528,8 +1527,8 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this9._pause = false;
-          _this9.playing = true;
+          _this8._pause = false;
+          _this8.playing = true;
         });
       }
     }
@@ -1608,12 +1607,12 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onConnectionRetry = function onConnectionRetry() {
-    var _this10 = this;
+    var _this9 = this;
 
     if (!this.retryConnectionTimer && !this._stop) {
       if (this.retry < this.opts.connectionRetries) {
         this.retryConnectionTimer = setInterval(function () {
-          return _this10.retryConnection();
+          return _this9.retryConnection();
         }, 5000);
       }
     } else if (this.retry >= this.opts.connectionRetries) {
