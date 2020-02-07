@@ -746,7 +746,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.2.1";
+      return "20.2.2";
     }
   }]);
 
@@ -798,12 +798,6 @@ var MSEPlayer = function () {
       throw new Error('invalid retryMuted param, should be boolean');
     }
 
-    this.opts.forceUnmuted = this.opts.forceUnmuted ? this.opts.forceUnmuted : DEFAULT_FORCE_UNMUTED;
-
-    if (typeof this.opts.forceUnmuted !== 'boolean') {
-      throw new Error('invalid forceUnmuted param, should be boolean');
-    }
-
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect;
@@ -819,22 +813,8 @@ var MSEPlayer = function () {
     this.init();
 
     if (media instanceof HTMLMediaElement) {
-      // for autoplay on interaction
-      if (this.media.autoplay && this.media.muted !== true) {
-        if (this.onError) {
-          this.onError({
-            error: 'need_to_show_play_button'
-          });
-        }
-        if (this.onAutoplay) {
-          this.onAutoplay();
-        }
-      }
-
       // iOS autoplay with no fullscreen fix
       media.WebKitPlaysInline = true;
-
-      this.onAttachMedia({ media: media });
       // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
       // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
       // this.media.onerror = function() {
@@ -1008,6 +988,7 @@ var MSEPlayer = function () {
 
     // debugger
     this.liveError = false;
+    var canPlay = false;
     return new Promise(function (resolve, reject) {
       _logger.logger.log('_play', from, videoTrack, audioTrack);
 
@@ -1064,56 +1045,75 @@ var MSEPlayer = function () {
         return;
       }
 
-      if (_this3.opts.forceUnmuted) {
-        _this3.media.muted = false;
-      }
+      // if (this.opts.forceUnmuted) {
+      //   this.media.muted = false
+      // }
 
-      _this3.ws.start(_this3.url, _this3.playTime, _this3.videoTrack, _this3.audioTrack).then(function () {
-        // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-        _this3.playPromise = _this3.media.play();
-        _this3.startProgressTimer();
-        _this3.playPromise.then(function () {
-          _this3.onStartStalling(); // switch off at progress checker
-          if (_this3.resolveThenMediaSourceOpen) {
-            _this3._stop = false;
-            _this3.resolveThenMediaSourceOpen();
-            _this3.resolveThenMediaSourceOpen = void 0;
-            _this3.rejectThenMediaSourceOpen = void 0;
-            clearInterval(_this3.retryConnectionTimer);
-            _this3.retry = 0;
-          }
-        }).catch(function (err) {
-          _logger.logger.log('playPromise rejection. this.playing false', err);
-          // if error, this.ws.connectionPromise can be undefined
-          if (_this3.ws.connectionPromise) {
-            _this3.ws.connectionPromise.then(function () {
-              return _this3.ws.pause();
-            }); // #6694
-          }
-          // this._pause = true
-
-          if (_this3.opts.retryMuted && _this3.media.muted == false) {
-            _this3.media.muted = true;
-            _this3._play(from, videoTrack, audioTrack);
-          }
-
-          if (_this3.onError) {
-            _this3.onError({
-              error: 'play_promise_reject',
-              err: err
+      // for autoplay on interaction
+      var autoPlayFunc = new Promise(function (resolve, reject) {
+        if (_this3.media.autoplay && _this3.media.muted !== true) {
+          if (_this3.onAutoplay) {
+            _this3.onAutoplay(function () {
+              _this3.media.muted = false;
+              return resolve();
             });
+          } else {
+            _this3.media.muted = true;
+            return resolve();
           }
+        } else {
+          return resolve();
+        }
+      });
 
-          if (_this3.rejectThenMediaSourceOpen) {
-            _this3.rejectThenMediaSourceOpen();
-            _this3.resolveThenMediaSourceOpen = void 0;
-            _this3.rejectThenMediaSourceOpen = void 0;
-          }
+      autoPlayFunc.then(function () {
+        _this3.ws.start(_this3.url, _this3.playTime, _this3.videoTrack, _this3.audioTrack).then(function () {
+          // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+          _this3.playPromise = _this3.media.play();
+          _this3.startProgressTimer();
+          _this3.playPromise.then(function () {
+            _this3.onStartStalling(); // switch off at progress checker
+            if (_this3.resolveThenMediaSourceOpen) {
+              _this3._stop = false;
+              _this3.resolveThenMediaSourceOpen();
+              _this3.resolveThenMediaSourceOpen = void 0;
+              _this3.rejectThenMediaSourceOpen = void 0;
+              clearInterval(_this3.retryConnectionTimer);
+              _this3.retry = 0;
+            }
+          }).catch(function (err) {
+            _logger.logger.log('playPromise rejection. this.playing false', err);
+            // if error, this.ws.connectionPromise can be undefined
+            if (_this3.ws.connectionPromise) {
+              _this3.ws.connectionPromise.then(function () {
+                return _this3.ws.pause();
+              }); // #6694
+            }
+            // this._pause = true
 
-          _this3.stop();
+            if (_this3.opts.retryMuted && _this3.media.muted == false) {
+              _this3.media.muted = true;
+              _this3._play(from, videoTrack, audioTrack);
+            }
+
+            if (_this3.onError) {
+              _this3.onError({
+                error: 'play_promise_reject',
+                err: err
+              });
+            }
+
+            if (_this3.rejectThenMediaSourceOpen) {
+              _this3.rejectThenMediaSourceOpen();
+              _this3.resolveThenMediaSourceOpen = void 0;
+              _this3.rejectThenMediaSourceOpen = void 0;
+            }
+
+            _this3.stop();
+          });
+
+          return _this3.playPromise;
         });
-
-        return _this3.playPromise;
       });
     });
   };
