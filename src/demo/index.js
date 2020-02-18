@@ -44,7 +44,7 @@ function onLoad() {
     debug: true,
     connectionRetries: 0,
     errorsBeforeStop: 10,
-    retryMuted: false,
+    retryMuted: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -108,13 +108,16 @@ function onLoad() {
     onError: err => {
       console.log('••••• ERRROR', err)
     },
-    onAutoplay: (func) => {
+    onAutoplay: func => {
       // console.log('onAutoplay', func)
       const element = document.getElementById('playButton')
       element.style.display = 'flex'
       window.autoplayFunc = func.bind(this)
-      window.addEventListener('click',  window.hidePlayButton)
+      window.addEventListener('click', window.hidePlayButton)
       window.addEventListener('touchstart', window.hidePlayButton)
+    },
+    onMuted: () => {
+      console.log('[onMuted]')
     },
   }
 

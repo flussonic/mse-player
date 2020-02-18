@@ -746,7 +746,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.2.2";
+      return "20.2.3";
     }
   }]);
 
@@ -809,6 +809,7 @@ var MSEPlayer = function () {
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
     this.onAutoplay = opts && opts.onAutoplay;
+    this.onMuted = opts && opts.onMuted;
 
     this.init();
 
@@ -1051,7 +1052,7 @@ var MSEPlayer = function () {
 
       // for autoplay on interaction
       var autoPlayFunc = new Promise(function (resolve, reject) {
-        if (_this3.media.autoplay && _this3.media.muted !== true) {
+        if (_this3.media.autoplay && _this3.media.muted !== true && !_this3.opts.retryMuted) {
           if (_this3.onAutoplay) {
             _this3.onAutoplay(function () {
               _this3.media.muted = false;
@@ -1082,7 +1083,7 @@ var MSEPlayer = function () {
               _this3.retry = 0;
             }
           }).catch(function (err) {
-            _logger.logger.log('playPromise rejection. this.playing false', err);
+            _logger.logger.log('playPromise rejection.', err);
             // if error, this.ws.connectionPromise can be undefined
             if (_this3.ws.connectionPromise) {
               _this3.ws.connectionPromise.then(function () {
@@ -1092,6 +1093,9 @@ var MSEPlayer = function () {
             // this._pause = true
 
             if (_this3.opts.retryMuted && _this3.media.muted == false) {
+              if (_this3.onMuted) {
+                _this3.onMuted();
+              }
               _this3.media.muted = true;
               _this3._play(from, videoTrack, audioTrack);
             }
@@ -1109,7 +1113,9 @@ var MSEPlayer = function () {
               _this3.rejectThenMediaSourceOpen = void 0;
             }
 
-            _this3.stop();
+            if (!_this3.opts.retryMuted) {
+              _this3.stop();
+            }
           });
 
           return _this3.playPromise;

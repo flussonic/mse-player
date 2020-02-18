@@ -103,6 +103,7 @@ export default class MSEPlayer {
     this.onMediaInfo = opts && opts.onMediaInfo
     this.onError = opts && opts.onError
     this.onAutoplay = opts && opts.onAutoplay
+    this.onMuted = opts && opts.onMuted
 
     this.init()
 
@@ -343,7 +344,7 @@ export default class MSEPlayer {
 
       // for autoplay on interaction
       const autoPlayFunc = new Promise((resolve, reject) => {
-        if (this.media.autoplay && this.media.muted !== true) {
+        if (this.media.autoplay && this.media.muted !== true && !this.opts.retryMuted) {
           if (this.onAutoplay) {
             this.onAutoplay(() => {
               this.media.muted = false
@@ -376,7 +377,7 @@ export default class MSEPlayer {
               }
             })
             .catch(err => {
-              logger.log('playPromise rejection. this.playing false', err)
+              logger.log('playPromise rejection.', err)
               // if error, this.ws.connectionPromise can be undefined
               if (this.ws.connectionPromise) {
                 this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
@@ -384,6 +385,9 @@ export default class MSEPlayer {
               // this._pause = true
 
               if (this.opts.retryMuted && this.media.muted == false) {
+                if (this.onMuted) {
+                  this.onMuted()
+                }
                 this.media.muted = true
                 this._play(from, videoTrack, audioTrack)
               }
@@ -401,7 +405,9 @@ export default class MSEPlayer {
                 this.rejectThenMediaSourceOpen = void 0
               }
 
-              this.stop()
+              if (!this.opts.retryMuted) {
+                this.stop()
+              }
             })
 
           return this.playPromise
