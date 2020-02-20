@@ -338,14 +338,24 @@ export default class MSEPlayer {
         return
       }
 
-      // if (this.opts.forceUnmuted) {
-      //   this.media.muted = false
-      // }
+      const ifApple = function() {
+        var iDevices = ['iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod', 'Safari']
+
+        if (!!navigator.platform) {
+          while (iDevices.length) {
+            if (navigator.platform === iDevices.pop()) {
+              return true
+            }
+          }
+        }
+
+        return false
+      }
 
       // for autoplay on interaction
       const autoPlayFunc = new Promise((resolve, reject) => {
         if (this.media.autoplay && this.media.muted !== true && !this.opts.retryMuted) {
-          if (this.onAutoplay) {
+          if (this.onAutoplay && !ifApple()) {
             this.onAutoplay(() => {
               this.media.muted = false
               return resolve()

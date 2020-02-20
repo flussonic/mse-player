@@ -746,7 +746,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.2.3";
+      return "20.2.4";
     }
   }]);
 
@@ -1046,14 +1046,24 @@ var MSEPlayer = function () {
         return;
       }
 
-      // if (this.opts.forceUnmuted) {
-      //   this.media.muted = false
-      // }
+      var ifApple = function ifApple() {
+        var iDevices = ['iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod', 'Safari'];
+
+        if (!!navigator.platform) {
+          while (iDevices.length) {
+            if (navigator.platform === iDevices.pop()) {
+              return true;
+            }
+          }
+        }
+
+        return false;
+      };
 
       // for autoplay on interaction
       var autoPlayFunc = new Promise(function (resolve, reject) {
         if (_this3.media.autoplay && _this3.media.muted !== true && !_this3.opts.retryMuted) {
-          if (_this3.onAutoplay) {
+          if (_this3.onAutoplay && !ifApple()) {
             _this3.onAutoplay(function () {
               _this3.media.muted = false;
               return resolve();
