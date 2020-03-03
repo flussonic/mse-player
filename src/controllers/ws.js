@@ -109,6 +109,12 @@ export default class WebSocketController {
 
   onWSClose(event) {
     logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason) // например, "убит" процесс сервера
+    if (this.opts.error) {
+      this.opts.error({
+        error: 'WebSocket lost connection',
+        err: `WebSocket lost connection with code ${event.code} and reason: ${event.reason}`,
+      })
+    }
     if (this.opts.wsReconnect) {
       if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
         logger.log('Clean websocket stop')

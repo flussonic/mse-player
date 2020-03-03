@@ -2207,6 +2207,12 @@ var WebSocketController = function () {
     var _this3 = this;
 
     _logger.logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason); // например, "убит" процесс сервера
+    if (this.opts.error) {
+      this.opts.error({
+        error: 'WebSocket lost connection',
+        err: 'WebSocket lost connection with code ' + event.code + ' and reason: ' + event.reason
+      });
+    }
     if (this.opts.wsReconnect) {
       if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
         _logger.logger.log('Clean websocket stop');
