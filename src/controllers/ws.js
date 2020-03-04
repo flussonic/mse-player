@@ -113,6 +113,7 @@ export default class WebSocketController {
       this.opts.error({
         error: 'WebSocket lost connection',
         err: `WebSocket lost connection with code ${event.code} and reason: ${event.reason}`,
+        code: event.code,
       })
     }
     if (this.opts.wsReconnect) {
