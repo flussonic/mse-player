@@ -2245,7 +2245,7 @@ var WebSocketController = function () {
     if (this.websocket) {
       this.pause();
       this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsm);
-      // this.websocket.onclose = function() {} // disable onclose handler first
+      this.websocket.removeEventListener(_events2.default.WS_CLOSE, this.onwsc);
       this.websocket.close();
       this.websocket.onclose = void 0; // disable onclose handler first
       clearTimeout(this.reconnect);
