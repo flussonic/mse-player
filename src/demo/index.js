@@ -27,24 +27,25 @@ function onLoad() {
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
   const utcLabel = document.getElementById('utc')
-  const realLabel = document.getElementById('real')
   const stallingLabel = document.getElementById('stallingLabel')
-  const showStallingIndicator = value => {
+  const showStallingIndicator = (value) => {
     stallingLabel.innerText = '' + value
   }
 
   let showFirstFrameUTC = false
 
-  // let graphUTC = []
-  // let graphUTCLabels = []
-  // let graphSegmentsVideo = []
-  // let graphSegmentsAudio = []
+  let graphUTCLabels = []
+  let graphCurrentTime = []
+  let graphBufferedTime = []
+  let mseVideoBufferSize = []
+  let mseAudioBufferSize = []
 
   const opts = {
     debug: true,
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
+    maxBufferDelay: 5,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -54,9 +55,8 @@ function onLoad() {
     onSeeked: () => {
       showFirstFrameUTC = true
     },
-    onProgress: utc => {
+    onProgress: (utc) => {
       utcLabel.innerText = humanTime(utc)
-      realLabel.innerText = humanTime(new Date().getTime() / 1000)
       if (showFirstFrameUTC) {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
@@ -84,10 +84,10 @@ function onLoad() {
       // }
       // chart.update()
     },
-    onDisconnect: status => {
+    onDisconnect: (status) => {
       console.log('Websocket status:', status)
     },
-    onMediaInfo: rawMetaData => {
+    onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)
       const videoTracks = window.player.getVideoTracks()
       const audioTracks = window.player.getAudioTracks()
@@ -97,7 +97,7 @@ function onLoad() {
       )
 
       const audioOptions = audioTracks.map(
-        v => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
+        (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
       )
 
       videoTracksSelect.innerHTML = videoOptions.join('')
@@ -105,10 +105,10 @@ function onLoad() {
 
       mbrControls.style.display = 'block'
     },
-    onError: err => {
+    onError: (err) => {
       console.log('••••• ERRROR', err)
     },
-    onAutoplay: func => {
+    onAutoplay: (func) => {
       // console.log('onAutoplay', func)
       const element = document.getElementById('playButton')
       element.style.display = 'flex'
@@ -119,16 +119,41 @@ function onLoad() {
     onMuted: () => {
       console.log('[onMuted]')
     },
+    onStats: (stats) => {
+      const maxElements = 30
+      graphUTCLabels.push(humanTime(stats.timestamp))
+      graphCurrentTime.push(stats.currentTime)
+      graphBufferedTime.push(stats.endTime)
+      mseVideoBufferSize.push(stats.videoBuffer)
+      mseAudioBufferSize.push(stats.audioBuffer)
+      if (graphUTCLabels.length === maxElements) {
+        graphUTCLabels.shift()
+      }
+      if (graphCurrentTime.length === maxElements) {
+        graphCurrentTime.shift()
+      }
+      if (graphBufferedTime.length === maxElements) {
+        graphBufferedTime.shift()
+      }
+      if (mseVideoBufferSize.length === maxElements) {
+        mseVideoBufferSize.shift()
+      }
+      if (mseAudioBufferSize.length === maxElements) {
+        mseAudioBufferSize.shift()
+      }
+      chart.update()
+      bufferChrt.update()
+    },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
   window.play = () => {
     window.player
       .play()
-      .then(success => {
+      .then((success) => {
         console.log('resolve', success)
       })
-      .catch(err => {
+      .catch((err) => {
         console.log(err)
       })
   }
@@ -166,47 +191,89 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  // const ctx = document.getElementById('myChart').getContext('2d')
+  const timeChart = document.getElementById('bufferChart').getContext('2d')
+  const chart = new Chart(timeChart, {
+    // The type of chart we want to create
+    type: 'line',
 
-  // const chart = new Chart(ctx, {
-  //   // The type of chart we want to create
-  //   type: 'bar',
+    // The data for our dataset
+    data: {
+      labels: graphUTCLabels,
+      datasets: [
+        {
+          label: 'Current Time',
+          backgroundColor: '#FF6B00',
+          borderColor: '#FF6B00',
+          data: graphCurrentTime,
+          fill: true,
+          pointRadius: 0,
+        },
+        {
+          label: 'Buffered Time',
+          backgroundColor: '#63d4ff',
+          borderColor: '#63d4ff',
+          data: graphBufferedTime,
+          fill: true,
+          pointRadius: 0,
+        },
+      ],
+    },
 
-  //   // The data for our dataset
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'Video Segments',
-  //         backgroundColor: 'rgb(255, 99, 132)',
-  //         borderColor: 'rgb(255, 99, 132)',
-  //         fill: false,
-  //         data: graphSegmentsVideo,
-  //       },
-  //       {
-  //         label: 'Audio Segments',
-  //         backgroundColor: '#63d4ff',
-  //         borderColor: '#63d4ff',
-  //         fill: false,
-  //         data: graphSegmentsAudio,
-  //       },
-  //     ],
-  //   },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
 
-  //   // Configuration options go here
-  //   options: {
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 0, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
+  const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
+  const bufferChrt = new Chart(bufferChart, {
+    type: 'bar',
+    data: {
+      labels: graphUTCLabels,
+      datasets: [
+        {
+          label: 'MSELD Video Buffer',
+          backgroundColor: '#FF6B00',
+          borderColor: '#FF6B00',
+          data: mseVideoBufferSize,
+          fill: true,
+        },
+        {
+          label: 'MSELD Audio Buffer',
+          backgroundColor: '#63d4ff',
+          borderColor: '#63d4ff',
+          data: mseAudioBufferSize,
+          fill: true,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
 }

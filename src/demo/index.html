@@ -1,7 +1,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
   </head>
   <style>
     .player-container {
@@ -63,9 +63,6 @@
     <div class="utc">
       <span id="utc">00:00:00</span>
     </div>
-    <div class="real">
-      <span id="real">00:00:00</span>
-    </div>
     <div class="mbr-controls">
       <div>
         <label for="videoTracks">video tracks</label>
@@ -84,7 +81,8 @@
       <input type="text" id="seek" value="1538561793"/>
       <button onclick="seek()">seek</button>
     </div>
-    <!-- <canvas id="myChart" height="200"></canvas> -->
+    <canvas id="bufferChart" height="60"></canvas>
+    <canvas id="MSELDBuffers" height="100"></canvas>
   </div>
   <script type="text/javascript" src="index.js"></script>
 </body>
