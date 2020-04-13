@@ -163,6 +163,7 @@ export const checkVideoProgress = (media, player) => (evt) => {
   //   ct,
   //   endTime,
   // })
+  console.log('readyState', player.media.readyState)
   if (player.onStats) {
     player.onStats({
       timestamp: Date.now(),
@@ -181,10 +182,8 @@ export const checkVideoProgress = (media, player) => (evt) => {
   }
 
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime) //evt, )
-  player.sb.segmentsAudio = []
-  player.sb.segmentsVideo = []
-  player.sb.videoBufferSize = 0
-  player.sb.audioBufferSize = 0
+  // player.sb.segmentsAudio = []
+  // player.sb.segmentsVideo = []
   media.currentTime = endTime - 0.2 // (Math.abs(ct - endTime)) //
 }
 

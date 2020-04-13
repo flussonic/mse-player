@@ -182,12 +182,15 @@ export default class BuffersController {
 
   seek() {
     for (let k in this.sourceBuffer) {
+      // this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
+      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
       this.sourceBuffer[k].abort()
-      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
     }
 
-    this.segmentsVideo = []
-    this.segmentsAudio = []
+    // this.videoBufferSize = 0
+    // this.audioBufferSize = 0
+    // this.segmentsVideo = []
+    // this.segmentsAudio = []
   }
 
   isBuffered() {

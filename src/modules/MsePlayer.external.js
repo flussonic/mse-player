@@ -730,6 +730,7 @@ export default class MSEPlayer {
   }
 
   procInitSegment(rawData) {
+    // debugger
     const data = JSON.parse(rawData)
 
     if (data.type !== MSE_INIT_SEGMENT) {
@@ -751,7 +752,7 @@ export default class MSEPlayer {
       // this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
       // // attempt flush immediately
       // this.sb.flushBufferCounter = 0
-      // this.sb.doFlush()
+      this.sb.doFlush()
       this.sb.seek()
     }
 

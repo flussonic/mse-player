@@ -35,8 +35,9 @@ function onLoad() {
   let showFirstFrameUTC = false
 
   let graphUTCLabels = []
-  let graphCurrentTime = []
-  let graphBufferedTime = []
+  // let graphCurrentTime = []
+  // let graphBufferedTime = []
+  let graphBufferedLength = []
   let mseVideoBufferSize = []
   let mseAudioBufferSize = []
 
@@ -121,19 +122,25 @@ function onLoad() {
     },
     onStats: (stats) => {
       const maxElements = 30
-      graphUTCLabels.push(humanTime(stats.timestamp))
-      graphCurrentTime.push(stats.currentTime)
-      graphBufferedTime.push(stats.endTime)
+      // graphUTCLabels.push(humanTime(stats.timestamp))
+      const date = new Date(stats.timestamp)
+      graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
+      // graphCurrentTime.push(stats.currentTime)
+      // graphBufferedTime.push(stats.endTime)
+      graphBufferedLength.push(stats.endTime - stats.currentTime)
       mseVideoBufferSize.push(stats.videoBuffer)
       mseAudioBufferSize.push(stats.audioBuffer)
       if (graphUTCLabels.length === maxElements) {
         graphUTCLabels.shift()
       }
-      if (graphCurrentTime.length === maxElements) {
-        graphCurrentTime.shift()
-      }
-      if (graphBufferedTime.length === maxElements) {
-        graphBufferedTime.shift()
+      // if (graphCurrentTime.length === maxElements) {
+      //   graphCurrentTime.shift()
+      // }
+      // if (graphBufferedTime.length === maxElements) {
+      //   graphBufferedTime.shift()
+      // }
+      if (graphBufferedLength.length === maxElements) {
+        graphBufferedLength.shift()
       }
       if (mseVideoBufferSize.length === maxElements) {
         mseVideoBufferSize.shift()
@@ -141,7 +148,8 @@ function onLoad() {
       if (mseAudioBufferSize.length === maxElements) {
         mseAudioBufferSize.shift()
       }
-      chart.update()
+      // chart.update()
+      bufferLenChrt.update()
       bufferChrt.update()
     },
   }
@@ -191,51 +199,51 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  const timeChart = document.getElementById('bufferChart').getContext('2d')
-  const chart = new Chart(timeChart, {
-    // The type of chart we want to create
-    type: 'line',
+  // const timeChart = document.getElementById('bufferChart').getContext('2d')
+  // const chart = new Chart(timeChart, {
+  //   // The type of chart we want to create
+  //   type: 'line',
 
-    // The data for our dataset
-    data: {
-      labels: graphUTCLabels,
-      datasets: [
-        {
-          label: 'Current Time',
-          backgroundColor: '#FF6B00',
-          borderColor: '#FF6B00',
-          data: graphCurrentTime,
-          fill: true,
-          pointRadius: 0,
-        },
-        {
-          label: 'Buffered Time',
-          backgroundColor: '#63d4ff',
-          borderColor: '#63d4ff',
-          data: graphBufferedTime,
-          fill: true,
-          pointRadius: 0,
-        },
-      ],
-    },
+  //   // The data for our dataset
+  //   data: {
+  //     labels: graphUTCLabels,
+  //     datasets: [
+  //       {
+  //         label: 'Current Time',
+  //         backgroundColor: '#FF6B00',
+  //         borderColor: '#FF6B00',
+  //         data: graphCurrentTime,
+  //         fill: true,
+  //         pointRadius: 0,
+  //       },
+  //       {
+  //         label: 'Buffered Time',
+  //         backgroundColor: '#63d4ff',
+  //         borderColor: '#63d4ff',
+  //         data: graphBufferedTime,
+  //         fill: true,
+  //         pointRadius: 0,
+  //       },
+  //     ],
+  //   },
 
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
-        },
-      },
-      animation: {
-        duration: 100, // general animation time
-      },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
-      },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
-  })
+  //   // Configuration options go here
+  //   options: {
+  //     responsive: true,
+  //     elements: {
+  //       line: {
+  //         tension: 0, // disables bezier curves
+  //       },
+  //     },
+  //     animation: {
+  //       duration: 100, // general animation time
+  //     },
+  //     hover: {
+  //       animationDuration: 0, // duration of animations when hovering an item
+  //     },
+  //     responsiveAnimationDuration: 0, // animation duration after a resize
+  //   },
+  // })
 
   const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
   const bufferChrt = new Chart(bufferChart, {
@@ -255,6 +263,39 @@ function onLoad() {
           backgroundColor: '#63d4ff',
           borderColor: '#63d4ff',
           data: mseAudioBufferSize,
+          fill: true,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
+
+  const bufferLengthChart = document.getElementById('bufferLengthChart').getContext('2d')
+  const bufferLenChrt = new Chart(bufferLengthChart, {
+    type: 'bar',
+    data: {
+      labels: graphUTCLabels,
+      datasets: [
+        {
+          label: 'Media Element has MS in buffer',
+          backgroundColor: 'red',
+          borderColor: 'red',
+          data: graphBufferedLength,
           fill: true,
         },
       ],
