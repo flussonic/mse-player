@@ -116,6 +116,7 @@ export default class MSEPlayer {
     this.onAutoplay = opts && opts.onAutoplay
     this.onMuted = opts && opts.onMuted
     this.onStats = opts && opts.onStats
+    this.onMessage = opts && opts.onMessage
 
     this.init()
 
@@ -145,6 +146,8 @@ export default class MSEPlayer {
      * SourceBuffers Controller
      */
     this.sb = new BuffersController({media})
+
+    this.messageTime = Date.now()
   }
 
   play(time, videoTrack, audioTrack) {
@@ -642,6 +645,15 @@ export default class MSEPlayer {
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
     // mseUtils.logDM(isDataAB, parsedData)
+
+    const messageTimeDiff = Date.now() - this.messageTime
+    this.messageTime = Date.now()
+    if (this.opts.onMessage) {
+      this.opts.onMessage({
+        utc: Date.now(),
+        messageTimeDiff
+      })
+    }
 
     try {
       // ArrayBuffer data

@@ -42,6 +42,9 @@ function onLoad() {
   let mseVideoBufferSize = []
   let mseAudioBufferSize = []
 
+  const messagesUTC = []
+  const messagesTimelag = []
+
   const opts = {
     debug: true,
     connectionRetries: 0,
@@ -177,6 +180,18 @@ function onLoad() {
       bufferLenChrt.update()
       bufferChrt.update()
     },
+    onMessage: (messageStats) => {
+      const {utc, messageTimeDiff} = messageStats
+      messagesUTC.push(utc)
+      if (messagesUTC.length === 100) {
+        messagesUTC.shift()
+      }
+      messagesTimelag.push(messageTimeDiff)
+      if (messagesTimelag.length === 100) {
+        messagesTimelag.shift()
+      }
+      socketChart.update()
+    },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
@@ -275,6 +290,39 @@ function onLoad() {
           backgroundColor: 'red',
           borderColor: 'red',
           data: graphBufferedLength,
+          fill: true,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
+
+  const socketLagChart = document.getElementById('socketLag').getContext('2d')
+  const socketChart = new Chart(socketLagChart, {
+    type: 'bar',
+    data: {
+      labels: messagesUTC,
+      datasets: [
+        {
+          label: 'Time to next WS message in ms',
+          backgroundColor: 'violet',
+          borderColor: 'violet',
+          data: messagesTimelag,
           fill: true,
         },
       ],
