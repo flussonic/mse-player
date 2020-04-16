@@ -1,7 +1,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.bundle.min.js"></script>
   </head>
   <style>
     .player-container {
@@ -50,6 +50,43 @@
     button {
       margin: 8px 0;
     }
+
+    .indicator-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    #indicator {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: gray;
+      display: inline-block;
+      margin-left: 16px;
+      transition: 100ms ease-in-out;
+    }
+
+    #indicator.gray {
+      background-color: gray;
+    }
+    #indicator.black {
+      background-color: black;
+    }
+    #indicator.red {
+      background-color: red;
+    }
+    #indicator.yellow {
+      background-color: yellow;
+    }
+    #indicator.green {
+      background-color: green;
+    }
+
+    canvas {
+      margin-bottom: 8px;
+    }
   </style>
 <body>
   <div class="player-container">
@@ -74,16 +111,20 @@
       </div>
       <button onclick="window.setTracks()">set tracks</button>
     </div>
-    <button onclick="window.player.play()">Play</button>
-    <button onclick="window.player.stop()">Stop</button>
-    <button onclick="window.player.pause()">Pause</button>
+    <div style="float: right;">
+      <button onclick="window.player.play()">Play</button>
+      <button onclick="window.player.stop()">Stop</button>
+      <button onclick="window.player.pause()">Pause</button>
+    </div>
     <div>
       <input type="text" id="seek" value="1538561793"/>
       <button onclick="seek()">seek</button>
     </div>
     <!-- <canvas id="bufferChart" height="60"></canvas> -->
+    <div class="indicator-wrapper"><span>Ready State:</span><div id="indicator"></div></div>
     <canvas id="bufferLengthChart" height="60"></canvas>
     <canvas id="MSELDBuffers" height="100"></canvas>
+    <canvas id="MSELDEvents" height="60"></canvas>
   </div>
   <script type="text/javascript" src="index.js"></script>
 </body>

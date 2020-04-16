@@ -154,16 +154,7 @@ export const checkVideoProgress = (media, player) => (evt) => {
     }
   }
 
-  // console.log('Stats:', {
-  //   appended: player.sb.appended,
-  //   videoBuffer: player.sb.videoBufferSize,
-  //   audioBuffer: player.sb.audioBufferSize,
-  //   // videoSegments: player.sb.segmentsVideo.length,
-  //   // audioSegments: player.sb.segmentsAudio.length,
-  //   ct,
-  //   endTime,
-  // })
-  console.log('readyState', player.media.readyState)
+  // logger.log('readyState', player.media.readyState)
   if (player.onStats) {
     player.onStats({
       timestamp: Date.now(),
@@ -174,6 +165,7 @@ export const checkVideoProgress = (media, player) => (evt) => {
       // audioSegments: player.sb.segmentsAudio.length,
       currentTime: ct,
       endTime,
+      readyState: player.media.readyState
     })
   }
 
@@ -182,8 +174,6 @@ export const checkVideoProgress = (media, player) => (evt) => {
   }
 
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime) //evt, )
-  // player.sb.segmentsAudio = []
-  // player.sb.segmentsVideo = []
   media.currentTime = endTime - 0.2 // (Math.abs(ct - endTime)) //
 }
 

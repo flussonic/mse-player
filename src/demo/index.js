@@ -34,6 +34,7 @@ function onLoad() {
 
   let showFirstFrameUTC = false
 
+  let timeLineChart = []
   let graphUTCLabels = []
   // let graphCurrentTime = []
   // let graphBufferedTime = []
@@ -62,28 +63,14 @@ function onLoad() {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
-
-      // graphUTC.push(utc)
-      // if (!graphUTCLabels.includes(humanTime(utc))) {
-      //   graphUTCLabels.push(humanTime(utc))
-      //   if (graphUTCLabels.length === 200) {
-      //     graphUTCLabels.shift()
-      //   }
-      // }
-      // if (window.player) {
-      //   // console.log(window.player.sb.segments.length)
-      //   // const audioBytes = JSON.stringify(window.player.sb.segmentsAudio).length * 8
-      //   graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
-      //   if (graphSegmentsAudio.length === 200) {
-      //     graphSegmentsAudio.shift()
-      //   }
-      //   // const videoBytes = JSON.stringify(window.player.sb.segmentsVideo).length * 8
-      //   graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
-      //   if (graphSegmentsVideo.length === 200) {
-      //     graphSegmentsVideo.shift()
-      //   }
-      // }
-      // chart.update()
+      timeLineChart.push({
+        x: new Date(),
+        // y: 0,
+      })
+      if (timeLineChart.length === 100) {
+        timeLineChart.shift()
+      }
+      eventsChart.update()
     },
     onDisconnect: (status) => {
       console.log('Websocket status:', status)
@@ -107,7 +94,19 @@ function onLoad() {
       mbrControls.style.display = 'block'
     },
     onError: (err) => {
-      console.log('••••• ERRROR', err)
+      if (typeof err === 'object' && err.type && err.type === 'waiting') {
+        console.log(err.type)
+        timeLineChart.push({
+          x: new Date(),
+          y: 10,
+        })
+        if (timeLineChart.length === 100) {
+          timeLineChart.shift()
+        }
+        eventsChart.update()
+      } else {
+        console.log('••••• ERRROR', err)
+      }
     },
     onAutoplay: (func) => {
       // console.log('onAutoplay', func)
@@ -121,15 +120,16 @@ function onLoad() {
       console.log('[onMuted]')
     },
     onStats: (stats) => {
+      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState} = stats
       const maxElements = 30
       // graphUTCLabels.push(humanTime(stats.timestamp))
-      const date = new Date(stats.timestamp)
+      const date = new Date(timestamp)
       graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
       // graphCurrentTime.push(stats.currentTime)
       // graphBufferedTime.push(stats.endTime)
-      graphBufferedLength.push(stats.endTime - stats.currentTime)
-      mseVideoBufferSize.push(stats.videoBuffer)
-      mseAudioBufferSize.push(stats.audioBuffer)
+      graphBufferedLength.push(endTime - currentTime)
+      mseVideoBufferSize.push(videoBuffer)
+      mseAudioBufferSize.push(audioBuffer)
       if (graphUTCLabels.length === maxElements) {
         graphUTCLabels.shift()
       }
@@ -148,7 +148,30 @@ function onLoad() {
       if (mseAudioBufferSize.length === maxElements) {
         mseAudioBufferSize.shift()
       }
-      // chart.update()
+
+      const readyIndicator = document.getElementById('indicator')
+      readyIndicator.className = ''
+      switch (readyState) {
+        case 0:
+          readyIndicator.classList.add('black')
+          break
+        case 1:
+          readyIndicator.classList.add('gray')
+          break
+        case 2:
+          readyIndicator.classList.add('red')
+          break
+        case 3:
+          readyIndicator.classList.add('yellow')
+          break
+        case 4:
+          readyIndicator.classList.add('green')
+          break
+        default:
+          readyIndicator.classList.add('gray')
+          break
+      }
+
       bufferLenChrt.update()
       bufferChrt.update()
     },
@@ -199,52 +222,6 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  // const timeChart = document.getElementById('bufferChart').getContext('2d')
-  // const chart = new Chart(timeChart, {
-  //   // The type of chart we want to create
-  //   type: 'line',
-
-  //   // The data for our dataset
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'Current Time',
-  //         backgroundColor: '#FF6B00',
-  //         borderColor: '#FF6B00',
-  //         data: graphCurrentTime,
-  //         fill: true,
-  //         pointRadius: 0,
-  //       },
-  //       {
-  //         label: 'Buffered Time',
-  //         backgroundColor: '#63d4ff',
-  //         borderColor: '#63d4ff',
-  //         data: graphBufferedTime,
-  //         fill: true,
-  //         pointRadius: 0,
-  //       },
-  //     ],
-  //   },
-
-  //   // Configuration options go here
-  //   options: {
-  //     responsive: true,
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 100, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
-
   const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
   const bufferChrt = new Chart(bufferChart, {
     type: 'bar',
@@ -252,14 +229,14 @@ function onLoad() {
       labels: graphUTCLabels,
       datasets: [
         {
-          label: 'MSELD Video Buffer',
+          label: 'MSELD Video Buffer (bytes)',
           backgroundColor: '#FF6B00',
           borderColor: '#FF6B00',
           data: mseVideoBufferSize,
           fill: true,
         },
         {
-          label: 'MSELD Audio Buffer',
+          label: 'MSELD Audio Buffer (bytes)',
           backgroundColor: '#63d4ff',
           borderColor: '#63d4ff',
           data: mseAudioBufferSize,
@@ -292,7 +269,7 @@ function onLoad() {
       labels: graphUTCLabels,
       datasets: [
         {
-          label: 'Media Element has MS in buffer',
+          label: 'Media Element have seconds in buffer',
           backgroundColor: 'red',
           borderColor: 'red',
           data: graphBufferedLength,
@@ -315,6 +292,25 @@ function onLoad() {
         animationDuration: 0, // duration of animations when hovering an item
       },
       responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
+
+  const eventsChartWrapper = document.getElementById('MSELDEvents').getContext('2d')
+  const eventsChart = new Chart(eventsChartWrapper, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Events',
+          backgroundColor: 'blue',
+          borderColor: 'blue',
+          data: timeLineChart,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
     },
   })
 }

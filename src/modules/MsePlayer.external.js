@@ -493,6 +493,9 @@ export default class MSEPlayer {
 
     if (this.media) {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp) // checkVideoProgress
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
       mediaEmptyPromise = new Promise((resolve) => {
         this._onmee = this.onMediaElementEmptied(resolve).bind(this)
       })
@@ -501,6 +504,7 @@ export default class MSEPlayer {
     }
 
     this.oncvp = null
+    this.errorLog = null
 
     this.mediaSource = null
 
@@ -565,10 +569,18 @@ export default class MSEPlayer {
       ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc)
       // link video and media Source
       media.src = URL.createObjectURL(ms)
+      this.errorLog = (error) => {
+        if (this.onError) {
+          this.onError(error)
+        }
+      }
 
-      // this.oncvp = this.debounce(mseUtils.checkVideoProgress(media, this).bind(this), 500)
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
+
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
       if (this.liveError) {
         this.player = void 0
         return
