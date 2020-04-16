@@ -165,7 +165,7 @@ export const checkVideoProgress = (media, player) => (evt) => {
       // audioSegments: player.sb.segmentsAudio.length,
       currentTime: ct,
       endTime,
-      readyState: player.media.readyState
+      readyState: player.media.readyState,
     })
   }
 

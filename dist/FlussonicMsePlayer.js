@@ -258,6 +258,9 @@ var EVENTS = {
   // HTMLMediaElement
   MEDIA_ELEMENT_PROGRESS: 'progress',
   MEDIA_ELEMENT_EMPTIED: 'emptied',
+  MEDIA_ELEMENT_SUSPEND: 'suspend',
+  MEDIA_ELEMENT_STALLED: 'stalled',
+  MEDIA_ELEMENT_WAITING: 'waiting',
 
   // WebSocket
   WS_OPEN: 'open',
@@ -362,7 +365,7 @@ $exports.store = store;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = exports.MAX_DELAY = undefined;
+exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = undefined;
 exports.getMediaSource = getMediaSource;
 exports.isAndroid = isAndroid;
 exports.isSupportedMSE = isSupportedMSE;
@@ -429,7 +432,6 @@ function getRealUtcFromData(view) {
 }
 
 function doArrayBuffer(segment) {
-
   if (!segment.isInit) {
     // last loaded frame's utc
     this.utc = getRealUtcFromData(segment.data);
@@ -447,13 +449,7 @@ function debugData(rawData) {
 
   return { trackId: trackId, utc: utc, view: view };
 }
-
-var ua = navigator.userAgent;
-var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua) ? 10 // very slow buffers in Edge
-: 2;
-
 var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media, player) {
-  var maxDelay = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : MAX_DELAY;
   return function (evt) {
     var ct = media.currentTime,
         buffered = media.buffered,
@@ -534,13 +530,24 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       }
     }
 
-    if (delay <= maxDelay) {
-      return;
+    // logger.log('readyState', player.media.readyState)
+    if (player.onStats) {
+      player.onStats({
+        timestamp: Date.now(),
+        appended: player.sb.appended,
+        videoBuffer: player.sb.videoBufferSize,
+        audioBuffer: player.sb.audioBufferSize,
+        // videoSegments: player.sb.segmentsVideo.length,
+        // audioSegments: player.sb.segmentsAudio.length,
+        currentTime: ct,
+        endTime: endTime,
+        readyState: player.media.readyState
+      });
     }
 
-    // if (player.ws.paused && player.sb.segments.length < 100) {
-    //   player.ws.resume()
-    // }
+    if (delay <= player.opts.maxBufferDelay) {
+      return;
+    }
 
     _logger.logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime); //evt, )
     media.currentTime = endTime - 0.2; // (Math.abs(ct - endTime)) //
@@ -727,6 +734,7 @@ var DEFAULT_UPDATE = 100;
 var DEFAULT_CONNECTIONS_RETRIES = 0;
 var DEFAULT_RETRY_MUTED = false;
 var DEFAULT_FORCE_UNMUTED = false;
+var MAX_BUFFER_DELAY = 2;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -798,6 +806,16 @@ var MSEPlayer = function () {
       throw new Error('invalid retryMuted param, should be boolean');
     }
 
+    this.opts.maxBufferDelay = this.opts.maxBufferDelay ? this.opts.maxBufferDelay : MAX_BUFFER_DELAY;
+    var ua = navigator.userAgent;
+    if (/Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)) {
+      this.opts.maxBufferDelay = 10; // very slow buffers in Edge
+    }
+
+    if (typeof this.opts.maxBufferDelay !== 'number') {
+      throw new Error('invalid maxBufferDelay param, should be number');
+    }
+
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect;
@@ -810,6 +828,7 @@ var MSEPlayer = function () {
     this.onError = opts && opts.onError;
     this.onAutoplay = opts && opts.onAutoplay;
     this.onMuted = opts && opts.onMuted;
+    this.onStats = opts && opts.onStats;
 
     this.init();
 
@@ -1191,6 +1210,9 @@ var MSEPlayer = function () {
 
     if (this.media) {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp); // checkVideoProgress
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
       mediaEmptyPromise = new Promise(function (resolve) {
         _this5._onmee = _this5.onMediaElementEmptied(resolve).bind(_this5);
       });
@@ -1201,6 +1223,7 @@ var MSEPlayer = function () {
     }
 
     this.oncvp = null;
+    this.errorLog = null;
 
     this.mediaSource = null;
 
@@ -1267,10 +1290,18 @@ var MSEPlayer = function () {
       ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc);
       // link video and media Source
       media.src = URL.createObjectURL(ms);
+      this.errorLog = function (error) {
+        if (_this6.onError) {
+          _this6.onError(error);
+        }
+      };
 
-      // this.oncvp = this.debounce(mseUtils.checkVideoProgress(media, this).bind(this), 500)
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
       if (this.liveError) {
         this.player = void 0;
         return;
@@ -1425,6 +1456,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
+    // debugger
     var data = JSON.parse(rawData);
 
     if (data.type !== _segments.MSE_INIT_SEGMENT) {
@@ -1446,7 +1478,7 @@ var MSEPlayer = function () {
       // this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
       // // attempt flush immediately
       // this.sb.flushBufferCounter = 0
-      // this.sb.doFlush()
+      this.sb.doFlush();
       this.sb.seek();
     }
 
@@ -4063,6 +4095,8 @@ var BuffersController = function () {
     this.segmentsVideo = [];
     this.segmentsAudio = [];
     this.sourceBuffer = {};
+    this.audioBufferSize = 0;
+    this.videoBufferSize = 0;
   };
 
   BuffersController.prototype.setMediaSource = function setMediaSource(ms) {
@@ -4099,15 +4133,16 @@ var BuffersController = function () {
     }
 
     if (!this._needsFlush && this.segmentsVideo.length) {
-
       var buffer = this.sourceBuffer.video;
       if (buffer) {
         if (buffer.updating) {
           return;
         }
         var segment = this.segmentsVideo[0];
+        // console.log({segment}, segment.data.byteLength)
         buffer.appendBuffer(segment.data);
         this.segmentsVideo.shift();
+        this.videoBufferSize = this.videoBufferSize - segment.data.byteLength;
         this.appended++;
       }
     }
@@ -4124,7 +4159,6 @@ var BuffersController = function () {
     }
 
     if (!this._needsFlush && this.segmentsAudio.length) {
-
       var buffer = this.sourceBuffer.audio;
       if (buffer) {
         if (buffer.updating) {
@@ -4133,6 +4167,7 @@ var BuffersController = function () {
         var segment = this.segmentsAudio[0];
         buffer.appendBuffer(segment.data);
         this.segmentsAudio.shift();
+        this.audioBufferSize = this.audioBufferSize - segment.data.byteLength;
         this.appended++;
       }
     }
@@ -4203,8 +4238,10 @@ var BuffersController = function () {
     var segment = this.rawDataToSegmnet(rawData);
     if (segment.type === 'audio') {
       this.segmentsAudio.push(segment);
+      this.audioBufferSize = this.audioBufferSize + segment.data.byteLength;
     } else {
       this.segmentsVideo.push(segment);
+      this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
     }
 
     this.doArrayBuffer(segment);
@@ -4220,12 +4257,15 @@ var BuffersController = function () {
 
   BuffersController.prototype.seek = function seek() {
     for (var k in this.sourceBuffer) {
+      // this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
+      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
       this.sourceBuffer[k].abort();
-      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
     }
 
-    this.segmentsVideo = [];
-    this.segmentsAudio = [];
+    // this.videoBufferSize = 0
+    // this.audioBufferSize = 0
+    // this.segmentsVideo = []
+    // this.segmentsAudio = []
   };
 
   BuffersController.prototype.isBuffered = function isBuffered() {

@@ -94,16 +94,18 @@ function onLoad() {
       mbrControls.style.display = 'block'
     },
     onError: (err) => {
-      if (typeof err === 'object' && err.type && err.type === 'waiting') {
+      if (typeof err === 'object' && err.type) {
         console.log(err.type)
-        timeLineChart.push({
-          x: new Date(),
-          y: 10,
-        })
-        if (timeLineChart.length === 100) {
-          timeLineChart.shift()
+        if (err.type === 'waiting') {
+          timeLineChart.push({
+            x: new Date(),
+            y: 10,
+          })
+          if (timeLineChart.length === 100) {
+            timeLineChart.shift()
+          }
+          eventsChart.update()
         }
-        eventsChart.update()
       } else {
         console.log('••••• ERRROR', err)
       }
