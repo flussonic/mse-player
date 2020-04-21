@@ -51,6 +51,7 @@ function onLoad() {
     errorsBeforeStop: 10,
     retryMuted: true,
     maxBufferDelay: 1,
+    wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
