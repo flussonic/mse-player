@@ -29,7 +29,7 @@ function onLoad() {
   const utcLabel = document.getElementById('utc')
   const realLabel = document.getElementById('real')
   const stallingLabel = document.getElementById('stallingLabel')
-  const showStallingIndicator = value => {
+  const showStallingIndicator = (value) => {
     stallingLabel.innerText = '' + value
   }
 
@@ -45,6 +45,7 @@ function onLoad() {
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
+    wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -54,7 +55,7 @@ function onLoad() {
     onSeeked: () => {
       showFirstFrameUTC = true
     },
-    onProgress: utc => {
+    onProgress: (utc) => {
       utcLabel.innerText = humanTime(utc)
       realLabel.innerText = humanTime(new Date().getTime() / 1000)
       if (showFirstFrameUTC) {
@@ -84,10 +85,10 @@ function onLoad() {
       // }
       // chart.update()
     },
-    onDisconnect: status => {
+    onDisconnect: (status) => {
       console.log('Websocket status:', status)
     },
-    onMediaInfo: rawMetaData => {
+    onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)
       const videoTracks = window.player.getVideoTracks()
       const audioTracks = window.player.getAudioTracks()
@@ -97,7 +98,7 @@ function onLoad() {
       )
 
       const audioOptions = audioTracks.map(
-        v => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
+        (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
       )
 
       videoTracksSelect.innerHTML = videoOptions.join('')
@@ -105,10 +106,10 @@ function onLoad() {
 
       mbrControls.style.display = 'block'
     },
-    onError: err => {
+    onError: (err) => {
       console.log('••••• ERRROR', err)
     },
-    onAutoplay: func => {
+    onAutoplay: (func) => {
       // console.log('onAutoplay', func)
       const element = document.getElementById('playButton')
       element.style.display = 'flex'
@@ -125,10 +126,10 @@ function onLoad() {
   window.play = () => {
     window.player
       .play()
-      .then(success => {
+      .then((success) => {
         console.log('resolve', success)
       })
-      .catch(err => {
+      .catch((err) => {
         console.log(err)
       })
   }
