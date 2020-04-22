@@ -27,24 +27,30 @@ function onLoad() {
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
   const utcLabel = document.getElementById('utc')
-  const realLabel = document.getElementById('real')
   const stallingLabel = document.getElementById('stallingLabel')
-  const showStallingIndicator = value => {
+  const showStallingIndicator = (value) => {
     stallingLabel.innerText = '' + value
   }
 
   let showFirstFrameUTC = false
 
-  // let graphUTC = []
-  // let graphUTCLabels = []
-  // let graphSegmentsVideo = []
-  // let graphSegmentsAudio = []
+  let timeLineChart = []
+  let graphUTCLabels = []
+  // let graphCurrentTime = []
+  // let graphBufferedTime = []
+  let graphBufferedLength = []
+  let mseVideoBufferSize = []
+  let mseAudioBufferSize = []
+
+  const messagesUTC = []
+  const messagesTimelag = []
 
   const opts = {
     debug: true,
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
+    maxBufferDelay: 0,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -54,40 +60,25 @@ function onLoad() {
     onSeeked: () => {
       showFirstFrameUTC = true
     },
-    onProgress: utc => {
+    onProgress: (utc) => {
       utcLabel.innerText = humanTime(utc)
-      realLabel.innerText = humanTime(new Date().getTime() / 1000)
       if (showFirstFrameUTC) {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
-
-      // graphUTC.push(utc)
-      // if (!graphUTCLabels.includes(humanTime(utc))) {
-      //   graphUTCLabels.push(humanTime(utc))
-      //   if (graphUTCLabels.length === 200) {
-      //     graphUTCLabels.shift()
-      //   }
-      // }
-      // if (window.player) {
-      //   // console.log(window.player.sb.segments.length)
-      //   // const audioBytes = JSON.stringify(window.player.sb.segmentsAudio).length * 8
-      //   graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
-      //   if (graphSegmentsAudio.length === 200) {
-      //     graphSegmentsAudio.shift()
-      //   }
-      //   // const videoBytes = JSON.stringify(window.player.sb.segmentsVideo).length * 8
-      //   graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
-      //   if (graphSegmentsVideo.length === 200) {
-      //     graphSegmentsVideo.shift()
-      //   }
-      // }
-      // chart.update()
+      timeLineChart.push({
+        x: new Date(),
+        // y: 0,
+      })
+      if (timeLineChart.length === 100) {
+        timeLineChart.shift()
+      }
+      eventsChart.update()
     },
-    onDisconnect: status => {
+    onDisconnect: (status) => {
       console.log('Websocket status:', status)
     },
-    onMediaInfo: rawMetaData => {
+    onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)
       const videoTracks = window.player.getVideoTracks()
       const audioTracks = window.player.getAudioTracks()
@@ -97,7 +88,7 @@ function onLoad() {
       )
 
       const audioOptions = audioTracks.map(
-        v => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
+        (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
       )
 
       videoTracksSelect.innerHTML = videoOptions.join('')
@@ -105,10 +96,24 @@ function onLoad() {
 
       mbrControls.style.display = 'block'
     },
-    onError: err => {
-      console.log('••••• ERRROR', err)
+    onError: (err) => {
+      if (typeof err === 'object' && err.type) {
+        console.log(err.type)
+        if (err.type === 'waiting') {
+          timeLineChart.push({
+            x: new Date(),
+            y: 10,
+          })
+          if (timeLineChart.length === 100) {
+            timeLineChart.shift()
+          }
+          eventsChart.update()
+        }
+      } else {
+        console.log('••••• ERRROR', err)
+      }
     },
-    onAutoplay: func => {
+    onAutoplay: (func) => {
       // console.log('onAutoplay', func)
       const element = document.getElementById('playButton')
       element.style.display = 'flex'
@@ -119,16 +124,84 @@ function onLoad() {
     onMuted: () => {
       console.log('[onMuted]')
     },
+    onStats: (stats) => {
+      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState} = stats
+      const maxElements = 30
+      // graphUTCLabels.push(humanTime(stats.timestamp))
+      const date = new Date(timestamp)
+      graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
+      // graphCurrentTime.push(stats.currentTime)
+      // graphBufferedTime.push(stats.endTime)
+      graphBufferedLength.push(endTime - currentTime)
+      mseVideoBufferSize.push(videoBuffer)
+      mseAudioBufferSize.push(audioBuffer)
+      if (graphUTCLabels.length === maxElements) {
+        graphUTCLabels.shift()
+      }
+      // if (graphCurrentTime.length === maxElements) {
+      //   graphCurrentTime.shift()
+      // }
+      // if (graphBufferedTime.length === maxElements) {
+      //   graphBufferedTime.shift()
+      // }
+      if (graphBufferedLength.length === maxElements) {
+        graphBufferedLength.shift()
+      }
+      if (mseVideoBufferSize.length === maxElements) {
+        mseVideoBufferSize.shift()
+      }
+      if (mseAudioBufferSize.length === maxElements) {
+        mseAudioBufferSize.shift()
+      }
+
+      const readyIndicator = document.getElementById('indicator')
+      readyIndicator.className = ''
+      switch (readyState) {
+        case 0:
+          readyIndicator.classList.add('black')
+          break
+        case 1:
+          readyIndicator.classList.add('gray')
+          break
+        case 2:
+          readyIndicator.classList.add('red')
+          break
+        case 3:
+          readyIndicator.classList.add('yellow')
+          break
+        case 4:
+          readyIndicator.classList.add('green')
+          break
+        default:
+          readyIndicator.classList.add('gray')
+          break
+      }
+
+      bufferLenChrt.update()
+      bufferChrt.update()
+    },
+    onMessage: (messageStats) => {
+      const {utc, messageTimeDiff} = messageStats
+      messagesUTC.push(utc)
+      if (messagesUTC.length === 100) {
+        messagesUTC.shift()
+      }
+      messagesTimelag.push(messageTimeDiff)
+      if (messagesTimelag.length === 100) {
+        messagesTimelag.shift()
+      }
+      socketChart.update()
+    },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
   window.play = () => {
     window.player
       .play()
-      .then(success => {
+      .then((success) => {
         console.log('resolve', success)
       })
-      .catch(err => {
+      .catch((err) => {
         console.log(err)
       })
   }
@@ -166,47 +239,128 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  // const ctx = document.getElementById('myChart').getContext('2d')
+  const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
+  const bufferChrt = new Chart(bufferChart, {
+    type: 'bar',
+    data: {
+      labels: graphUTCLabels,
+      datasets: [
+        {
+          label: 'MSELD Video Buffer (bytes)',
+          backgroundColor: '#FF6B00',
+          borderColor: '#FF6B00',
+          data: mseVideoBufferSize,
+          fill: true,
+        },
+        {
+          label: 'MSELD Audio Buffer (bytes)',
+          backgroundColor: '#63d4ff',
+          borderColor: '#63d4ff',
+          data: mseAudioBufferSize,
+          fill: true,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
 
-  // const chart = new Chart(ctx, {
-  //   // The type of chart we want to create
-  //   type: 'bar',
+  const bufferLengthChart = document.getElementById('bufferLengthChart').getContext('2d')
+  const bufferLenChrt = new Chart(bufferLengthChart, {
+    type: 'bar',
+    data: {
+      labels: graphUTCLabels,
+      datasets: [
+        {
+          label: 'Media Element have seconds in buffer',
+          backgroundColor: 'red',
+          borderColor: 'red',
+          data: graphBufferedLength,
+          fill: true,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
 
-  //   // The data for our dataset
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'Video Segments',
-  //         backgroundColor: 'rgb(255, 99, 132)',
-  //         borderColor: 'rgb(255, 99, 132)',
-  //         fill: false,
-  //         data: graphSegmentsVideo,
-  //       },
-  //       {
-  //         label: 'Audio Segments',
-  //         backgroundColor: '#63d4ff',
-  //         borderColor: '#63d4ff',
-  //         fill: false,
-  //         data: graphSegmentsAudio,
-  //       },
-  //     ],
-  //   },
+  const socketLagChart = document.getElementById('socketLag').getContext('2d')
+  const socketChart = new Chart(socketLagChart, {
+    type: 'bar',
+    data: {
+      labels: messagesUTC,
+      datasets: [
+        {
+          label: 'Time to next WS message in ms',
+          backgroundColor: 'violet',
+          borderColor: 'violet',
+          data: messagesTimelag,
+          fill: true,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+      elements: {
+        line: {
+          tension: 0, // disables bezier curves
+        },
+      },
+      animation: {
+        duration: 100, // general animation time
+      },
+      hover: {
+        animationDuration: 0, // duration of animations when hovering an item
+      },
+      responsiveAnimationDuration: 0, // animation duration after a resize
+    },
+  })
 
-  //   // Configuration options go here
-  //   options: {
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 0, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
+  const eventsChartWrapper = document.getElementById('MSELDEvents').getContext('2d')
+  const eventsChart = new Chart(eventsChartWrapper, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Events',
+          backgroundColor: 'blue',
+          borderColor: 'blue',
+          data: timeLineChart,
+        },
+      ],
+    },
+    // Configuration options go here
+    options: {
+      responsive: true,
+    },
+  })
 }

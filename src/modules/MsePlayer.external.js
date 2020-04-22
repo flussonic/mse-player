@@ -28,6 +28,7 @@ const DEFAULT_UPDATE = 100
 const DEFAULT_CONNECTIONS_RETRIES = 0
 const DEFAULT_RETRY_MUTED = false
 const DEFAULT_FORCE_UNMUTED = false
+const MAX_BUFFER_DELAY = 2
 
 export default class MSEPlayer {
   static get version() {
@@ -92,11 +93,21 @@ export default class MSEPlayer {
       throw new Error('invalid retryMuted param, should be boolean')
     }
 
+    this.opts.maxBufferDelay = this.opts.maxBufferDelay ? this.opts.maxBufferDelay : MAX_BUFFER_DELAY
+    const ua = navigator.userAgent
+    if (/Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)) {
+      this.opts.maxBufferDelay = 10 // very slow buffers in Edge
+    }
+
+    if (typeof this.opts.maxBufferDelay !== 'number') {
+      throw new Error('invalid maxBufferDelay param, should be number')
+    }
+
     this.onProgress = opts && opts.onProgress
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect
     } else {
-      this.onDisconnect = status => {
+      this.onDisconnect = (status) => {
         logger.log('[websocket status]:', status)
       }
     }
@@ -104,6 +115,8 @@ export default class MSEPlayer {
     this.onError = opts && opts.onError
     this.onAutoplay = opts && opts.onAutoplay
     this.onMuted = opts && opts.onMuted
+    this.onStats = opts && opts.onStats
+    this.onMessage = opts && opts.onMessage
 
     this.init()
 
@@ -133,6 +146,8 @@ export default class MSEPlayer {
      * SourceBuffers Controller
      */
     this.sb = new BuffersController({media})
+
+    this.messageTime = Date.now()
   }
 
   play(time, videoTrack, audioTrack) {
@@ -245,15 +260,15 @@ export default class MSEPlayer {
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
 
     const videoTracksStr = tracks
-      .filter(id => {
-        const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
+      .filter((id) => {
+        const stream = this.mediaInfo[videoTracksType].find((s) => id === s['track_id'])
         return !!stream && stream.content === TYPE_CONTENT_VIDEO
       })
       .join('')
 
     const audioTracksStr = tracks
-      .filter(id => {
-        const stream = this.mediaInfo[videoTracksType].find(s => id === s['track_id'])
+      .filter((id) => {
+        const stream = this.mediaInfo[videoTracksType].find((s) => id === s['track_id'])
         if (stream && stream.bitrate && stream.bitrate !== 0) {
           return !!stream && stream.content === TYPE_CONTENT_AUDIO
         } else {
@@ -338,7 +353,7 @@ export default class MSEPlayer {
         return
       }
 
-      const ifApple = function() {
+      const ifApple = function () {
         var iDevices = ['iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod', 'Safari']
 
         if (!!navigator.platform) {
@@ -386,7 +401,7 @@ export default class MSEPlayer {
                 this.retry = 0
               }
             })
-            .catch(err => {
+            .catch((err) => {
               logger.log('playPromise rejection.', err)
               // if error, this.ws.connectionPromise can be undefined
               if (this.ws.connectionPromise) {
@@ -481,7 +496,10 @@ export default class MSEPlayer {
 
     if (this.media) {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp) // checkVideoProgress
-      mediaEmptyPromise = new Promise(resolve => {
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
+      mediaEmptyPromise = new Promise((resolve) => {
         this._onmee = this.onMediaElementEmptied(resolve).bind(this)
       })
       mediaEmptyPromise.then(() => (this.stopRunning = false))
@@ -489,6 +507,7 @@ export default class MSEPlayer {
     }
 
     this.oncvp = null
+    this.errorLog = null
 
     this.mediaSource = null
 
@@ -553,15 +572,23 @@ export default class MSEPlayer {
       ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc)
       // link video and media Source
       media.src = URL.createObjectURL(ms)
+      this.errorLog = (error) => {
+        if (this.onError) {
+          this.onError(error)
+        }
+      }
 
-      // this.oncvp = this.debounce(mseUtils.checkVideoProgress(media, this).bind(this), 500)
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
+
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
       if (this.liveError) {
         this.player = void 0
         return
       }
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         this.onmso = this.onMediaSourceOpen.bind(this, resolve)
         ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
       })
@@ -618,6 +645,15 @@ export default class MSEPlayer {
     const isDataAB = rawData instanceof ArrayBuffer
     const parsedData = !isDataAB ? JSON.parse(rawData) : void 0
     // mseUtils.logDM(isDataAB, parsedData)
+
+    const messageTimeDiff = Date.now() - this.messageTime
+    this.messageTime = Date.now()
+    if (this.opts.onMessage) {
+      this.opts.onMessage({
+        utc: Date.now(),
+        messageTimeDiff
+      })
+    }
 
     try {
       // ArrayBuffer data
@@ -718,6 +754,7 @@ export default class MSEPlayer {
   }
 
   procInitSegment(rawData) {
+    // debugger
     const data = JSON.parse(rawData)
 
     if (data.type !== MSE_INIT_SEGMENT) {
@@ -739,7 +776,7 @@ export default class MSEPlayer {
       // this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
       // // attempt flush immediately
       // this.sb.flushBufferCounter = 0
-      // this.sb.doFlush()
+      this.sb.doFlush()
       this.sb.seek()
     }
 
@@ -803,7 +840,7 @@ export default class MSEPlayer {
       return
     }
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
-    return this.mediaInfo[videoTracksType].filter(s => s.content === TYPE_CONTENT_VIDEO)
+    return this.mediaInfo[videoTracksType].filter((s) => s.content === TYPE_CONTENT_VIDEO)
   }
 
   getAudioTracks() {
@@ -811,7 +848,7 @@ export default class MSEPlayer {
       return
     }
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
-    return this.mediaInfo[videoTracksType].filter(s => s.content === TYPE_CONTENT_AUDIO)
+    return this.mediaInfo[videoTracksType].filter((s) => s.content === TYPE_CONTENT_AUDIO)
   }
 
   /**
@@ -921,10 +958,10 @@ export default class MSEPlayer {
 
   debounce(func, wait, immediate) {
     var timeout
-    return function() {
+    return function () {
       var context = this,
         args = arguments
-      var later = function() {
+      var later = function () {
         timeout = null
         if (!immediate) func.apply(context, args)
       }

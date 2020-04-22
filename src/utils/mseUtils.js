@@ -34,7 +34,7 @@ export function isSupportedMSE() {
 }
 
 export function base64ToArrayBuffer(base64) {
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
 }
 
 export function RawDataToUint8Array(rawData) {
@@ -55,7 +55,6 @@ export function getRealUtcFromData(view) {
 }
 
 export function doArrayBuffer(segment) {
-
   if (!segment.isInit) {
     // last loaded frame's utc
     this.utc = getRealUtcFromData(segment.data)
@@ -73,14 +72,7 @@ export function debugData(rawData) {
 
   return {trackId, utc, view}
 }
-
-const ua = navigator.userAgent
-export const MAX_DELAY =
-  /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)
-    ? 10 // very slow buffers in Edge
-    : 2
-
-export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt => {
+export const checkVideoProgress = (media, player) => (evt) => {
   const {
     currentTime: ct,
     buffered,
@@ -162,21 +154,32 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
     }
   }
 
-  if (delay <= maxDelay) {
-    return
+  // logger.log('readyState', player.media.readyState)
+  if (player.onStats) {
+    player.onStats({
+      timestamp: Date.now(),
+      appended: player.sb.appended,
+      videoBuffer: player.sb.videoBufferSize,
+      audioBuffer: player.sb.audioBufferSize,
+      // videoSegments: player.sb.segmentsVideo.length,
+      // audioSegments: player.sb.segmentsAudio.length,
+      currentTime: ct,
+      endTime,
+      readyState: player.media.readyState,
+    })
   }
 
-  // if (player.ws.paused && player.sb.segments.length < 100) {
-  //   player.ws.resume()
-  // }
+  if (delay <= player.opts.maxBufferDelay) {
+    return
+  }
 
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime) //evt, )
   media.currentTime = endTime - 0.2 // (Math.abs(ct - endTime)) //
 }
 
-export const replaceHttpByWS = url => url.replace(/^http/, 'ws')
+export const replaceHttpByWS = (url) => url.replace(/^http/, 'ws')
 
-export const errorMsg = e => `Error ${e.name}: ${e.message}\n${e.stack}`
+export const errorMsg = (e) => `Error ${e.name}: ${e.message}\n${e.stack}`
 
 export function pad2(n) {
   return n <= 9 ? '0' + n : '' + n

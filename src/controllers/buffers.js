@@ -26,6 +26,8 @@ export default class BuffersController {
     this.segmentsVideo = []
     this.segmentsAudio = []
     this.sourceBuffer = {}
+    this.audioBufferSize = 0
+    this.videoBufferSize = 0
   }
 
   setMediaSource(ms) {
@@ -34,7 +36,7 @@ export default class BuffersController {
 
   createSourceBuffers(data) {
     const sb = this.sourceBuffer
-    data.tracks.forEach(s => {
+    data.tracks.forEach((s) => {
       const isVideo = s.content === VIDEO
       const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
 
@@ -60,15 +62,16 @@ export default class BuffersController {
     }
 
     if (!this._needsFlush && this.segmentsVideo.length) {
-
       const buffer = this.sourceBuffer.video
       if (buffer) {
         if (buffer.updating) {
           return
         }
         const segment = this.segmentsVideo[0]
+        // console.log({segment}, segment.data.byteLength)
         buffer.appendBuffer(segment.data)
         this.segmentsVideo.shift()
+        this.videoBufferSize = this.videoBufferSize - segment.data.byteLength
         this.appended++
       }
     }
@@ -85,7 +88,6 @@ export default class BuffersController {
     }
 
     if (!this._needsFlush && this.segmentsAudio.length) {
-
       const buffer = this.sourceBuffer.audio
       if (buffer) {
         if (buffer.updating) {
@@ -94,13 +96,14 @@ export default class BuffersController {
         const segment = this.segmentsAudio[0]
         buffer.appendBuffer(segment.data)
         this.segmentsAudio.shift()
+        this.audioBufferSize = this.audioBufferSize - segment.data.byteLength
         this.appended++
       }
     }
   }
 
   createTracks(tracks) {
-    tracks.forEach(track => {
+    tracks.forEach((track) => {
       const view = base64ToArrayBuffer(track.payload)
       const segment = {
         type: this.getTypeBytrackId(track.id),
@@ -147,7 +150,7 @@ export default class BuffersController {
     if (data[type].length === 1) {
       this.audioTrackId = null
     }
-    data[type].forEach(s => {
+    data[type].forEach((s) => {
       this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
     })
   }
@@ -160,8 +163,10 @@ export default class BuffersController {
     const segment = this.rawDataToSegmnet(rawData)
     if (segment.type === 'audio') {
       this.segmentsAudio.push(segment)
+      this.audioBufferSize = this.audioBufferSize + segment.data.byteLength
     } else {
       this.segmentsVideo.push(segment)
+      this.videoBufferSize = this.videoBufferSize + segment.data.byteLength
     }
 
     this.doArrayBuffer(segment)
@@ -177,12 +182,15 @@ export default class BuffersController {
 
   seek() {
     for (let k in this.sourceBuffer) {
+      // this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
+      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
       this.sourceBuffer[k].abort()
-      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
     }
 
-    this.segmentsVideo = []
-    this.segmentsAudio = []
+    // this.videoBufferSize = 0
+    // this.audioBufferSize = 0
+    // this.segmentsVideo = []
+    // this.segmentsAudio = []
   }
 
   isBuffered() {
