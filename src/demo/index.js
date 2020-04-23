@@ -34,7 +34,7 @@ function onLoad() {
 
   let showFirstFrameUTC = false
 
-  let timeLineChart = []
+  // let timeLineChart = []
   let graphUTCLabels = []
   // let graphCurrentTime = []
   // let graphBufferedTime = []
@@ -43,7 +43,7 @@ function onLoad() {
   let mseAudioBufferSize = []
 
   const messagesUTC = []
-  const messagesTimelag = []
+  // const messagesTimelag = []
 
   const opts = {
     debug: true,
@@ -66,14 +66,14 @@ function onLoad() {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
-      timeLineChart.push({
-        x: new Date(),
-        // y: 0,
-      })
-      if (timeLineChart.length === 100) {
-        timeLineChart.shift()
-      }
-      eventsChart.update()
+      // timeLineChart.push({
+      //   x: new Date(),
+      //   // y: 0,
+      // })
+      // if (timeLineChart.length === 100) {
+      //   timeLineChart.shift()
+      // }
+      // eventsChart.update()
     },
     onDisconnect: (status) => {
       console.log('Websocket status:', status)
@@ -99,16 +99,16 @@ function onLoad() {
     onError: (err) => {
       if (typeof err === 'object' && err.type) {
         console.log(err.type)
-        if (err.type === 'waiting') {
-          timeLineChart.push({
-            x: new Date(),
-            y: 10,
-          })
-          if (timeLineChart.length === 100) {
-            timeLineChart.shift()
-          }
-          eventsChart.update()
-        }
+        // if (err.type === 'waiting') {
+        //   timeLineChart.push({
+        //     x: new Date(),
+        //     y: 10,
+        //   })
+        //   if (timeLineChart.length === 100) {
+        //     timeLineChart.shift()
+        //   }
+        //   eventsChart.update()
+        // }
       } else {
         console.log('••••• ERRROR', err)
       }
@@ -125,7 +125,7 @@ function onLoad() {
       console.log('[onMuted]')
     },
     onStats: (stats) => {
-      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState} = stats
+      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
       const maxElements = 30
       // graphUTCLabels.push(humanTime(stats.timestamp))
       const date = new Date(timestamp)
@@ -176,21 +176,41 @@ function onLoad() {
           readyIndicator.classList.add('gray')
           break
       }
+      const networkIndicator = document.getElementById('nIndicator')
+      networkIndicator.className = ''
+      switch (networkState) {
+        case 0:
+          networkIndicator.classList.add('black')
+          break
+        case 1:
+          networkIndicator.classList.add('yellow')
+          break
+        case 2:
+          networkIndicator.classList.add('green')
+          break
+        case 3:
+          networkIndicator.classList.add('red')
+          break
+        default:
+          networkIndicator.classList.add('gray')
+          break
+      }
 
-      bufferLenChrt.update()
-      bufferChrt.update()
+      // bufferLenChrt.update()
+      // bufferChrt.update()
     },
     onMessage: (messageStats) => {
       const {utc, messageTimeDiff} = messageStats
-      messagesUTC.push(utc)
-      if (messagesUTC.length === 100) {
-        messagesUTC.shift()
-      }
-      messagesTimelag.push(messageTimeDiff)
-      if (messagesTimelag.length === 100) {
-        messagesTimelag.shift()
-      }
-      socketChart.update()
+      messagesUTC.push([utc, messageTimeDiff])
+      // console.log(messagesUTC)
+      // if (messagesUTC.length === 100) {
+      //   messagesUTC.shift()
+      // }
+      // messagesTimelag.push(messageTimeDiff)
+      // if (messagesTimelag.length === 100) {
+      //   messagesTimelag.shift()
+      // }
+      // socketChart.update()
     },
   }
 
@@ -239,128 +259,195 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
-  const bufferChrt = new Chart(bufferChart, {
-    type: 'bar',
-    data: {
-      labels: graphUTCLabels,
-      datasets: [
+  // const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
+  // const bufferChrt = new Chart(bufferChart, {
+  //   type: 'bar',
+  //   data: {
+  //     labels: graphUTCLabels,
+  //     datasets: [
+  //       {
+  //         label: 'MSELD Video Buffer (bytes)',
+  //         backgroundColor: '#FF6B00',
+  //         borderColor: '#FF6B00',
+  //         data: mseVideoBufferSize,
+  //         fill: true,
+  //       },
+  //       {
+  //         label: 'MSELD Audio Buffer (bytes)',
+  //         backgroundColor: '#63d4ff',
+  //         borderColor: '#63d4ff',
+  //         data: mseAudioBufferSize,
+  //         fill: true,
+  //       },
+  //     ],
+  //   },
+  //   // Configuration options go here
+  //   options: {
+  //     responsive: true,
+  //     elements: {
+  //       line: {
+  //         tension: 0, // disables bezier curves
+  //       },
+  //     },
+  //     animation: {
+  //       duration: 100, // general animation time
+  //     },
+  //     hover: {
+  //       animationDuration: 0, // duration of animations when hovering an item
+  //     },
+  //     responsiveAnimationDuration: 0, // animation duration after a resize
+  //   },
+  // })
+
+  // const bufferLengthChart = document.getElementById('bufferLengthChart').getContext('2d')
+  // const bufferLenChrt = new Chart(bufferLengthChart, {
+  //   type: 'bar',
+  //   data: {
+  //     labels: graphUTCLabels,
+  //     datasets: [
+  //       {
+  //         label: 'Media Element have seconds in buffer',
+  //         backgroundColor: 'red',
+  //         borderColor: 'red',
+  //         data: graphBufferedLength,
+  //         fill: true,
+  //       },
+  //     ],
+  //   },
+  //   // Configuration options go here
+  //   options: {
+  //     responsive: true,
+  //     elements: {
+  //       line: {
+  //         tension: 0, // disables bezier curves
+  //       },
+  //     },
+  //     animation: {
+  //       duration: 100, // general animation time
+  //     },
+  //     hover: {
+  //       animationDuration: 0, // duration of animations when hovering an item
+  //     },
+  //     responsiveAnimationDuration: 0, // animation duration after a resize
+  //   },
+  // })
+
+  // const socketLagChart = document.getElementById('socketLag').getContext('2d')
+  // const socketChart = new Chart(socketLagChart, {
+  //   type: 'line',
+  //   data: {
+  //     labels: messagesUTC,
+  //     datasets: [
+  //       {
+  //         label: 'Time to next WS message in ms',
+  //         backgroundColor: 'violet',
+  //         borderColor: 'violet',
+  //         data: messagesTimelag,
+  //         fill: true,
+  //       },
+  //     ],
+  //   },
+  //   // Configuration options go here
+  //   options: {
+  //     responsive: true,
+  //     elements: {
+  //       line: {
+  //         tension: 0, // disables bezier curves
+  //       },
+  //     },
+  //     animation: {
+  //       duration: 100, // general animation time
+  //     },
+  //     hover: {
+  //       animationDuration: 0, // duration of animations when hovering an item
+  //     },
+  //     responsiveAnimationDuration: 0, // animation duration after a resize
+  //   },
+  // })
+
+  // const eventsChartWrapper = document.getElementById('MSELDEvents').getContext('2d')
+  // const eventsChart = new Chart(eventsChartWrapper, {
+  //   type: 'scatter',
+  //   data: {
+  //     datasets: [
+  //       {
+  //         label: 'Events',
+  //         backgroundColor: 'blue',
+  //         borderColor: 'blue',
+  //         data: timeLineChart,
+  //       },
+  //     ],
+  //   },
+  //   // Configuration options go here
+  //   options: {
+  //     responsive: true,
+  //   },
+  // })
+
+  let myChart = Highcharts.stockChart('container', {
+    // Create the chart
+    chart: {
+      // events: {
+      //   load: function () {
+      //     // set up the updating of the chart each second
+      //     let series = this.series[0]
+      //     setInterval(function () {
+      //       let x = new Date().getTime(), // current time
+      //         y = Math.round(Math.random() * 100)
+      //       series.addPoint([x, y], true, true)
+      //     }, 100)
+      //   },
+      // },
+    },
+
+    time: {
+      useUTC: true,
+    },
+
+    rangeSelector: {
+      buttons: [
         {
-          label: 'MSELD Video Buffer (bytes)',
-          backgroundColor: '#FF6B00',
-          borderColor: '#FF6B00',
-          data: mseVideoBufferSize,
-          fill: true,
+          count: 1,
+          type: 'minute',
+          text: '1M',
         },
         {
-          label: 'MSELD Audio Buffer (bytes)',
-          backgroundColor: '#63d4ff',
-          borderColor: '#63d4ff',
-          data: mseAudioBufferSize,
-          fill: true,
+          count: 5,
+          type: 'minute',
+          text: '5M',
+        },
+        {
+          type: 'all',
+          text: 'All',
         },
       ],
+      inputEnabled: false,
+      selected: 0,
     },
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
-        },
-      },
-      animation: {
-        duration: 100, // general animation time
-      },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
-      },
-      responsiveAnimationDuration: 0, // animation duration after a resize
+
+    title: {
+      text: 'MSELD Statistics',
     },
+
+    exporting: {
+      enabled: false,
+    },
+
+    xAxis: {
+      plotBands: [
+        
+      ],
+    },
+
+    series: [
+      {
+        name: 'WS message lag',
+        data: [],
+      },
+    ],
   })
 
-  const bufferLengthChart = document.getElementById('bufferLengthChart').getContext('2d')
-  const bufferLenChrt = new Chart(bufferLengthChart, {
-    type: 'bar',
-    data: {
-      labels: graphUTCLabels,
-      datasets: [
-        {
-          label: 'Media Element have seconds in buffer',
-          backgroundColor: 'red',
-          borderColor: 'red',
-          data: graphBufferedLength,
-          fill: true,
-        },
-      ],
-    },
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
-        },
-      },
-      animation: {
-        duration: 100, // general animation time
-      },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
-      },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
-  })
-
-  const socketLagChart = document.getElementById('socketLag').getContext('2d')
-  const socketChart = new Chart(socketLagChart, {
-    type: 'bar',
-    data: {
-      labels: messagesUTC,
-      datasets: [
-        {
-          label: 'Time to next WS message in ms',
-          backgroundColor: 'violet',
-          borderColor: 'violet',
-          data: messagesTimelag,
-          fill: true,
-        },
-      ],
-    },
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
-        },
-      },
-      animation: {
-        duration: 100, // general animation time
-      },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
-      },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
-  })
-
-  const eventsChartWrapper = document.getElementById('MSELDEvents').getContext('2d')
-  const eventsChart = new Chart(eventsChartWrapper, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        {
-          label: 'Events',
-          backgroundColor: 'blue',
-          borderColor: 'blue',
-          data: timeLineChart,
-        },
-      ],
-    },
-    // Configuration options go here
-    options: {
-      responsive: true,
-    },
-  })
+  setInterval(() => {
+    myChart.series[0].setData(messagesUTC)
+  }, 5000)
 }

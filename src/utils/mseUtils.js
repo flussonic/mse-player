@@ -166,6 +166,7 @@ export const checkVideoProgress = (media, player) => (evt) => {
       currentTime: ct,
       endTime,
       readyState: player.media.readyState,
+      networkState: player.media.networkState,
     })
   }
 
