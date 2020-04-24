@@ -1,7 +1,6 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
-// import Chart from 'chart.js'
 
 window.onload = onLoad()
 
@@ -39,10 +38,10 @@ function onLoad() {
   // let graphCurrentTime = []
   // let graphBufferedTime = []
   let graphBufferedLength = []
-  let mseVideoBufferSize = []
-  let mseAudioBufferSize = []
+  // let mseVideoBufferSize = []
+  // let mseAudioBufferSize = []
 
-  const messagesUTC = []
+  let messagesUTC = []
   // const messagesTimelag = []
 
   const opts = {
@@ -132,27 +131,26 @@ function onLoad() {
       graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
       // graphCurrentTime.push(stats.currentTime)
       // graphBufferedTime.push(stats.endTime)
-      graphBufferedLength.push(endTime - currentTime)
-      mseVideoBufferSize.push(videoBuffer)
-      mseAudioBufferSize.push(audioBuffer)
-      if (graphUTCLabels.length === maxElements) {
-        graphUTCLabels.shift()
-      }
+      // mseVideoBufferSize.push(videoBuffer)
+      // mseAudioBufferSize.push(audioBuffer)
+      // if (graphUTCLabels.length === maxElements) {
+      //   graphUTCLabels.shift()
+      // }
       // if (graphCurrentTime.length === maxElements) {
       //   graphCurrentTime.shift()
       // }
       // if (graphBufferedTime.length === maxElements) {
       //   graphBufferedTime.shift()
       // }
-      if (graphBufferedLength.length === maxElements) {
-        graphBufferedLength.shift()
-      }
-      if (mseVideoBufferSize.length === maxElements) {
-        mseVideoBufferSize.shift()
-      }
-      if (mseAudioBufferSize.length === maxElements) {
-        mseAudioBufferSize.shift()
-      }
+      // if (graphBufferedLength.length === maxElements) {
+      //   graphBufferedLength.shift()
+      // }
+      // if (mseVideoBufferSize.length === maxElements) {
+      //   mseVideoBufferSize.shift()
+      // }
+      // if (mseAudioBufferSize.length === maxElements) {
+      //   mseAudioBufferSize.shift()
+      // }
 
       const readyIndicator = document.getElementById('indicator')
       readyIndicator.className = ''
@@ -195,6 +193,8 @@ function onLoad() {
           networkIndicator.classList.add('gray')
           break
       }
+
+      graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
 
       // bufferLenChrt.update()
       // bufferChrt.update()
@@ -434,9 +434,7 @@ function onLoad() {
     },
 
     xAxis: {
-      plotBands: [
-        
-      ],
+      plotBands: [],
     },
 
     series: [
@@ -444,10 +442,31 @@ function onLoad() {
         name: 'WS message lag',
         data: [],
       },
+      {
+        name: 'Media Element have seconds in buffer',
+        data: [],
+      },
     ],
   })
 
   setInterval(() => {
+    const maxElements = 5000
+    messagesUTC.sort((a, b) => {
+      return a[0] - b[0]
+    })
+    if (messagesUTC.length >= maxElements) {
+      messagesUTC = messagesUTC.splice(messagesUTC.length - maxElements, messagesUTC.length)
+    }
+    graphBufferedLength.sort((a, b) => {
+      return a[0] - b[0]
+    })
+    if (graphBufferedLength.length >= maxElements) {
+      graphBufferedLength = graphBufferedLength.splice(
+        graphBufferedLength.length - maxElements,
+        graphBufferedLength.length
+      )
+    }
     myChart.series[0].setData(messagesUTC)
+    myChart.series[1].setData(graphBufferedLength)
   }, 5000)
 }
