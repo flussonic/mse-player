@@ -38,6 +38,7 @@ function onLoad() {
   // let graphCurrentTime = []
   // let graphBufferedTime = []
   let graphBufferedLength = []
+  let readySt = []
   // let mseVideoBufferSize = []
   // let mseAudioBufferSize = []
 
@@ -97,7 +98,7 @@ function onLoad() {
     },
     onError: (err) => {
       if (typeof err === 'object' && err.type) {
-        console.log(err.type)
+        // console.log(err.type)
         // if (err.type === 'waiting') {
         //   timeLineChart.push({
         //     x: new Date(),
@@ -108,6 +109,14 @@ function onLoad() {
         //   }
         //   eventsChart.update()
         // }
+        const time = new Date()
+        myChart.xAxis[0].addPlotBand({
+          label: {text: err.type},
+          color: 'red',
+          width: 2,
+          value: Date.now(time),
+          zIndex: 3,
+        })
       } else {
         console.log('••••• ERRROR', err)
       }
@@ -125,10 +134,10 @@ function onLoad() {
     },
     onStats: (stats) => {
       const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
-      const maxElements = 30
+      // const maxElements = 30
       // graphUTCLabels.push(humanTime(stats.timestamp))
-      const date = new Date(timestamp)
-      graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
+      // const date = new Date(timestamp)
+      // graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
       // graphCurrentTime.push(stats.currentTime)
       // graphBufferedTime.push(stats.endTime)
       // mseVideoBufferSize.push(videoBuffer)
@@ -195,6 +204,7 @@ function onLoad() {
       }
 
       graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
+      readySt.push([timestamp, readyState])
 
       // bufferLenChrt.update()
       // bufferChrt.update()
@@ -202,15 +212,6 @@ function onLoad() {
     onMessage: (messageStats) => {
       const {utc, messageTimeDiff} = messageStats
       messagesUTC.push([utc, messageTimeDiff])
-      // console.log(messagesUTC)
-      // if (messagesUTC.length === 100) {
-      //   messagesUTC.shift()
-      // }
-      // messagesTimelag.push(messageTimeDiff)
-      // if (messagesTimelag.length === 100) {
-      //   messagesTimelag.shift()
-      // }
-      // socketChart.update()
     },
   }
 
@@ -435,7 +436,27 @@ function onLoad() {
 
     xAxis: {
       plotBands: [],
+      plotLines: [],
     },
+
+    yAxis: [
+      {
+        title: {
+          text: 'Milliseconds',
+        },
+        align: 'left',
+      },
+      {
+        title: {
+          text: 'State',
+        },
+        opposite: true,
+        align: 'right',
+        // floor: 0,
+        // ceiling: 4,
+        max: 4,
+      },
+    ],
 
     series: [
       {
@@ -446,7 +467,48 @@ function onLoad() {
         name: 'Media Element have seconds in buffer',
         data: [],
       },
+      {
+        name: 'Ready State',
+        type: 'line',
+        yAxis: 1,
+        data: [],
+        max: 4,
+        zones: [
+          {
+            value: 0,
+            color: 'black',
+          },
+          {
+            value: 1,
+            color: 'gray',
+          },
+          {
+            value: 2,
+            color: 'red',
+          },
+          {
+            value: 3,
+            color: 'yellow',
+          },
+          {
+            value: 4,
+            color: 'green',
+          },
+          {
+            color: 'gray',
+          },
+        ],
+      },
     ],
+    // legend: {
+    //   layout: 'vertical',
+    //   align: 'left',
+    //   verticalAlign: 'top',
+    //   x: 100,
+    //   y: 70,
+    //   floating: true,
+    //   borderWidth: 1,
+    // },
   })
 
   setInterval(() => {
@@ -466,7 +528,14 @@ function onLoad() {
         graphBufferedLength.length
       )
     }
+    readySt.sort((a, b) => {
+      return a[0] - b[0]
+    })
+    if (readySt.length >= maxElements) {
+      readySt = readySt.splice(readySt.length - maxElements, readySt.length)
+    }
     myChart.series[0].setData(messagesUTC)
     myChart.series[1].setData(graphBufferedLength)
+    myChart.series[2].setData(readySt)
   }, 5000)
 }
