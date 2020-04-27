@@ -182,8 +182,8 @@ export default class BuffersController {
 
   seek() {
     for (let k in this.sourceBuffer) {
-      // this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
-      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
+      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
+      this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
       this.sourceBuffer[k].abort()
     }
 

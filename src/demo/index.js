@@ -34,13 +34,13 @@ function onLoad() {
   let showFirstFrameUTC = false
 
   // let timeLineChart = []
-  let graphUTCLabels = []
+  // let graphUTCLabels = []
   // let graphCurrentTime = []
   // let graphBufferedTime = []
   let graphBufferedLength = []
   let readySt = []
-  // let mseVideoBufferSize = []
-  // let mseAudioBufferSize = []
+  let mseVideoBufferSize = []
+  let mseAudioBufferSize = []
 
   let messagesUTC = []
   // const messagesTimelag = []
@@ -50,7 +50,7 @@ function onLoad() {
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
-    maxBufferDelay: 0,
+    maxBufferDelay: 0.65,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -98,21 +98,22 @@ function onLoad() {
     },
     onError: (err) => {
       if (typeof err === 'object' && err.type) {
-        // console.log(err.type)
-        // if (err.type === 'waiting') {
-        //   timeLineChart.push({
-        //     x: new Date(),
-        //     y: 10,
-        //   })
-        //   if (timeLineChart.length === 100) {
-        //     timeLineChart.shift()
-        //   }
-        //   eventsChart.update()
-        // }
+        let color = 'gray'
+        switch (err.type) {
+          case 'waiting':
+            color = 'red'
+            break
+          case 'playing':
+            color = 'green'
+            break
+          default:
+            color = 'gray'
+            break
+        }
         const time = new Date()
         myChart.xAxis[0].addPlotBand({
           label: {text: err.type},
-          color: 'red',
+          color,
           width: 2,
           value: Date.now(time),
           zIndex: 3,
@@ -134,32 +135,9 @@ function onLoad() {
     },
     onStats: (stats) => {
       const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
-      // const maxElements = 30
-      // graphUTCLabels.push(humanTime(stats.timestamp))
-      // const date = new Date(timestamp)
-      // graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
-      // graphCurrentTime.push(stats.currentTime)
-      // graphBufferedTime.push(stats.endTime)
-      // mseVideoBufferSize.push(videoBuffer)
-      // mseAudioBufferSize.push(audioBuffer)
-      // if (graphUTCLabels.length === maxElements) {
-      //   graphUTCLabels.shift()
-      // }
-      // if (graphCurrentTime.length === maxElements) {
-      //   graphCurrentTime.shift()
-      // }
-      // if (graphBufferedTime.length === maxElements) {
-      //   graphBufferedTime.shift()
-      // }
-      // if (graphBufferedLength.length === maxElements) {
-      //   graphBufferedLength.shift()
-      // }
-      // if (mseVideoBufferSize.length === maxElements) {
-      //   mseVideoBufferSize.shift()
-      // }
-      // if (mseAudioBufferSize.length === maxElements) {
-      //   mseAudioBufferSize.shift()
-      // }
+
+      mseVideoBufferSize.push([timestamp, videoBuffer])
+      mseAudioBufferSize.push([timestamp, audioBuffer])
 
       const readyIndicator = document.getElementById('indicator')
       readyIndicator.className = ''
@@ -205,9 +183,6 @@ function onLoad() {
 
       graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
       readySt.push([timestamp, readyState])
-
-      // bufferLenChrt.update()
-      // bufferChrt.update()
     },
     onMessage: (messageStats) => {
       const {utc, messageTimeDiff} = messageStats
@@ -260,146 +235,9 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  // const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
-  // const bufferChrt = new Chart(bufferChart, {
-  //   type: 'bar',
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'MSELD Video Buffer (bytes)',
-  //         backgroundColor: '#FF6B00',
-  //         borderColor: '#FF6B00',
-  //         data: mseVideoBufferSize,
-  //         fill: true,
-  //       },
-  //       {
-  //         label: 'MSELD Audio Buffer (bytes)',
-  //         backgroundColor: '#63d4ff',
-  //         borderColor: '#63d4ff',
-  //         data: mseAudioBufferSize,
-  //         fill: true,
-  //       },
-  //     ],
-  //   },
-  //   // Configuration options go here
-  //   options: {
-  //     responsive: true,
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 100, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
-
-  // const bufferLengthChart = document.getElementById('bufferLengthChart').getContext('2d')
-  // const bufferLenChrt = new Chart(bufferLengthChart, {
-  //   type: 'bar',
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'Media Element have seconds in buffer',
-  //         backgroundColor: 'red',
-  //         borderColor: 'red',
-  //         data: graphBufferedLength,
-  //         fill: true,
-  //       },
-  //     ],
-  //   },
-  //   // Configuration options go here
-  //   options: {
-  //     responsive: true,
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 100, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
-
-  // const socketLagChart = document.getElementById('socketLag').getContext('2d')
-  // const socketChart = new Chart(socketLagChart, {
-  //   type: 'line',
-  //   data: {
-  //     labels: messagesUTC,
-  //     datasets: [
-  //       {
-  //         label: 'Time to next WS message in ms',
-  //         backgroundColor: 'violet',
-  //         borderColor: 'violet',
-  //         data: messagesTimelag,
-  //         fill: true,
-  //       },
-  //     ],
-  //   },
-  //   // Configuration options go here
-  //   options: {
-  //     responsive: true,
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 100, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
-
-  // const eventsChartWrapper = document.getElementById('MSELDEvents').getContext('2d')
-  // const eventsChart = new Chart(eventsChartWrapper, {
-  //   type: 'scatter',
-  //   data: {
-  //     datasets: [
-  //       {
-  //         label: 'Events',
-  //         backgroundColor: 'blue',
-  //         borderColor: 'blue',
-  //         data: timeLineChart,
-  //       },
-  //     ],
-  //   },
-  //   // Configuration options go here
-  //   options: {
-  //     responsive: true,
-  //   },
-  // })
-
   let myChart = Highcharts.stockChart('container', {
     // Create the chart
-    chart: {
-      // events: {
-      //   load: function () {
-      //     // set up the updating of the chart each second
-      //     let series = this.series[0]
-      //     setInterval(function () {
-      //       let x = new Date().getTime(), // current time
-      //         y = Math.round(Math.random() * 100)
-      //       series.addPoint([x, y], true, true)
-      //     }, 100)
-      //   },
-      // },
-    },
+    chart: {},
 
     time: {
       useUTC: true,
@@ -430,9 +268,9 @@ function onLoad() {
       text: 'MSELD Statistics',
     },
 
-    exporting: {
-      enabled: false,
-    },
+    // exporting: {
+    //   enabled: false,
+    // },
 
     xAxis: {
       plotBands: [],
@@ -500,42 +338,90 @@ function onLoad() {
         ],
       },
     ],
-    // legend: {
-    //   layout: 'vertical',
-    //   align: 'left',
-    //   verticalAlign: 'top',
-    //   x: 100,
-    //   y: 70,
-    //   floating: true,
-    //   borderWidth: 1,
+  })
+
+  let myMseChart = Highcharts.stockChart('container2', {
+    // Create the chart
+    chart: {},
+
+    time: {
+      useUTC: true,
+    },
+
+    rangeSelector: {
+      buttons: [
+        {
+          count: 1,
+          type: 'minute',
+          text: '1M',
+        },
+        {
+          count: 5,
+          type: 'minute',
+          text: '5M',
+        },
+        {
+          type: 'all',
+          text: 'All',
+        },
+      ],
+      inputEnabled: false,
+      selected: 0,
+    },
+
+    title: {
+      text: 'MSELD Buffer Statistics',
+    },
+
+    // xAxis: {
+    //   plotBands: [],
+    //   plotLines: [],
     // },
+
+    yAxis: [
+      {
+        title: {
+          text: 'Bytes',
+        },
+        align: 'left',
+      },
+    ],
+
+    series: [
+      {
+        name: 'WS audio buffer',
+        data: [],
+      },
+      {
+        name: 'WS video buffer',
+        data: [],
+      },
+    ],
   })
 
   setInterval(() => {
-    const maxElements = 5000
-    messagesUTC.sort((a, b) => {
-      return a[0] - b[0]
-    })
-    if (messagesUTC.length >= maxElements) {
-      messagesUTC = messagesUTC.splice(messagesUTC.length - maxElements, messagesUTC.length)
+    const prepare = function (data) {
+      // const maxElements = 5000
+      data.sort((a, b) => {
+        return a[0] - b[0]
+      })
+      // if (data.length >= maxElements) {
+      //   data = data.splice(data.length - maxElements, data.length)
+      // }
+      return data
     }
-    graphBufferedLength.sort((a, b) => {
-      return a[0] - b[0]
-    })
-    if (graphBufferedLength.length >= maxElements) {
-      graphBufferedLength = graphBufferedLength.splice(
-        graphBufferedLength.length - maxElements,
-        graphBufferedLength.length
-      )
-    }
-    readySt.sort((a, b) => {
-      return a[0] - b[0]
-    })
-    if (readySt.length >= maxElements) {
-      readySt = readySt.splice(readySt.length - maxElements, readySt.length)
-    }
+
+    messagesUTC = prepare(messagesUTC)
+    graphBufferedLength = prepare(graphBufferedLength)
+    readySt = prepare(readySt)
+    mseAudioBufferSize = prepare(mseAudioBufferSize)
+    mseVideoBufferSize = prepare(mseVideoBufferSize)
+
     myChart.series[0].setData(messagesUTC)
     myChart.series[1].setData(graphBufferedLength)
     myChart.series[2].setData(readySt)
+
+    myMseChart.series[0].setData(mseAudioBufferSize)
+    myMseChart.series[1].setData(mseVideoBufferSize)
   }, 5000)
 }
