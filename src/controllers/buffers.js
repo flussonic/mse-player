@@ -4,7 +4,7 @@ import {logger} from '../utils/logger'
 import {AUDIO, VIDEO} from '../enums/common'
 import {BUFFER_UPDATE_END} from '../enums/events'
 
-const BUFFER_MODE_SEQUENCE = 'sequence' // segments
+const BUFFER_MODE_SEQUENCE = 'segments' // segments
 
 export default class BuffersController {
   constructor(opts = {}) {

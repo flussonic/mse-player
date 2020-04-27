@@ -50,7 +50,7 @@ function onLoad() {
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
-    maxBufferDelay: 0.65,
+    maxBufferDelay: 0.75,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
