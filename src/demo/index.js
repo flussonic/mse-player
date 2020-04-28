@@ -1,7 +1,6 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
-// import Chart from 'chart.js'
 
 window.onload = onLoad()
 
@@ -34,23 +33,24 @@ function onLoad() {
 
   let showFirstFrameUTC = false
 
-  let timeLineChart = []
-  let graphUTCLabels = []
+  // let timeLineChart = []
+  // let graphUTCLabels = []
   // let graphCurrentTime = []
   // let graphBufferedTime = []
   let graphBufferedLength = []
+  let readySt = []
   let mseVideoBufferSize = []
   let mseAudioBufferSize = []
 
-  const messagesUTC = []
-  const messagesTimelag = []
+  let messagesUTC = []
+  // const messagesTimelag = []
 
   const opts = {
     debug: true,
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
-    maxBufferDelay: 0,
+    maxBufferDelay: 1,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -66,14 +66,14 @@ function onLoad() {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
-      timeLineChart.push({
-        x: new Date(),
-        // y: 0,
-      })
-      if (timeLineChart.length === 100) {
-        timeLineChart.shift()
-      }
-      eventsChart.update()
+      // timeLineChart.push({
+      //   x: new Date(),
+      //   // y: 0,
+      // })
+      // if (timeLineChart.length === 100) {
+      //   timeLineChart.shift()
+      // }
+      // eventsChart.update()
     },
     onDisconnect: (status) => {
       console.log('Websocket status:', status)
@@ -98,17 +98,26 @@ function onLoad() {
     },
     onError: (err) => {
       if (typeof err === 'object' && err.type) {
-        console.log(err.type)
-        if (err.type === 'waiting') {
-          timeLineChart.push({
-            x: new Date(),
-            y: 10,
-          })
-          if (timeLineChart.length === 100) {
-            timeLineChart.shift()
-          }
-          eventsChart.update()
+        let color = 'gray'
+        switch (err.type) {
+          case 'waiting':
+            color = 'red'
+            break
+          case 'playing':
+            color = 'green'
+            break
+          default:
+            color = 'gray'
+            break
         }
+        const time = new Date()
+        myChart.xAxis[0].addPlotBand({
+          label: {text: err.type},
+          color,
+          width: 2,
+          value: Date.now(time),
+          zIndex: 3,
+        })
       } else {
         console.log('••••• ERRROR', err)
       }
@@ -125,34 +134,10 @@ function onLoad() {
       console.log('[onMuted]')
     },
     onStats: (stats) => {
-      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState} = stats
-      const maxElements = 30
-      // graphUTCLabels.push(humanTime(stats.timestamp))
-      const date = new Date(timestamp)
-      graphUTCLabels.push(`${date.getMinutes()}:${date.getSeconds()}:${date.getUTCMilliseconds()}`)
-      // graphCurrentTime.push(stats.currentTime)
-      // graphBufferedTime.push(stats.endTime)
-      graphBufferedLength.push(endTime - currentTime)
-      mseVideoBufferSize.push(videoBuffer)
-      mseAudioBufferSize.push(audioBuffer)
-      if (graphUTCLabels.length === maxElements) {
-        graphUTCLabels.shift()
-      }
-      // if (graphCurrentTime.length === maxElements) {
-      //   graphCurrentTime.shift()
-      // }
-      // if (graphBufferedTime.length === maxElements) {
-      //   graphBufferedTime.shift()
-      // }
-      if (graphBufferedLength.length === maxElements) {
-        graphBufferedLength.shift()
-      }
-      if (mseVideoBufferSize.length === maxElements) {
-        mseVideoBufferSize.shift()
-      }
-      if (mseAudioBufferSize.length === maxElements) {
-        mseAudioBufferSize.shift()
-      }
+      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
+
+      mseVideoBufferSize.push([timestamp, videoBuffer])
+      mseAudioBufferSize.push([timestamp, audioBuffer])
 
       const readyIndicator = document.getElementById('indicator')
       readyIndicator.className = ''
@@ -176,21 +161,32 @@ function onLoad() {
           readyIndicator.classList.add('gray')
           break
       }
+      const networkIndicator = document.getElementById('nIndicator')
+      networkIndicator.className = ''
+      switch (networkState) {
+        case 0:
+          networkIndicator.classList.add('black')
+          break
+        case 1:
+          networkIndicator.classList.add('yellow')
+          break
+        case 2:
+          networkIndicator.classList.add('green')
+          break
+        case 3:
+          networkIndicator.classList.add('red')
+          break
+        default:
+          networkIndicator.classList.add('gray')
+          break
+      }
 
-      bufferLenChrt.update()
-      bufferChrt.update()
+      graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
+      readySt.push([timestamp, readyState])
     },
     onMessage: (messageStats) => {
       const {utc, messageTimeDiff} = messageStats
-      messagesUTC.push(utc)
-      if (messagesUTC.length === 100) {
-        messagesUTC.shift()
-      }
-      messagesTimelag.push(messageTimeDiff)
-      if (messagesTimelag.length === 100) {
-        messagesTimelag.shift()
-      }
-      socketChart.update()
+      messagesUTC.push([utc, messageTimeDiff])
     },
   }
 
@@ -239,128 +235,193 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  const bufferChart = document.getElementById('MSELDBuffers').getContext('2d')
-  const bufferChrt = new Chart(bufferChart, {
-    type: 'bar',
-    data: {
-      labels: graphUTCLabels,
-      datasets: [
+  let myChart = Highcharts.stockChart('container', {
+    // Create the chart
+    chart: {},
+
+    time: {
+      useUTC: true,
+    },
+
+    rangeSelector: {
+      buttons: [
         {
-          label: 'MSELD Video Buffer (bytes)',
-          backgroundColor: '#FF6B00',
-          borderColor: '#FF6B00',
-          data: mseVideoBufferSize,
-          fill: true,
+          count: 1,
+          type: 'minute',
+          text: '1M',
         },
         {
-          label: 'MSELD Audio Buffer (bytes)',
-          backgroundColor: '#63d4ff',
-          borderColor: '#63d4ff',
-          data: mseAudioBufferSize,
-          fill: true,
+          count: 5,
+          type: 'minute',
+          text: '5M',
+        },
+        {
+          type: 'all',
+          text: 'All',
         },
       ],
+      inputEnabled: false,
+      selected: 0,
     },
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
+
+    title: {
+      text: 'MSELD Statistics',
+    },
+
+    // exporting: {
+    //   enabled: false,
+    // },
+
+    xAxis: {
+      plotBands: [],
+      plotLines: [],
+    },
+
+    yAxis: [
+      {
+        title: {
+          text: 'Milliseconds',
         },
+        align: 'left',
       },
-      animation: {
-        duration: 100, // general animation time
+      {
+        title: {
+          text: 'State',
+        },
+        opposite: true,
+        align: 'right',
+        // floor: 0,
+        // ceiling: 4,
+        max: 4,
       },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
+    ],
+
+    series: [
+      {
+        name: 'WS message lag',
+        data: [],
       },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
+      {
+        name: 'Media Element have seconds in buffer',
+        data: [],
+      },
+      {
+        name: 'Ready State',
+        type: 'line',
+        yAxis: 1,
+        data: [],
+        max: 4,
+        zones: [
+          {
+            value: 0,
+            color: 'black',
+          },
+          {
+            value: 1,
+            color: 'gray',
+          },
+          {
+            value: 2,
+            color: 'red',
+          },
+          {
+            value: 3,
+            color: 'yellow',
+          },
+          {
+            value: 4,
+            color: 'green',
+          },
+          {
+            color: 'gray',
+          },
+        ],
+      },
+    ],
   })
 
-  const bufferLengthChart = document.getElementById('bufferLengthChart').getContext('2d')
-  const bufferLenChrt = new Chart(bufferLengthChart, {
-    type: 'bar',
-    data: {
-      labels: graphUTCLabels,
-      datasets: [
+  let myMseChart = Highcharts.stockChart('container2', {
+    // Create the chart
+    chart: {},
+
+    time: {
+      useUTC: true,
+    },
+
+    rangeSelector: {
+      buttons: [
         {
-          label: 'Media Element have seconds in buffer',
-          backgroundColor: 'red',
-          borderColor: 'red',
-          data: graphBufferedLength,
-          fill: true,
+          count: 1,
+          type: 'minute',
+          text: '1M',
+        },
+        {
+          count: 5,
+          type: 'minute',
+          text: '5M',
+        },
+        {
+          type: 'all',
+          text: 'All',
         },
       ],
+      inputEnabled: false,
+      selected: 0,
     },
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
+
+    title: {
+      text: 'MSELD Buffer Statistics',
+    },
+
+    // xAxis: {
+    //   plotBands: [],
+    //   plotLines: [],
+    // },
+
+    yAxis: [
+      {
+        title: {
+          text: 'Bytes',
         },
+        align: 'left',
       },
-      animation: {
-        duration: 100, // general animation time
+    ],
+
+    series: [
+      {
+        name: 'WS audio buffer',
+        data: [],
       },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
+      {
+        name: 'WS video buffer',
+        data: [],
       },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
+    ],
   })
 
-  const socketLagChart = document.getElementById('socketLag').getContext('2d')
-  const socketChart = new Chart(socketLagChart, {
-    type: 'bar',
-    data: {
-      labels: messagesUTC,
-      datasets: [
-        {
-          label: 'Time to next WS message in ms',
-          backgroundColor: 'violet',
-          borderColor: 'violet',
-          data: messagesTimelag,
-          fill: true,
-        },
-      ],
-    },
-    // Configuration options go here
-    options: {
-      responsive: true,
-      elements: {
-        line: {
-          tension: 0, // disables bezier curves
-        },
-      },
-      animation: {
-        duration: 100, // general animation time
-      },
-      hover: {
-        animationDuration: 0, // duration of animations when hovering an item
-      },
-      responsiveAnimationDuration: 0, // animation duration after a resize
-    },
-  })
+  setInterval(() => {
+    const prepare = function (data) {
+      // const maxElements = 5000
+      data.sort((a, b) => {
+        return a[0] - b[0]
+      })
+      // if (data.length >= maxElements) {
+      //   data = data.splice(data.length - maxElements, data.length)
+      // }
+      return data
+    }
 
-  const eventsChartWrapper = document.getElementById('MSELDEvents').getContext('2d')
-  const eventsChart = new Chart(eventsChartWrapper, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        {
-          label: 'Events',
-          backgroundColor: 'blue',
-          borderColor: 'blue',
-          data: timeLineChart,
-        },
-      ],
-    },
-    // Configuration options go here
-    options: {
-      responsive: true,
-    },
-  })
+    messagesUTC = prepare(messagesUTC)
+    graphBufferedLength = prepare(graphBufferedLength)
+    readySt = prepare(readySt)
+    mseAudioBufferSize = prepare(mseAudioBufferSize)
+    mseVideoBufferSize = prepare(mseVideoBufferSize)
+
+    myChart.series[0].setData(messagesUTC)
+    myChart.series[1].setData(graphBufferedLength)
+    myChart.series[2].setData(readySt)
+
+    myMseChart.series[0].setData(mseAudioBufferSize)
+    myMseChart.series[1].setData(mseVideoBufferSize)
+  }, 5000)
 }

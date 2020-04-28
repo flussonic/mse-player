@@ -499,6 +499,8 @@ export default class MSEPlayer {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.errorLog)
       mediaEmptyPromise = new Promise((resolve) => {
         this._onmee = this.onMediaElementEmptied(resolve).bind(this)
       })
@@ -581,9 +583,12 @@ export default class MSEPlayer {
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
 
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.errorLog)
+
       if (this.liveError) {
         this.player = void 0
         return
@@ -651,7 +656,7 @@ export default class MSEPlayer {
     if (this.opts.onMessage) {
       this.opts.onMessage({
         utc: Date.now(),
-        messageTimeDiff
+        messageTimeDiff,
       })
     }
 

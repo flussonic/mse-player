@@ -4,7 +4,7 @@ import {logger} from '../utils/logger'
 import {AUDIO, VIDEO} from '../enums/common'
 import {BUFFER_UPDATE_END} from '../enums/events'
 
-const BUFFER_MODE_SEQUENCE = 'sequence' // segments
+const BUFFER_MODE_SEQUENCE = 'segments' // segments
 
 export default class BuffersController {
   constructor(opts = {}) {
@@ -41,7 +41,8 @@ export default class BuffersController {
       const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
 
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType)
-      // sb[s.content].timestampOffset = 0.25
+      sb[s.content].mode = BUFFER_MODE_SEQUENCE
+      sb[s.content].timestampOffset = 0.25
       const buffer = sb[s.content]
       if (isVideo) {
         buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
@@ -182,8 +183,8 @@ export default class BuffersController {
 
   seek() {
     for (let k in this.sourceBuffer) {
-      // this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
-      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
+      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
+      this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
       this.sourceBuffer[k].abort()
     }
 
