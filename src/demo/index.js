@@ -236,6 +236,19 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
+  window.unmute = () => {
+    const element = document.getElementById('muted')
+    if (window.player && window.player.media) {
+      if (window.player.media.muted) {
+        window.player.media.muted = false
+        element.innerText = 'Mute'
+      } else {
+        window.player.media.muted = true
+        element.innerText = 'Unmute'
+      }
+    }
+  }
+
   let myChart = Highcharts.stockChart('container', {
     // Create the chart
     chart: {},

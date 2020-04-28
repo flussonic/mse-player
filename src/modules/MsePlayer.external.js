@@ -123,6 +123,7 @@ export default class MSEPlayer {
     if (media instanceof HTMLMediaElement) {
       // iOS autoplay with no fullscreen fix
       media.WebKitPlaysInline = true
+      media.controls = false
       // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
       // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
       // this.media.onerror = function() {
