@@ -1,18 +1,17 @@
 import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
-// import Chart from 'chart.js'
 
 window.onload = onLoad()
 
 function onLoad() {
-  var streamer_ws = 'ws://localhost:8080'
-  var stream_name = 'clock'
+  let streamer_ws = 'ws://localhost:8080'
+  let stream_name = 'clock'
 
   // parse query string
-  var query = window.location.search
+  let query = window.location.search
   if (query) {
-    var qs = decode(query.replace(/^\?/, ''))
+    let qs = decode(query.replace(/^\?/, ''))
     if (qs.host) {
       streamer_ws = qs.host
     }
@@ -20,30 +19,38 @@ function onLoad() {
       stream_name = qs.name
     }
   }
-  var url = streamer_ws + '/' + stream_name + '/mse_ld'
+  let url = streamer_ws + '/' + stream_name + '/mse_ld'
 
   const element = document.getElementById('player')
   const videoTracksSelect = document.getElementById('videoTracks')
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
   const utcLabel = document.getElementById('utc')
-  const realLabel = document.getElementById('real')
   const stallingLabel = document.getElementById('stallingLabel')
-  const showStallingIndicator = value => {
+  const showStallingIndicator = (value) => {
     stallingLabel.innerText = '' + value
   }
 
   let showFirstFrameUTC = false
 
-  // let graphUTC = []
+  // let timeLineChart = []
   // let graphUTCLabels = []
-  // let graphSegmentsVideo = []
-  // let graphSegmentsAudio = []
+  // let graphCurrentTime = []
+  // let graphBufferedTime = []
+  let graphBufferedLength = []
+  let readySt = []
+  let mseVideoBufferSize = []
+  let mseAudioBufferSize = []
+
+  let messagesUTC = []
+  // const messagesTimelag = []
 
   const opts = {
     debug: true,
-    connectionRetries: 1,
+    connectionRetries: 0,
     errorsBeforeStop: 10,
+    retryMuted: true,
+    maxBufferDelay: 1,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -55,38 +62,23 @@ function onLoad() {
     },
     onProgress: (utc) => {
       utcLabel.innerText = humanTime(utc)
-      realLabel.innerText = humanTime(new Date().getTime()/1000)
       if (showFirstFrameUTC) {
         console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
         showFirstFrameUTC = false
       }
-
-      // graphUTC.push(utc)
-      // if (!graphUTCLabels.includes(humanTime(utc))) {
-      //   graphUTCLabels.push(humanTime(utc))
-      //   if (graphUTCLabels.length === 200) {
-      //     graphUTCLabels.shift()
-      //   }
+      // timeLineChart.push({
+      //   x: new Date(),
+      //   // y: 0,
+      // })
+      // if (timeLineChart.length === 100) {
+      //   timeLineChart.shift()
       // }
-      // if (window.player) {
-      //   // console.log(window.player.sb.segments.length)
-      //   // const audioBytes = JSON.stringify(window.player.sb.segmentsAudio).length * 8
-      //   graphSegmentsAudio.push(window.player.sb.segmentsAudio.length)
-      //   if (graphSegmentsAudio.length === 200) {
-      //     graphSegmentsAudio.shift()
-      //   }
-      //   // const videoBytes = JSON.stringify(window.player.sb.segmentsVideo).length * 8
-      //   graphSegmentsVideo.push(window.player.sb.segmentsVideo.length)
-      //   if (graphSegmentsVideo.length === 200) {
-      //     graphSegmentsVideo.shift()
-      //   }
-      // }
-      // chart.update()
+      // eventsChart.update()
     },
-    onDisconnect: status => {
+    onDisconnect: (status) => {
       console.log('Websocket status:', status)
     },
-    onMediaInfo: rawMetaData => {
+    onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)
       const videoTracks = window.player.getVideoTracks()
       const audioTracks = window.player.getAudioTracks()
@@ -96,7 +88,7 @@ function onLoad() {
       )
 
       const audioOptions = audioTracks.map(
-        v => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
+        (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
       )
 
       videoTracksSelect.innerHTML = videoOptions.join('')
@@ -104,20 +96,121 @@ function onLoad() {
 
       mbrControls.style.display = 'block'
     },
-    onError: err => {
-      console.log('••••• ERRROR', err)
+    onError: (err) => {
+      if (typeof err === 'object' && err.type) {
+        let color = 'gray'
+        switch (err.type) {
+          case 'waiting':
+            color = 'red'
+            break
+          case 'playing':
+            color = 'green'
+            break
+          default:
+            color = 'gray'
+            break
+        }
+        const time = new Date()
+        myChart.xAxis[0].addPlotBand({
+          label: {text: err.type},
+          color,
+          width: 2,
+          value: Date.now(time),
+          zIndex: 3,
+        })
+      } else {
+        console.log('••••• ERRROR', err)
+      }
+    },
+    onAutoplay: (func) => {
+      // console.log('onAutoplay', func)
+      const element = document.getElementById('playButton')
+      element.style.display = 'flex'
+      window.autoplayFunc = func.bind(this)
+      window.addEventListener('click', window.hidePlayButton)
+      window.addEventListener('touchstart', window.hidePlayButton)
+    },
+    onMuted: () => {
+      console.log('[onMuted]')
+    },
+    onStats: (stats) => {
+      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
+
+      mseVideoBufferSize.push([timestamp, videoBuffer])
+      mseAudioBufferSize.push([timestamp, audioBuffer])
+
+      const readyIndicator = document.getElementById('indicator')
+      readyIndicator.className = ''
+      switch (readyState) {
+        case 0:
+          readyIndicator.classList.add('black')
+          break
+        case 1:
+          readyIndicator.classList.add('gray')
+          break
+        case 2:
+          readyIndicator.classList.add('red')
+          break
+        case 3:
+          readyIndicator.classList.add('yellow')
+          break
+        case 4:
+          readyIndicator.classList.add('green')
+          break
+        default:
+          readyIndicator.classList.add('gray')
+          break
+      }
+      const networkIndicator = document.getElementById('nIndicator')
+      networkIndicator.className = ''
+      switch (networkState) {
+        case 0:
+          networkIndicator.classList.add('black')
+          break
+        case 1:
+          networkIndicator.classList.add('yellow')
+          break
+        case 2:
+          networkIndicator.classList.add('green')
+          break
+        case 3:
+          networkIndicator.classList.add('red')
+          break
+        default:
+          networkIndicator.classList.add('gray')
+          break
+      }
+
+      graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
+      readySt.push([timestamp, readyState])
+    },
+    onMessage: (messageStats) => {
+      const {utc, messageTimeDiff} = messageStats
+      messagesUTC.push([utc, messageTimeDiff])
     },
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
-  window.player
-    .play()
-    .then(success => {
-      console.log('resolve', success)
-    })
-    .catch(err => {
-      console.log(err)
-    })
+  window.play = () => {
+    window.player
+      .play()
+      .then((success) => {
+        console.log('resolve', success)
+      })
+      .catch((err) => {
+        console.log(err)
+      })
+  }
+
+  window.hidePlayButton = () => {
+    const element = document.getElementById('playButton')
+    element.style.display = 'none'
+    window.removeEventListener('click', window.hidePlayButton)
+    window.removeEventListener('touchstart', window.hidePlayButton)
+    window.autoplayFunc()
+  }
+
+  window.play()
 
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
@@ -142,47 +235,193 @@ function onLoad() {
     } else throw new Error('incorrect input!')
   }
 
-  const ctx = document.getElementById('myChart').getContext('2d')
+  let myChart = Highcharts.stockChart('container', {
+    // Create the chart
+    chart: {},
 
-  // const chart = new Chart(ctx, {
-  //   // The type of chart we want to create
-  //   type: 'bar',
+    time: {
+      useUTC: true,
+    },
 
-  //   // The data for our dataset
-  //   data: {
-  //     labels: graphUTCLabels,
-  //     datasets: [
-  //       {
-  //         label: 'Video Segments',
-  //         backgroundColor: 'rgb(255, 99, 132)',
-  //         borderColor: 'rgb(255, 99, 132)',
-  //         fill: false,
-  //         data: graphSegmentsVideo,
-  //       },
-  //       {
-  //         label: 'Audio Segments',
-  //         backgroundColor: '#63d4ff',
-  //         borderColor: '#63d4ff',
-  //         fill: false,
-  //         data: graphSegmentsAudio,
-  //       },
-  //     ],
-  //   },
+    rangeSelector: {
+      buttons: [
+        {
+          count: 1,
+          type: 'minute',
+          text: '1M',
+        },
+        {
+          count: 5,
+          type: 'minute',
+          text: '5M',
+        },
+        {
+          type: 'all',
+          text: 'All',
+        },
+      ],
+      inputEnabled: false,
+      selected: 0,
+    },
 
-  //   // Configuration options go here
-  //   options: {
-  //     elements: {
-  //       line: {
-  //         tension: 0, // disables bezier curves
-  //       },
-  //     },
-  //     animation: {
-  //       duration: 0, // general animation time
-  //     },
-  //     hover: {
-  //       animationDuration: 0, // duration of animations when hovering an item
-  //     },
-  //     responsiveAnimationDuration: 0, // animation duration after a resize
-  //   },
-  // })
+    title: {
+      text: 'MSELD Statistics',
+    },
+
+    // exporting: {
+    //   enabled: false,
+    // },
+
+    xAxis: {
+      plotBands: [],
+      plotLines: [],
+    },
+
+    yAxis: [
+      {
+        title: {
+          text: 'Milliseconds',
+        },
+        align: 'left',
+      },
+      {
+        title: {
+          text: 'State',
+        },
+        opposite: true,
+        align: 'right',
+        // floor: 0,
+        // ceiling: 4,
+        max: 4,
+      },
+    ],
+
+    series: [
+      {
+        name: 'WS message lag',
+        data: [],
+      },
+      {
+        name: 'Media Element have seconds in buffer',
+        data: [],
+      },
+      {
+        name: 'Ready State',
+        type: 'line',
+        yAxis: 1,
+        data: [],
+        max: 4,
+        zones: [
+          {
+            value: 0,
+            color: 'black',
+          },
+          {
+            value: 1,
+            color: 'gray',
+          },
+          {
+            value: 2,
+            color: 'red',
+          },
+          {
+            value: 3,
+            color: 'yellow',
+          },
+          {
+            value: 4,
+            color: 'green',
+          },
+          {
+            color: 'gray',
+          },
+        ],
+      },
+    ],
+  })
+
+  let myMseChart = Highcharts.stockChart('container2', {
+    // Create the chart
+    chart: {},
+
+    time: {
+      useUTC: true,
+    },
+
+    rangeSelector: {
+      buttons: [
+        {
+          count: 1,
+          type: 'minute',
+          text: '1M',
+        },
+        {
+          count: 5,
+          type: 'minute',
+          text: '5M',
+        },
+        {
+          type: 'all',
+          text: 'All',
+        },
+      ],
+      inputEnabled: false,
+      selected: 0,
+    },
+
+    title: {
+      text: 'MSELD Buffer Statistics',
+    },
+
+    // xAxis: {
+    //   plotBands: [],
+    //   plotLines: [],
+    // },
+
+    yAxis: [
+      {
+        title: {
+          text: 'Bytes',
+        },
+        align: 'left',
+      },
+    ],
+
+    series: [
+      {
+        name: 'WS audio buffer',
+        data: [],
+      },
+      {
+        name: 'WS video buffer',
+        data: [],
+      },
+    ],
+  })
+
+  setInterval(() => {
+    const prepare = function (data) {
+      // const maxElements = 5000
+      data.sort((a, b) => {
+        return a[0] - b[0]
+      })
+      // if (data.length >= maxElements) {
+      //   data = data.splice(data.length - maxElements, data.length)
+      // }
+      return data
+    }
+
+    messagesUTC = prepare(messagesUTC)
+    graphBufferedLength = prepare(graphBufferedLength)
+    readySt = prepare(readySt)
+    mseAudioBufferSize = prepare(mseAudioBufferSize)
+    mseVideoBufferSize = prepare(mseVideoBufferSize)
+
+    myChart.series[0].setData(messagesUTC)
+    myChart.series[1].setData(graphBufferedLength)
+    myChart.series[2].setData(readySt)
+
+    myMseChart.series[0].setData(mseAudioBufferSize)
+    myMseChart.series[1].setData(mseVideoBufferSize)
+  }, 5000)
 }

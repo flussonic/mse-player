@@ -1,7 +1,11 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.bundle.min.js"></script> -->
+    <!-- <script src='https://code.highcharts.com/highcharts.js'></script> -->
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/export-data.js"></script>
   </head>
   <style>
     .player-container {
@@ -23,6 +27,22 @@
       background: #000;
     }
 
+    .playButton {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-size: 180px;
+      background: #000;
+      color: #fff;
+      cursor: pointer;
+    }
+
     .mbr-controls {
       display: none;
     }
@@ -34,20 +54,56 @@
     button {
       margin: 8px 0;
     }
+
+    .indicator-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 16px;
+      width: 50%;
+      float: left;
+    }
+
+    .gray {
+      background-color: gray;
+    }
+    .black {
+      background-color: black;
+    }
+    .red {
+      background-color: red;
+    }
+    .yellow {
+      background-color: yellow;
+    }
+    .green {
+      background-color: green;
+    }
+
+    #indicator, #nIndicator {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: 16px;
+      transition: 100ms ease-in-out;
+    }
+
+    canvas {
+      margin-bottom: 8px;
+    }
   </style>
 <body>
   <div class="player-container">
-    <video id="player" controls="false" muted></video>
+    <video id="player" controls="false" autoplay="false"></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
+    <div id="playButton" class="playButton">▶</div>
   </div>
   <div class="controls-panel">
     <div class="utc">
       <span id="utc">00:00:00</span>
-    </div>
-    <div class="real">
-      <span id="real">00:00:00</span>
     </div>
     <div class="mbr-controls">
       <div>
@@ -60,14 +116,25 @@
       </div>
       <button onclick="window.setTracks()">set tracks</button>
     </div>
-    <button onclick="window.player.play()">Play</button>
-    <button onclick="window.player.stop()">Stop</button>
-    <button onclick="window.player.pause()">Pause</button>
+    <div style="float: right;">
+      <button onclick="window.player.play()">Play</button>
+      <button onclick="window.player.stop()">Stop</button>
+      <button onclick="window.player.pause()">Pause</button>
+    </div>
     <div>
       <input type="text" id="seek" value="1538561793"/>
       <button onclick="seek()">seek</button>
     </div>
-    <!-- <canvas id="myChart" height="200"></canvas> -->
+    <!-- <canvas id="bufferChart" height="60"></canvas> -->
+    <div class="indicator-wrapper"><span>Ready State:</span><div id="indicator" class="gray"></div></div>
+    <div class="indicator-wrapper"><span>Network State:</span><div id="nIndicator" class="gray"></div></div>
+    <!-- <canvas id="socketLag" height="50"></canvas>
+    <canvas id="bufferLengthChart" height="50"></canvas>
+    <canvas id="MSELDBuffers" height="60"></canvas>
+    <canvas id="MSELDEvents" height="50"></canvas> -->
+
+    <div id="container" style="height: 300px; min-width: 310px"></div>
+    <div id="container2" style="height: 300px; min-width: 310px"></div>
   </div>
   <script type="text/javascript" src="index.js"></script>
 </body>

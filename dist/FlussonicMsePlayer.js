@@ -258,6 +258,11 @@ var EVENTS = {
   // HTMLMediaElement
   MEDIA_ELEMENT_PROGRESS: 'progress',
   MEDIA_ELEMENT_EMPTIED: 'emptied',
+  MEDIA_ELEMENT_SUSPEND: 'suspend',
+  MEDIA_ELEMENT_STALLED: 'stalled',
+  MEDIA_ELEMENT_WAITING: 'waiting',
+  MEDIA_ELEMENT_RATECHANGE: 'ratechange',
+  MEDIA_ELEMENT_PLAYING: 'playing',
 
   // WebSocket
   WS_OPEN: 'open',
@@ -362,7 +367,7 @@ $exports.store = store;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = exports.MAX_DELAY = undefined;
+exports.errorMsg = exports.replaceHttpByWS = exports.checkVideoProgress = undefined;
 exports.getMediaSource = getMediaSource;
 exports.isAndroid = isAndroid;
 exports.isSupportedMSE = isSupportedMSE;
@@ -429,7 +434,6 @@ function getRealUtcFromData(view) {
 }
 
 function doArrayBuffer(segment) {
-
   if (!segment.isInit) {
     // last loaded frame's utc
     this.utc = getRealUtcFromData(segment.data);
@@ -447,18 +451,28 @@ function debugData(rawData) {
 
   return { trackId: trackId, utc: utc, view: view };
 }
-
-var ua = navigator.userAgent;
-var MAX_DELAY = exports.MAX_DELAY = /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua) ? 10 // very slow buffers in Edge
-: 2;
-
 var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media, player) {
-  var maxDelay = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : MAX_DELAY;
   return function (evt) {
     var ct = media.currentTime,
         buffered = media.buffered,
         l = media.buffered.length;
 
+
+    var debounce = function debounce(func, wait, immediate) {
+      var timeout = void 0;
+      return function () {
+        var context = this,
+            args = arguments;
+        var later = function later() {
+          timeout = null;
+          if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+      };
+    };
 
     var removeBufferRange = function removeBufferRange(type, sb, startOffset, endOffset) {
       try {
@@ -478,14 +492,16 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
             if (media) {
               currentTime = media.currentTime.toString();
             }
-
+            if (sb.updating) {
+              return;
+            }
             // logger.log(`sb remove ${type} [${removeStart},${removeEnd}], of [${bufStart},${bufEnd}], pos:${currentTime}`)
             sb.remove(removeStart, removeEnd);
             return true;
           }
         }
       } catch (error) {
-        // logger.warn('removeBufferRange failed', error)
+        _logger.logger.warn('removeBufferRange failed', error);
       }
 
       return false;
@@ -508,7 +524,7 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
             // remove buffer up until current time minus minimum back buffer length (removing buffer too close to current
             // time will lead to playback freezing)
             // credits for level target duration - https://github.com/videojs/http-streaming/blob/3132933b6aa99ddefab29c10447624efd6fd6e52/src/segment-loader.js#L91
-            removeBufferRange(bufferType, sb, 0, targetBackBufferPosition);
+            debounce(removeBufferRange(bufferType, sb, 0, targetBackBufferPosition), 300);
           }
         }
       }
@@ -518,6 +534,7 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       return;
     }
     var endTime = buffered.end(l - 1);
+    // console.log(endTime - ct)
     var delay = Math.abs(endTime - ct);
     if (player._stalling) {
       player.onEndStalling();
@@ -534,13 +551,26 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       }
     }
 
-    if (delay <= maxDelay) {
-      return;
+    // // logger.log('readyState', player.media.readyState)
+    if (player.onStats) {
+      player.onStats({
+        timestamp: Date.now(),
+        appended: player.sb.appended,
+        videoBuffer: player.sb.videoBufferSize,
+        audioBuffer: player.sb.audioBufferSize,
+        // videoSegments: player.sb.segmentsVideo.length,
+        // audioSegments: player.sb.segmentsAudio.length,
+        currentTime: ct,
+        endTime: endTime,
+        readyState: player.media.readyState,
+        networkState: player.media.networkState
+      });
     }
 
-    // if (player.ws.paused && player.sb.segments.length < 100) {
-    //   player.ws.resume()
-    // }
+    if (delay <= player.opts.maxBufferDelay) {
+      //   // console.log('lower the delay', delay, player.opts.maxBufferDelay)
+      return;
+    }
 
     _logger.logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime); //evt, )
     media.currentTime = endTime - 0.2; // (Math.abs(ct - endTime)) //
@@ -709,8 +739,6 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var WS_EVENT_PAUSED = 'paused';
@@ -727,6 +755,9 @@ var TYPE_CONTENT_AUDIO = _common.AUDIO;
 var DEFAULT_ERRORS_BEFORE_STOP = 1;
 var DEFAULT_UPDATE = 100;
 var DEFAULT_CONNECTIONS_RETRIES = 0;
+var DEFAULT_RETRY_MUTED = false;
+var DEFAULT_FORCE_UNMUTED = false;
+var MAX_BUFFER_DELAY = 2;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -746,7 +777,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "19.10.4";
+      return "20.4.2";
     }
   }]);
 
@@ -792,6 +823,22 @@ var MSEPlayer = function () {
     this.retry = 0;
     this.retryConnectionTimer;
 
+    this.opts.retryMuted = this.opts.retryMuted ? this.opts.retryMuted : DEFAULT_RETRY_MUTED;
+
+    if (typeof this.opts.retryMuted !== 'boolean') {
+      throw new Error('invalid retryMuted param, should be boolean');
+    }
+
+    this.opts.maxBufferDelay = this.opts.maxBufferDelay ? this.opts.maxBufferDelay : MAX_BUFFER_DELAY;
+    var ua = navigator.userAgent;
+    if (/Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)) {
+      this.opts.maxBufferDelay = 10; // very slow buffers in Edge
+    }
+
+    if (typeof this.opts.maxBufferDelay !== 'number') {
+      throw new Error('invalid maxBufferDelay param, should be number');
+    }
+
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
       this.onDisconnect = opts && opts.onDisconnect;
@@ -802,11 +849,16 @@ var MSEPlayer = function () {
     }
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
+    this.onAutoplay = opts && opts.onAutoplay;
+    this.onMuted = opts && opts.onMuted;
+    this.onStats = opts && opts.onStats;
+    this.onMessage = opts && opts.onMessage;
 
     this.init();
 
     if (media instanceof HTMLMediaElement) {
-      this.onAttachMedia({ media: media });
+      // iOS autoplay with no fullscreen fix
+      media.WebKitPlaysInline = true;
       // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
       // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
       // this.media.onerror = function() {
@@ -830,6 +882,8 @@ var MSEPlayer = function () {
      * SourceBuffers Controller
      */
     this.sb = new _buffers2.default({ media: media });
+
+    this.messageTime = Date.now();
   }
 
   MSEPlayer.prototype.play = function play(time, videoTrack, audioTrack) {
@@ -980,6 +1034,7 @@ var MSEPlayer = function () {
 
     // debugger
     this.liveError = false;
+    var canPlay = false;
     return new Promise(function (resolve, reject) {
       _logger.logger.log('_play', from, videoTrack, audioTrack);
 
@@ -1036,48 +1091,90 @@ var MSEPlayer = function () {
         return;
       }
 
-      _this3.ws.start(_this3.url, _this3.playTime, _this3.videoTrack, _this3.audioTrack).then(function () {
-        // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-        _this3.playPromise = _this3.media.play();
-        _this3.startProgressTimer();
+      var ifApple = function ifApple() {
+        var iDevices = ['iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod', 'Safari'];
 
-        _this3.playPromise.then(function () {
-          _this3.onStartStalling(); // switch off at progress checker
-          if (_this3.resolveThenMediaSourceOpen) {
-            _this3._stop = false;
-            _this3.resolveThenMediaSourceOpen();
-            _this3.resolveThenMediaSourceOpen = void 0;
-            _this3.rejectThenMediaSourceOpen = void 0;
-            clearInterval(_this3.retryConnectionTimer);
-            _this3.retry = 0;
+        if (!!navigator.platform) {
+          while (iDevices.length) {
+            if (navigator.platform === iDevices.pop()) {
+              return true;
+            }
           }
-        }).catch(function (err) {
-          _logger.logger.log('playPromise rejection. this.playing false', err);
-          // if error, this.ws.connectionPromise can be undefined
-          if (_this3.ws.connectionPromise) {
-            _this3.ws.connectionPromise.then(function () {
-              return _this3.ws.pause();
-            }); // #6694
-          }
-          _this3._pause = true;
+        }
 
-          if (_this3.onError) {
-            _this3.onError({
-              error: 'play_promise_reject',
-              err: err
+        return false;
+      };
+
+      // for autoplay on interaction
+      var autoPlayFunc = new Promise(function (resolve, reject) {
+        if (_this3.media.autoplay && _this3.media.muted !== true && !_this3.opts.retryMuted) {
+          if (_this3.onAutoplay && !ifApple()) {
+            _this3.onAutoplay(function () {
+              _this3.media.muted = false;
+              return resolve();
             });
+          } else {
+            _this3.media.muted = true;
+            return resolve();
           }
+        } else {
+          return resolve();
+        }
+      });
 
-          if (_this3.rejectThenMediaSourceOpen) {
-            _this3.rejectThenMediaSourceOpen();
-            _this3.resolveThenMediaSourceOpen = void 0;
-            _this3.rejectThenMediaSourceOpen = void 0;
-          }
+      autoPlayFunc.then(function () {
+        _this3.ws.start(_this3.url, _this3.playTime, _this3.videoTrack, _this3.audioTrack).then(function () {
+          // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+          _this3.playPromise = _this3.media.play();
+          _this3.startProgressTimer();
+          _this3.playPromise.then(function () {
+            _this3.onStartStalling(); // switch off at progress checker
+            if (_this3.resolveThenMediaSourceOpen) {
+              _this3._stop = false;
+              _this3.resolveThenMediaSourceOpen();
+              _this3.resolveThenMediaSourceOpen = void 0;
+              _this3.rejectThenMediaSourceOpen = void 0;
+              clearInterval(_this3.retryConnectionTimer);
+              _this3.retry = 0;
+            }
+          }).catch(function (err) {
+            _logger.logger.log('playPromise rejection.', err);
+            // if error, this.ws.connectionPromise can be undefined
+            if (_this3.ws.connectionPromise) {
+              _this3.ws.connectionPromise.then(function () {
+                return _this3.ws.pause();
+              }); // #6694
+            }
+            // this._pause = true
 
-          _this3.restart();
+            if (_this3.opts.retryMuted && _this3.media.muted == false) {
+              if (_this3.onMuted) {
+                _this3.onMuted();
+              }
+              _this3.media.muted = true;
+              _this3._play(from, videoTrack, audioTrack);
+            }
+
+            if (_this3.onError) {
+              _this3.onError({
+                error: 'play_promise_reject',
+                err: err
+              });
+            }
+
+            if (_this3.rejectThenMediaSourceOpen) {
+              _this3.rejectThenMediaSourceOpen();
+              _this3.resolveThenMediaSourceOpen = void 0;
+              _this3.rejectThenMediaSourceOpen = void 0;
+            }
+
+            if (!_this3.opts.retryMuted) {
+              _this3.stop();
+            }
+          });
+
+          return _this3.playPromise;
         });
-
-        return _this3.playPromise;
       });
     });
   };
@@ -1139,6 +1236,11 @@ var MSEPlayer = function () {
 
     if (this.media) {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp); // checkVideoProgress
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
       mediaEmptyPromise = new Promise(function (resolve) {
         _this5._onmee = _this5.onMediaElementEmptied(resolve).bind(_this5);
       });
@@ -1149,6 +1251,7 @@ var MSEPlayer = function () {
     }
 
     this.oncvp = null;
+    this.errorLog = null;
 
     this.mediaSource = null;
 
@@ -1207,8 +1310,7 @@ var MSEPlayer = function () {
     if (media) {
       // setup the media source
       var ms = this.mediaSource = new MediaSource();
-      //Media Source listeners
-
+      // Media Source listeners
       this.onmse = this.onMediaSourceEnded.bind(this);
       this.onmsc = this.onMediaSourceClose.bind(this);
 
@@ -1216,10 +1318,21 @@ var MSEPlayer = function () {
       ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc);
       // link video and media Source
       media.src = URL.createObjectURL(ms);
+      this.errorLog = function (error) {
+        if (_this6.onError) {
+          _this6.onError(error);
+        }
+      };
 
-      // this.oncvp = this.debounce(mseUtils.checkVideoProgress(media, this).bind(this), 500)
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
+
       if (this.liveError) {
         this.player = void 0;
         return;
@@ -1244,8 +1357,8 @@ var MSEPlayer = function () {
     // play was called but stoped and was pend(1.readyState is not open)
     // and time is come to execute it
     if (this.shouldPlay) {
-      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
       this.shouldPlay = false;
+      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
       this._play(this.playTime, this.audioTrack, this.videoTrack);
     }
   };
@@ -1255,6 +1368,17 @@ var MSEPlayer = function () {
       this.opts.onDisconnect(event);
     }
   };
+
+  // canStartUnmuted() {
+  //   if (!this.playing && this.shouldPlay) {
+  //     this.shouldPlay = false
+  //     this._play(this.playTime, this.audioTrack, this.videoTrack).then(() => {
+  //       this.media.muted = false
+  //       window.removeEventListener('click', this.canStartUnmuted)
+  //       window.removeEventListener('touchstart', this.canStartUnmuted)
+  //     })
+  //   }
+  // }
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
     var _this7 = this;
@@ -1267,6 +1391,15 @@ var MSEPlayer = function () {
     var isDataAB = rawData instanceof ArrayBuffer;
     var parsedData = !isDataAB ? JSON.parse(rawData) : void 0;
     // mseUtils.logDM(isDataAB, parsedData)
+
+    var messageTimeDiff = Date.now() - this.messageTime;
+    this.messageTime = Date.now();
+    if (this.opts.onMessage) {
+      this.opts.onMessage({
+        utc: Date.now(),
+        messageTimeDiff: messageTimeDiff
+      });
+    }
 
     try {
       // ArrayBuffer data
@@ -1310,37 +1443,28 @@ var MSEPlayer = function () {
             break;
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            _logger.logger.log('do playPromise reject with error' /*, noLiveError*/);
-            // make playPromise rejected
+            _logger.logger.log('do playPromise reject with error');
+            if (this.ws.connectionPromise) {
+              this.ws.connectionPromise.then(function () {
+                return _this7.ws.pause();
+              }); // #6694
+            }
             if (!this.liveError) {
-              this.playPromise = Promise.reject().then(function (success) {
-                // не вызывается
-                _this7.media.pause();
-              }).catch(function (error) {
-                _logger.logger.log('no live record'); // печатает "провал" + Stacktrace
-
-
-                if (_this7.ws.connectionPromise) {
-                  _this7.ws.connectionPromise.then(function () {
-                    return _this7.ws.pause();
-                  }); // #6694
-                }
-                _this7._pause = true;
-
-                if (_this7.onError) {
-                  _this7.onError(_defineProperty({
-                    error: 'play_promise_reject'
-                  }, 'error', error));
-                }
-
-                if (_this7.rejectThenMediaSourceOpen) {
-                  _this7.rejectThenMediaSourceOpen();
-                  _this7.resolveThenMediaSourceOpen = void 0;
-                  _this7.rejectThenMediaSourceOpen = void 0;
-                }
-              });
+              if (this.opts.onError) {
+                this.opts.onError({
+                  error: 'playPromise reject - stream unavaible'
+                });
+              }
               this.liveError = true;
             }
+
+            if (this.rejectThenMediaSourceOpen) {
+              this.rejectThenMediaSourceOpen();
+              this.resolveThenMediaSourceOpen = void 0;
+              this.rejectThenMediaSourceOpen = void 0;
+            }
+            this.playPromise = Promise.reject('stream unavaible');
+            this.mediaSource.endOfStream();
             break;
           case WS_EVENT_TRACKS_SWITCHED:
             break;
@@ -1372,6 +1496,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
+    // debugger
     var data = JSON.parse(rawData);
 
     if (data.type !== _segments.MSE_INIT_SEGMENT) {
@@ -1393,7 +1518,7 @@ var MSEPlayer = function () {
       // this.sb.flushRange.push({start: startOffset, end: endOffset, type: void 0})
       // // attempt flush immediately
       // this.sb.flushBufferCounter = 0
-      // this.sb.doFlush()
+      this.sb.doFlush();
       this.sb.seek();
     }
 
@@ -2154,6 +2279,13 @@ var WebSocketController = function () {
     var _this3 = this;
 
     _logger.logger.log('WebSocket lost connection with code ', event.code + ' and reason: ' + event.reason); // например, "убит" процесс сервера
+    if (this.opts.error) {
+      this.opts.error({
+        error: 'WebSocket lost connection',
+        err: 'WebSocket lost connection with code ' + event.code + ' and reason: ' + event.reason,
+        code: event.code
+      });
+    }
     if (this.opts.wsReconnect) {
       if (event.wasClean && event.code !== 1000 && event.code !== 1006) {
         _logger.logger.log('Clean websocket stop');
@@ -2185,7 +2317,7 @@ var WebSocketController = function () {
     if (this.websocket) {
       this.pause();
       this.websocket.removeEventListener(_events2.default.WS_MESSAGE, this.onwsm);
-      // this.websocket.onclose = function() {} // disable onclose handler first
+      this.websocket.removeEventListener(_events2.default.WS_CLOSE, this.onwsc);
       this.websocket.close();
       this.websocket.onclose = void 0; // disable onclose handler first
       clearTimeout(this.reconnect);
@@ -3975,7 +4107,7 @@ var _events = __webpack_require__(6);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
+var BUFFER_MODE_SEQUENCE = 'segments'; // segments
 
 var BuffersController = function () {
   function BuffersController() {
@@ -4003,6 +4135,8 @@ var BuffersController = function () {
     this.segmentsVideo = [];
     this.segmentsAudio = [];
     this.sourceBuffer = {};
+    this.audioBufferSize = 0;
+    this.videoBufferSize = 0;
   };
 
   BuffersController.prototype.setMediaSource = function setMediaSource(ms) {
@@ -4018,7 +4152,8 @@ var BuffersController = function () {
       var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
 
       sb[s.content] = _this.mediaSource.addSourceBuffer(mimeType);
-      // sb[s.content].timestampOffset = 0.25
+      sb[s.content].mode = BUFFER_MODE_SEQUENCE;
+      sb[s.content].timestampOffset = 0.25;
       var buffer = sb[s.content];
       if (isVideo) {
         buffer.addEventListener(_events.BUFFER_UPDATE_END, _this.onSBUpdateEnd);
@@ -4039,15 +4174,16 @@ var BuffersController = function () {
     }
 
     if (!this._needsFlush && this.segmentsVideo.length) {
-
       var buffer = this.sourceBuffer.video;
       if (buffer) {
         if (buffer.updating) {
           return;
         }
         var segment = this.segmentsVideo[0];
+        // console.log({segment}, segment.data.byteLength)
         buffer.appendBuffer(segment.data);
         this.segmentsVideo.shift();
+        this.videoBufferSize = this.videoBufferSize - segment.data.byteLength;
         this.appended++;
       }
     }
@@ -4064,7 +4200,6 @@ var BuffersController = function () {
     }
 
     if (!this._needsFlush && this.segmentsAudio.length) {
-
       var buffer = this.sourceBuffer.audio;
       if (buffer) {
         if (buffer.updating) {
@@ -4073,6 +4208,7 @@ var BuffersController = function () {
         var segment = this.segmentsAudio[0];
         buffer.appendBuffer(segment.data);
         this.segmentsAudio.shift();
+        this.audioBufferSize = this.audioBufferSize - segment.data.byteLength;
         this.appended++;
       }
     }
@@ -4143,8 +4279,10 @@ var BuffersController = function () {
     var segment = this.rawDataToSegmnet(rawData);
     if (segment.type === 'audio') {
       this.segmentsAudio.push(segment);
+      this.audioBufferSize = this.audioBufferSize + segment.data.byteLength;
     } else {
       this.segmentsVideo.push(segment);
+      this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
     }
 
     this.doArrayBuffer(segment);
@@ -4160,12 +4298,15 @@ var BuffersController = function () {
 
   BuffersController.prototype.seek = function seek() {
     for (var k in this.sourceBuffer) {
-      this.sourceBuffer[k].abort();
       this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
+      this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2;
+      this.sourceBuffer[k].abort();
     }
 
-    this.segmentsVideo = [];
-    this.segmentsAudio = [];
+    // this.videoBufferSize = 0
+    // this.audioBufferSize = 0
+    // this.segmentsVideo = []
+    // this.segmentsAudio = []
   };
 
   BuffersController.prototype.isBuffered = function isBuffered() {

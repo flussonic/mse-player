@@ -34,7 +34,7 @@ export function isSupportedMSE() {
 }
 
 export function base64ToArrayBuffer(base64) {
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
 }
 
 export function RawDataToUint8Array(rawData) {
@@ -55,7 +55,6 @@ export function getRealUtcFromData(view) {
 }
 
 export function doArrayBuffer(segment) {
-
   if (!segment.isInit) {
     // last loaded frame's utc
     this.utc = getRealUtcFromData(segment.data)
@@ -73,19 +72,28 @@ export function debugData(rawData) {
 
   return {trackId, utc, view}
 }
-
-const ua = navigator.userAgent
-export const MAX_DELAY =
-  /Edge/.test(ua) || /trident.*rv:1\d/i.test(ua)
-    ? 10 // very slow buffers in Edge
-    : 2
-
-export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt => {
+export const checkVideoProgress = (media, player) => (evt) => {
   const {
     currentTime: ct,
     buffered,
     buffered: {length: l},
   } = media
+
+  const debounce = function (func, wait, immediate) {
+    let timeout
+    return function () {
+      let context = this,
+        args = arguments
+      let later = function () {
+        timeout = null
+        if (!immediate) func.apply(context, args)
+      }
+      let callNow = immediate && !timeout
+      clearTimeout(timeout)
+      timeout = setTimeout(later, wait)
+      if (callNow) func.apply(context, args)
+    }
+  }
 
   const removeBufferRange = (type, sb, startOffset, endOffset) => {
     try {
@@ -105,14 +113,16 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
           if (media) {
             currentTime = media.currentTime.toString()
           }
-
+          if (sb.updating) {
+            return
+          }
           // logger.log(`sb remove ${type} [${removeStart},${removeEnd}], of [${bufStart},${bufEnd}], pos:${currentTime}`)
           sb.remove(removeStart, removeEnd)
           return true
         }
       }
     } catch (error) {
-      // logger.warn('removeBufferRange failed', error)
+      logger.warn('removeBufferRange failed', error)
     }
 
     return false
@@ -134,7 +144,7 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
           // remove buffer up until current time minus minimum back buffer length (removing buffer too close to current
           // time will lead to playback freezing)
           // credits for level target duration - https://github.com/videojs/http-streaming/blob/3132933b6aa99ddefab29c10447624efd6fd6e52/src/segment-loader.js#L91
-          removeBufferRange(bufferType, sb, 0, targetBackBufferPosition)
+          debounce(removeBufferRange(bufferType, sb, 0, targetBackBufferPosition), 300)
         }
       }
     }
@@ -144,6 +154,7 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
     return
   }
   const endTime = buffered.end(l - 1)
+  // console.log(endTime - ct)
   const delay = Math.abs(endTime - ct)
   if (player._stalling) {
     player.onEndStalling()
@@ -162,21 +173,34 @@ export const checkVideoProgress = (media, player, maxDelay = MAX_DELAY) => evt =
     }
   }
 
-  if (delay <= maxDelay) {
-    return
+  // // logger.log('readyState', player.media.readyState)
+  if (player.onStats) {
+    player.onStats({
+      timestamp: Date.now(),
+      appended: player.sb.appended,
+      videoBuffer: player.sb.videoBufferSize,
+      audioBuffer: player.sb.audioBufferSize,
+      // videoSegments: player.sb.segmentsVideo.length,
+      // audioSegments: player.sb.segmentsAudio.length,
+      currentTime: ct,
+      endTime,
+      readyState: player.media.readyState,
+      networkState: player.media.networkState,
+    })
   }
 
-  // if (player.ws.paused && player.sb.segments.length < 100) {
-  //   player.ws.resume()
-  // }
+  if (delay <= player.opts.maxBufferDelay) {
+    //   // console.log('lower the delay', delay, player.opts.maxBufferDelay)
+    return
+  }
 
   logger.log('nudge', ct, '->', l ? endTime : '-', ct - endTime) //evt, )
   media.currentTime = endTime - 0.2 // (Math.abs(ct - endTime)) //
 }
 
-export const replaceHttpByWS = url => url.replace(/^http/, 'ws')
+export const replaceHttpByWS = (url) => url.replace(/^http/, 'ws')
 
-export const errorMsg = e => `Error ${e.name}: ${e.message}\n${e.stack}`
+export const errorMsg = (e) => `Error ${e.name}: ${e.message}\n${e.stack}`
 
 export function pad2(n) {
   return n <= 9 ? '0' + n : '' + n
@@ -191,13 +215,13 @@ export function humanTime(utcOrLive, lt = true) {
   // $FlowFixMe: just for flow
   const utc = utcOrLive
 
-  var d = new Date()
+  let d = new Date()
   d.setTime(utc * 1000)
-  var localTime = !(lt === false)
+  let localTime = !(lt === false)
 
-  var h = localTime ? d.getHours() : d.getUTCHours()
-  var m = localTime ? d.getMinutes() : d.getUTCMinutes()
-  var s = localTime ? d.getSeconds() : d.getUTCSeconds()
+  let h = localTime ? d.getHours() : d.getUTCHours()
+  let m = localTime ? d.getMinutes() : d.getUTCMinutes()
+  let s = localTime ? d.getSeconds() : d.getUTCSeconds()
 
   return pad2(h) + ':' + pad2(m) + ':' + pad2(s)
 }

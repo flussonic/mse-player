@@ -7,6 +7,11 @@ const EVENTS = {
   // HTMLMediaElement
   MEDIA_ELEMENT_PROGRESS: 'progress',
   MEDIA_ELEMENT_EMPTIED: 'emptied',
+  MEDIA_ELEMENT_SUSPEND: 'suspend',
+  MEDIA_ELEMENT_STALLED: 'stalled',
+  MEDIA_ELEMENT_WAITING: 'waiting',
+  MEDIA_ELEMENT_RATECHANGE: 'ratechange',
+  MEDIA_ELEMENT_PLAYING: 'playing',
 
   // WebSocket
   WS_OPEN: 'open',
