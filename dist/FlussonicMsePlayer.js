@@ -261,6 +261,8 @@ var EVENTS = {
   MEDIA_ELEMENT_SUSPEND: 'suspend',
   MEDIA_ELEMENT_STALLED: 'stalled',
   MEDIA_ELEMENT_WAITING: 'waiting',
+  MEDIA_ELEMENT_RATECHANGE: 'ratechange',
+  MEDIA_ELEMENT_PLAYING: 'playing',
 
   // WebSocket
   WS_OPEN: 'open',
@@ -456,6 +458,22 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
         l = media.buffered.length;
 
 
+    var debounce = function debounce(func, wait, immediate) {
+      var timeout = void 0;
+      return function () {
+        var context = this,
+            args = arguments;
+        var later = function later() {
+          timeout = null;
+          if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+      };
+    };
+
     var removeBufferRange = function removeBufferRange(type, sb, startOffset, endOffset) {
       try {
         for (var i = 0; i < sb.buffered.length; i++) {
@@ -474,14 +492,16 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
             if (media) {
               currentTime = media.currentTime.toString();
             }
-
+            if (sb.updating) {
+              return;
+            }
             // logger.log(`sb remove ${type} [${removeStart},${removeEnd}], of [${bufStart},${bufEnd}], pos:${currentTime}`)
             sb.remove(removeStart, removeEnd);
             return true;
           }
         }
       } catch (error) {
-        // logger.warn('removeBufferRange failed', error)
+        _logger.logger.warn('removeBufferRange failed', error);
       }
 
       return false;
@@ -504,7 +524,7 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
             // remove buffer up until current time minus minimum back buffer length (removing buffer too close to current
             // time will lead to playback freezing)
             // credits for level target duration - https://github.com/videojs/http-streaming/blob/3132933b6aa99ddefab29c10447624efd6fd6e52/src/segment-loader.js#L91
-            removeBufferRange(bufferType, sb, 0, targetBackBufferPosition);
+            debounce(removeBufferRange(bufferType, sb, 0, targetBackBufferPosition), 300);
           }
         }
       }
@@ -514,6 +534,7 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       return;
     }
     var endTime = buffered.end(l - 1);
+    // console.log(endTime - ct)
     var delay = Math.abs(endTime - ct);
     if (player._stalling) {
       player.onEndStalling();
@@ -530,7 +551,7 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       }
     }
 
-    // logger.log('readyState', player.media.readyState)
+    // // logger.log('readyState', player.media.readyState)
     if (player.onStats) {
       player.onStats({
         timestamp: Date.now(),
@@ -541,11 +562,13 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
         // audioSegments: player.sb.segmentsAudio.length,
         currentTime: ct,
         endTime: endTime,
-        readyState: player.media.readyState
+        readyState: player.media.readyState,
+        networkState: player.media.networkState
       });
     }
 
     if (delay <= player.opts.maxBufferDelay) {
+      //   // console.log('lower the delay', delay, player.opts.maxBufferDelay)
       return;
     }
 
@@ -754,7 +777,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.3.2";
+      return "20.4.1";
     }
   }]);
 
@@ -829,6 +852,7 @@ var MSEPlayer = function () {
     this.onAutoplay = opts && opts.onAutoplay;
     this.onMuted = opts && opts.onMuted;
     this.onStats = opts && opts.onStats;
+    this.onMessage = opts && opts.onMessage;
 
     this.init();
 
@@ -858,6 +882,8 @@ var MSEPlayer = function () {
      * SourceBuffers Controller
      */
     this.sb = new _buffers2.default({ media: media });
+
+    this.messageTime = Date.now();
   }
 
   MSEPlayer.prototype.play = function play(time, videoTrack, audioTrack) {
@@ -1213,6 +1239,8 @@ var MSEPlayer = function () {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
       mediaEmptyPromise = new Promise(function (resolve) {
         _this5._onmee = _this5.onMediaElementEmptied(resolve).bind(_this5);
       });
@@ -1299,9 +1327,12 @@ var MSEPlayer = function () {
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
 
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
+
       if (this.liveError) {
         this.player = void 0;
         return;
@@ -1360,6 +1391,15 @@ var MSEPlayer = function () {
     var isDataAB = rawData instanceof ArrayBuffer;
     var parsedData = !isDataAB ? JSON.parse(rawData) : void 0;
     // mseUtils.logDM(isDataAB, parsedData)
+
+    var messageTimeDiff = Date.now() - this.messageTime;
+    this.messageTime = Date.now();
+    if (this.opts.onMessage) {
+      this.opts.onMessage({
+        utc: Date.now(),
+        messageTimeDiff: messageTimeDiff
+      });
+    }
 
     try {
       // ArrayBuffer data
@@ -4067,7 +4107,7 @@ var _events = __webpack_require__(6);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var BUFFER_MODE_SEQUENCE = 'sequence'; // segments
+var BUFFER_MODE_SEQUENCE = 'segments'; // segments
 
 var BuffersController = function () {
   function BuffersController() {
@@ -4112,7 +4152,8 @@ var BuffersController = function () {
       var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
 
       sb[s.content] = _this.mediaSource.addSourceBuffer(mimeType);
-      // sb[s.content].timestampOffset = 0.25
+      sb[s.content].mode = BUFFER_MODE_SEQUENCE;
+      sb[s.content].timestampOffset = 0.25;
       var buffer = sb[s.content];
       if (isVideo) {
         buffer.addEventListener(_events.BUFFER_UPDATE_END, _this.onSBUpdateEnd);
@@ -4257,8 +4298,8 @@ var BuffersController = function () {
 
   BuffersController.prototype.seek = function seek() {
     for (var k in this.sourceBuffer) {
-      // this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE
-      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2
+      this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
+      this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2;
       this.sourceBuffer[k].abort();
     }
 
