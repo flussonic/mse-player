@@ -224,7 +224,8 @@ export default class MSEPlayer {
     }
   }
 
-  restart(fullRestart = false) {
+  restart(fullRestart = true) {
+    this.onStartStalling()
     const from = fullRestart ? undefined : this.sb.lastLoadedUTC
 
     this.playing = false
@@ -244,7 +245,9 @@ export default class MSEPlayer {
     this.ws.destroy()
     this.sb.destroy()
 
-    this.play(time, videoTrack, audioTrack)
+    this.play(time, videoTrack, audioTrack).then(() => {
+      this.onEndStalling()
+    })
     this.retry = this.retry + 1
   }
 
@@ -315,7 +318,7 @@ export default class MSEPlayer {
         if (this.ws && this.ws.opened === false) {
           logger.log('WebSocket Closed, trying to restart it')
           this._pause = false
-          this.restart(true)
+          this.restart()
           return
         } else {
           logger.log('WebSocket is in opened state, resuming')

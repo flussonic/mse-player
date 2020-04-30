@@ -50,8 +50,8 @@ function onLoad() {
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
-    maxBufferDelay: 1,
-    wsReconnect: true,
+    maxBufferDelay: 2,
+    // wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -78,6 +78,7 @@ function onLoad() {
     },
     onDisconnect: (status) => {
       console.log('Websocket status:', status)
+      window.player.restart()
     },
     onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)
