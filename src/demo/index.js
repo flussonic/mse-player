@@ -78,7 +78,15 @@ function onLoad() {
     },
     onDisconnect: (status) => {
       console.log('Websocket status:', status)
-      window.player.restart()
+      const restart = () => {
+        window.player.restart()
+        clearInterval(restartTimer)
+      }
+      // const restart = window.player.stop().then(() => {
+      //   window.player.play()
+      //   clearInterval(restartTimer)
+      // })
+      let restartTimer = setInterval(restart, 10000)
     },
     onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)

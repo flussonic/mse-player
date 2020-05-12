@@ -60,7 +60,7 @@ export default class WebSocketController {
 
   send(cmd) {
     this.websocket.send(cmd)
-  }
+  } 
 
   resume() {
     clearTimeout(this.reconnect)
