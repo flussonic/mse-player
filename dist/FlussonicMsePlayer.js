@@ -795,7 +795,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.4.2";
+      return "20.5.1";
     }
   }]);
 
@@ -877,6 +877,7 @@ var MSEPlayer = function () {
     if (media instanceof HTMLMediaElement) {
       // iOS autoplay with no fullscreen fix
       media.WebKitPlaysInline = true;
+      media.controls = false;
       // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
       // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
       // this.media.onerror = function() {
@@ -970,8 +971,9 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.restart = function restart() {
-    var fullRestart = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+    var fullRestart = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
 
+    this.onStartStalling();
     var from = fullRestart ? undefined : this.sb.lastLoadedUTC;
 
     this.playing = false;
@@ -982,6 +984,9 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.retryConnection = function retryConnection() {
     var time = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+
+    var _this2 = this;
+
     var videoTrack = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
     var audioTrack = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
 
@@ -995,12 +1000,14 @@ var MSEPlayer = function () {
     this.ws.destroy();
     this.sb.destroy();
 
-    this.play(time, videoTrack, audioTrack);
+    this.play(time, videoTrack, audioTrack).then(function () {
+      _this2.onEndStalling();
+    });
     this.retry = this.retry + 1;
   };
 
   MSEPlayer.prototype.setTracks = function setTracks(tracks) {
-    var _this2 = this;
+    var _this3 = this;
 
     if (!this.mediaInfo) {
       _logger.logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
@@ -1014,14 +1021,14 @@ var MSEPlayer = function () {
     var videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks';
 
     var videoTracksStr = tracks.filter(function (id) {
-      var stream = _this2.mediaInfo[videoTracksType].find(function (s) {
+      var stream = _this3.mediaInfo[videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
       return !!stream && stream.content === TYPE_CONTENT_VIDEO;
     }).join('');
 
     var audioTracksStr = tracks.filter(function (id) {
-      var stream = _this2.mediaInfo[videoTracksType].find(function (s) {
+      var stream = _this3.mediaInfo[videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
       if (stream && stream.bitrate && stream.bitrate !== 0) {
@@ -1048,7 +1055,7 @@ var MSEPlayer = function () {
    */
 
   MSEPlayer.prototype._play = function _play(from, videoTrack, audioTrack) {
-    var _this3 = this;
+    var _this4 = this;
 
     // debugger
     this.liveError = false;
@@ -1056,56 +1063,56 @@ var MSEPlayer = function () {
     return new Promise(function (resolve, reject) {
       _logger.logger.log('_play', from, videoTrack, audioTrack);
 
-      if (_this3.playing) {
+      if (_this4.playing) {
         var message = '[mse-player] _play: terminate because already has been playing';
         _logger.logger.log(message);
         return resolve({ message: message });
       }
 
-      if (_this3._pause) {
+      if (_this4._pause) {
         // should invoke play method of video in onClick scope
         // further logic are duplicated at checkVideoProgress
         // https://github.com/jwplayer/jwplayer/issues/2421#issuecomment-333130812
 
-        if (_this3.ws && _this3.ws.opened === false) {
+        if (_this4.ws && _this4.ws.opened === false) {
           _logger.logger.log('WebSocket Closed, trying to restart it');
-          _this3._pause = false;
-          _this3.restart(true);
+          _this4._pause = false;
+          _this4.restart();
           return;
         } else {
           _logger.logger.log('WebSocket is in opened state, resuming');
-          _this3._pause = false;
-          _this3._resume(); // ws
+          _this4._pause = false;
+          _this4._resume(); // ws
         }
 
-        _this3.playPromise = _this3.media.play();
+        _this4.playPromise = _this4.media.play();
         _logger.logger.log('_play: terminate because _paused and should resume');
-        return _this3.playPromise;
+        return _this4.playPromise;
       }
 
-      _this3.playTime = from;
-      _this3.videoTrack = videoTrack;
-      _this3.audioTrack = audioTrack;
-      _this3._pause = false;
+      _this4.playTime = from;
+      _this4.videoTrack = videoTrack;
+      _this4.audioTrack = audioTrack;
+      _this4._pause = false;
 
       // TODO: to observe this case, I have no idea when it fired
-      if (!_this3.mediaSource) {
-        _this3.onAttachMedia({ media: _this3.media }).then(function () {
-          _this3.onsoa = _this3._play.bind(_this3, from, videoTrack, audioTrack);
-          _this3.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this3.onsoa);
+      if (!_this4.mediaSource) {
+        _this4.onAttachMedia({ media: _this4.media }).then(function () {
+          _this4.onsoa = _this4._play.bind(_this4, from, videoTrack, audioTrack);
+          _this4.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this4.onsoa);
           _logger.logger.warn('mediaSource did not create');
-          _this3.resolveThenMediaSourceOpen = _this3.resolveThenMediaSourceOpen ? _this3.resolveThenMediaSourceOpen : resolve;
-          _this3.rejectThenMediaSourceOpen = _this3.rejectThenMediaSourceOpen ? _this3.rejectThenMediaSourceOpen : reject;
+          _this4.resolveThenMediaSourceOpen = _this4.resolveThenMediaSourceOpen ? _this4.resolveThenMediaSourceOpen : resolve;
+          _this4.rejectThenMediaSourceOpen = _this4.rejectThenMediaSourceOpen ? _this4.rejectThenMediaSourceOpen : reject;
           return;
         });
       }
 
       // deferring execution
-      if (_this3.mediaSource && _this3.mediaSource.readyState !== 'open') {
-        _logger.logger.warn('readyState is not "open", it\'s currently ', _this3.mediaSource.readyState);
-        _this3.shouldPlay = true;
-        _this3.resolveThenMediaSourceOpen = _this3.resolveThenMediaSourceOpen ? _this3.resolveThenMediaSourceOpen : resolve;
-        _this3.rejectThenMediaSourceOpen = _this3.rejectThenMediaSourceOpen ? _this3.rejectThenMediaSourceOpen : reject;
+      if (_this4.mediaSource && _this4.mediaSource.readyState !== 'open') {
+        _logger.logger.warn('readyState is not "open", it\'s currently ', _this4.mediaSource.readyState);
+        _this4.shouldPlay = true;
+        _this4.resolveThenMediaSourceOpen = _this4.resolveThenMediaSourceOpen ? _this4.resolveThenMediaSourceOpen : resolve;
+        _this4.rejectThenMediaSourceOpen = _this4.rejectThenMediaSourceOpen ? _this4.rejectThenMediaSourceOpen : reject;
         return;
       }
 
@@ -1125,14 +1132,14 @@ var MSEPlayer = function () {
 
       // for autoplay on interaction
       var autoPlayFunc = new Promise(function (resolve, reject) {
-        if (_this3.media.autoplay && _this3.media.muted !== true && !_this3.opts.retryMuted) {
-          if (_this3.onAutoplay && !ifApple()) {
-            _this3.onAutoplay(function () {
-              _this3.media.muted = false;
+        if (_this4.media.autoplay && _this4.media.muted !== true && !_this4.opts.retryMuted) {
+          if (_this4.onAutoplay && !ifApple()) {
+            _this4.onAutoplay(function () {
+              _this4.media.muted = false;
               return resolve();
             });
           } else {
-            _this3.media.muted = true;
+            _this4.media.muted = true;
             return resolve();
           }
         } else {
@@ -1141,57 +1148,57 @@ var MSEPlayer = function () {
       });
 
       autoPlayFunc.then(function () {
-        _this3.ws.start(_this3.url, _this3.playTime, _this3.videoTrack, _this3.audioTrack).then(function () {
+        _this4.ws.start(_this4.url, _this4.playTime, _this4.videoTrack, _this4.audioTrack).then(function () {
           // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-          _this3.playPromise = _this3.media.play();
-          _this3.startProgressTimer();
-          _this3.playPromise.then(function () {
-            _this3.onStartStalling(); // switch off at progress checker
-            if (_this3.resolveThenMediaSourceOpen) {
-              _this3._stop = false;
-              _this3.resolveThenMediaSourceOpen();
-              _this3.resolveThenMediaSourceOpen = void 0;
-              _this3.rejectThenMediaSourceOpen = void 0;
-              clearInterval(_this3.retryConnectionTimer);
-              _this3.retry = 0;
+          _this4.playPromise = _this4.media.play();
+          _this4.startProgressTimer();
+          _this4.playPromise.then(function () {
+            _this4.onStartStalling(); // switch off at progress checker
+            if (_this4.resolveThenMediaSourceOpen) {
+              _this4._stop = false;
+              _this4.resolveThenMediaSourceOpen();
+              _this4.resolveThenMediaSourceOpen = void 0;
+              _this4.rejectThenMediaSourceOpen = void 0;
+              clearInterval(_this4.retryConnectionTimer);
+              _this4.retry = 0;
             }
           }).catch(function (err) {
             _logger.logger.log('playPromise rejection.', err);
             // if error, this.ws.connectionPromise can be undefined
-            if (_this3.ws.connectionPromise) {
-              _this3.ws.connectionPromise.then(function () {
-                return _this3.ws.pause();
+            if (_this4.ws.connectionPromise) {
+              _this4.ws.connectionPromise.then(function () {
+                return _this4.ws.pause();
               }); // #6694
             }
             // this._pause = true
 
-            if (_this3.opts.retryMuted && _this3.media.muted == false) {
-              if (_this3.onMuted) {
-                _this3.onMuted();
+            if (_this4.opts.retryMuted && _this4.media.muted == false) {
+              if (_this4.onMuted) {
+                _this4.onMuted();
               }
-              _this3.media.muted = true;
-              _this3._play(from, videoTrack, audioTrack);
+              _this4.media.muted = true;
+              _this4._play(from, videoTrack, audioTrack);
             }
 
-            if (_this3.onError) {
-              _this3.onError({
+            if (_this4.onError) {
+              _this4.onError({
                 error: 'play_promise_reject',
                 err: err
               });
             }
 
-            if (_this3.rejectThenMediaSourceOpen) {
-              _this3.rejectThenMediaSourceOpen();
-              _this3.resolveThenMediaSourceOpen = void 0;
-              _this3.rejectThenMediaSourceOpen = void 0;
+            if (_this4.rejectThenMediaSourceOpen) {
+              _this4.rejectThenMediaSourceOpen();
+              _this4.resolveThenMediaSourceOpen = void 0;
+              _this4.rejectThenMediaSourceOpen = void 0;
             }
 
-            if (!_this3.opts.retryMuted) {
-              _this3.stop();
+            if (!_this4.opts.retryMuted) {
+              _this4.stop();
             }
           });
 
-          return _this3.playPromise;
+          return _this4.playPromise;
         });
       });
     });
@@ -1214,7 +1221,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onMediaDetaching = function onMediaDetaching() {
-    var _this4 = this;
+    var _this5 = this;
 
     if (this.stopRunning) {
       _logger.logger.warn('stop is running.');
@@ -1230,9 +1237,9 @@ var MSEPlayer = function () {
       // resolved/rejected
       // both required to shutdown ws, mediasources and etc.
       this.playPromise.then(function () {
-        return _this4.handlerMediaDetaching();
+        return _this5.handlerMediaDetaching();
       }).catch(function () {
-        return _this4.handlerMediaDetaching();
+        return _this5.handlerMediaDetaching();
       });
     }
     if (!this.playPromise) {
@@ -1243,7 +1250,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.handlerMediaDetaching = function handlerMediaDetaching() {
-    var _this5 = this;
+    var _this6 = this;
 
     _logger.logger.info('media source detaching');
     var mediaEmptyPromise = void 0;
@@ -1260,10 +1267,10 @@ var MSEPlayer = function () {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
       mediaEmptyPromise = new Promise(function (resolve) {
-        _this5._onmee = _this5.onMediaElementEmptied(resolve).bind(_this5);
+        _this6._onmee = _this6.onMediaElementEmptied(resolve).bind(_this6);
       });
       mediaEmptyPromise.then(function () {
-        return _this5.stopRunning = false;
+        return _this6.stopRunning = false;
       });
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_EMPTIED, this._onmee);
     }
@@ -1318,7 +1325,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onAttachMedia = function onAttachMedia(data) {
-    var _this6 = this;
+    var _this7 = this;
 
     this.media = data.media;
     var media = this.media;
@@ -1337,8 +1344,8 @@ var MSEPlayer = function () {
       // link video and media Source
       media.src = URL.createObjectURL(ms);
       this.errorLog = function (error) {
-        if (_this6.onError) {
-          _this6.onError(error);
+        if (_this7.onError) {
+          _this7.onError(error);
         }
       };
 
@@ -1356,8 +1363,8 @@ var MSEPlayer = function () {
         return;
       }
       return new Promise(function (resolve) {
-        _this6.onmso = _this6.onMediaSourceOpen.bind(_this6, resolve);
-        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this6.onmso);
+        _this7.onmso = _this7.onMediaSourceOpen.bind(_this7, resolve);
+        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this7.onmso);
       });
     }
   };
@@ -1399,7 +1406,7 @@ var MSEPlayer = function () {
   // }
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
-    var _this7 = this;
+    var _this8 = this;
 
     if (this.stopRunning) {
       return;
@@ -1464,7 +1471,7 @@ var MSEPlayer = function () {
             _logger.logger.log('do playPromise reject with error');
             if (this.ws.connectionPromise) {
               this.ws.connectionPromise.then(function () {
-                return _this7.ws.pause();
+                return _this8.ws.pause();
               }); // #6694
             }
             if (!this.liveError) {
@@ -1621,7 +1628,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this8 = this;
+    var _this9 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1633,8 +1640,8 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this8._pause = false;
-          _this8.playing = true;
+          _this9._pause = false;
+          _this9.playing = true;
         });
       }
     }
@@ -1713,12 +1720,12 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onConnectionRetry = function onConnectionRetry() {
-    var _this9 = this;
+    var _this10 = this;
 
     if (!this.retryConnectionTimer && !this._stop) {
       if (this.retry < this.opts.connectionRetries) {
         this.retryConnectionTimer = setInterval(function () {
-          return _this9.retryConnection();
+          return _this10.retryConnection();
         }, 5000);
       }
     } else if (this.retry >= this.opts.connectionRetries) {
