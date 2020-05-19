@@ -95,7 +95,7 @@
   </style>
 <body>
   <div class="player-container">
-    <video id="player" controls="false" autoplay="false"></video>
+    <video id="player" muted autoplay="false"></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
@@ -120,6 +120,7 @@
       <button onclick="window.player.play()">Play</button>
       <button onclick="window.player.stop()">Stop</button>
       <button onclick="window.player.pause()">Pause</button>
+      <button id="muted" onclick="unmute()">Unmute</button>
     </div>
     <div>
       <input type="text" id="seek" value="1538561793"/>

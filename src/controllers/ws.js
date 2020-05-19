@@ -60,7 +60,7 @@ export default class WebSocketController {
 
   send(cmd) {
     this.websocket.send(cmd)
-  }
+  } 
 
   resume() {
     clearTimeout(this.reconnect)
@@ -167,11 +167,11 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
   let othersParams = ''
 
   if (parsedUrl.query) {
-    const currentParamsKeysValues = parsedUrl.query.split('&').map(keyValue => keyValue.split('='))
+    const currentParamsKeysValues = parsedUrl.query.split('&').map((keyValue) => keyValue.split('='))
 
     othersParams = currentParamsKeysValues
-      .filter(p => p[0] !== 'from' && p[0] !== 'tracks')
-      .map(kv => kv.join('='))
+      .filter((p) => p[0] !== 'from' && p[0] !== 'tracks')
+      .map((kv) => kv.join('='))
       .join('&')
 
     logger.log(othersParams)

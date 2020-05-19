@@ -50,7 +50,8 @@ function onLoad() {
     connectionRetries: 0,
     errorsBeforeStop: 10,
     retryMuted: true,
-    maxBufferDelay: 1,
+    maxBufferDelay: 2,
+    // wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
     },
@@ -77,6 +78,15 @@ function onLoad() {
     },
     onDisconnect: (status) => {
       console.log('Websocket status:', status)
+      const restart = () => {
+        window.player.restart()
+        clearInterval(restartTimer)
+      }
+      // const restart = window.player.stop().then(() => {
+      //   window.player.play()
+      //   clearInterval(restartTimer)
+      // })
+      let restartTimer = setInterval(restart, 10000)
     },
     onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData)
@@ -233,6 +243,19 @@ function onLoad() {
     if (value) {
       window.player.seek(value)
     } else throw new Error('incorrect input!')
+  }
+
+  window.unmute = () => {
+    const element = document.getElementById('muted')
+    if (window.player && window.player.media) {
+      if (window.player.media.muted) {
+        window.player.media.muted = false
+        element.innerText = 'Mute'
+      } else {
+        window.player.media.muted = true
+        element.innerText = 'Unmute'
+      }
+    }
   }
 
   let myChart = Highcharts.stockChart('container', {
