@@ -113,6 +113,7 @@ export default class MSEPlayer {
     }
     this.onMediaInfo = opts && opts.onMediaInfo
     this.onError = opts && opts.onError
+    this.onEvent = opts && opts.onEvent
     this.onAutoplay = opts && opts.onAutoplay
     this.onMuted = opts && opts.onMuted
     this.onStats = opts && opts.onStats
@@ -392,10 +393,10 @@ export default class MSEPlayer {
         this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTrack).then(() => {
           // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
           this.playPromise = this.media.play()
-          this.startProgressTimer()
           this.playPromise
-            .then(() => {
-              this.onStartStalling() // switch off at progress checker
+          .then(() => {
+            this.onStartStalling() // switch off at progress checker
+            this.startProgressTimer()
               if (this.resolveThenMediaSourceOpen) {
                 this._stop = false
                 this.resolveThenMediaSourceOpen()
@@ -434,9 +435,9 @@ export default class MSEPlayer {
                 this.rejectThenMediaSourceOpen = void 0
               }
 
-              if (!this.opts.retryMuted) {
-                this.stop()
-              }
+              // if (!this.opts.retryMuted) {
+              //   this.stop()
+              // }
             })
 
           return this.playPromise
@@ -578,20 +579,20 @@ export default class MSEPlayer {
       ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc)
       // link video and media Source
       media.src = URL.createObjectURL(ms)
-      this.errorLog = (error) => {
-        if (this.onError) {
-          this.onError(error)
+      this.eventLog = (event) => {
+        if (this.onEvent) {
+          this.onEvent(event)
         }
       }
 
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
 
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.errorLog)
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.errorLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.eventLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.eventLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.eventLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.eventLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.eventLog)
 
       if (this.liveError) {
         this.player = void 0
@@ -734,8 +735,8 @@ export default class MSEPlayer {
           case WS_EVENT_TRACKS_SWITCHED:
             break
           default:
-            if (this.opts.onError) {
-              this.opts.onError({error: 'unhandled_event', event: eventType})
+            if (this.opts.onEvent) {
+              this.opts.onEvent({error: 'unhandled_event', event: eventType})
             }
             logger.warn('unknown type of event', eventType)
         }
