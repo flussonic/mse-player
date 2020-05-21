@@ -107,9 +107,12 @@ function onLoad() {
       mbrControls.style.display = 'block'
     },
     onError: (err) => {
-      if (typeof err === 'object' && err.type) {
+      console.log('••••• ERRROR', err)
+    },
+    onEvent: (event) => {
+      if (typeof event === 'object' && event.type) {
         let color = 'gray'
-        switch (err.type) {
+        switch (event.type) {
           case 'waiting':
             color = 'red'
             break
@@ -122,14 +125,12 @@ function onLoad() {
         }
         const time = new Date()
         myChart.xAxis[0].addPlotBand({
-          label: {text: err.type},
+          label: {text: event.type},
           color,
           width: 2,
           value: Date.now(time),
           zIndex: 3,
         })
-      } else {
-        console.log('••••• ERRROR', err)
       }
     },
     onAutoplay: (func) => {
