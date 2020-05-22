@@ -435,9 +435,9 @@ export default class MSEPlayer {
                 this.rejectThenMediaSourceOpen = void 0
               }
 
-              // if (!this.opts.retryMuted) {
-              //   this.stop()
-              // }
+              if (!this.opts.retryMuted) {
+                this.stop()
+              }
             })
 
           return this.playPromise

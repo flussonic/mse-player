@@ -795,7 +795,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.5.1";
+      return "20.5.2";
     }
   }]);
 
@@ -867,6 +867,7 @@ var MSEPlayer = function () {
     }
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
+    this.onEvent = opts && opts.onEvent;
     this.onAutoplay = opts && opts.onAutoplay;
     this.onMuted = opts && opts.onMuted;
     this.onStats = opts && opts.onStats;
@@ -1151,9 +1152,9 @@ var MSEPlayer = function () {
         _this4.ws.start(_this4.url, _this4.playTime, _this4.videoTrack, _this4.audioTrack).then(function () {
           // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
           _this4.playPromise = _this4.media.play();
-          _this4.startProgressTimer();
           _this4.playPromise.then(function () {
             _this4.onStartStalling(); // switch off at progress checker
+            _this4.startProgressTimer();
             if (_this4.resolveThenMediaSourceOpen) {
               _this4._stop = false;
               _this4.resolveThenMediaSourceOpen();
@@ -1343,20 +1344,20 @@ var MSEPlayer = function () {
       ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_CLOSE, this.onmsc);
       // link video and media Source
       media.src = URL.createObjectURL(ms);
-      this.errorLog = function (error) {
-        if (_this7.onError) {
-          _this7.onError(error);
+      this.eventLog = function (event) {
+        if (_this7.onEvent) {
+          _this7.onEvent(event);
         }
       };
 
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
 
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.eventLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.eventLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.eventLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.eventLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.eventLog);
 
       if (this.liveError) {
         this.player = void 0;
@@ -1494,8 +1495,8 @@ var MSEPlayer = function () {
           case WS_EVENT_TRACKS_SWITCHED:
             break;
           default:
-            if (this.opts.onError) {
-              this.opts.onError({ error: 'unhandled_event', event: eventType });
+            if (this.opts.onEvent) {
+              this.opts.onEvent({ error: 'unhandled_event', event: eventType });
             }
             _logger.logger.warn('unknown type of event', eventType);
         }
