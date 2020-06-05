@@ -26,6 +26,7 @@ function onLoad() {
   const audioTracksSelect = document.getElementById('audioTracks')
   const mbrControls = document.querySelector('.mbr-controls')
   const utcLabel = document.getElementById('utc')
+  const loading = document.getElementById('loading')
   const stallingLabel = document.getElementById('stallingLabel')
   const showStallingIndicator = (value) => {
     stallingLabel.innerText = '' + value
@@ -54,9 +55,11 @@ function onLoad() {
     // wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
+      loading.classList.add('visible')
     },
     onEndStalling: () => {
       showStallingIndicator('stop stalling')
+      loading.classList.remove('visible')
     },
     onSeeked: () => {
       showFirstFrameUTC = true

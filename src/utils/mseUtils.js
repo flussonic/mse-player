@@ -150,6 +150,12 @@ export const checkVideoProgress = (media, player) => (evt) => {
     }
   }
 
+  if (player.media.readyState <= 2 && player.media.networkState === 2) {
+    player.onStartStalling()
+  } else if (player.media.readyState > 2) {
+    player.onEndStalling()
+  }
+
   if (!l) {
     return
   }
@@ -157,7 +163,7 @@ export const checkVideoProgress = (media, player) => (evt) => {
   // console.log(endTime - ct)
   const delay = Math.abs(endTime - ct)
   if (player._stalling) {
-    player.onEndStalling()
+    // player.onEndStalling()
     // если поставлена пауза
     if (media.paused && player._pause && !player.playing) {
       media.currentTime = endTime - 0.0001
