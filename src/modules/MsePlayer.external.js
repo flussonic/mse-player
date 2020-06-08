@@ -806,7 +806,7 @@ export default class MSEPlayer {
 
     const activeStreams = {}
 
-    const videoIndex = this.sb.videoTrackId.index
+    const videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.index
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
       if (streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
         this.onError &&
@@ -818,33 +818,34 @@ export default class MSEPlayer {
       activeStreams.video = streams[videoIndex]['track_id']
     }
 
-    const audioIndex = this.sb.audioTrackId.index
-    if (streams[audioIndex] && streams[audioIndex]['track_id']) {
-      if (streams[audioIndex].bitrate === 0) {
-        this.onError &&
-          this.onError({
-            error: 'Audio track error',
+    const audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.index
+    if (audioIndex) {
+      if (streams[audioIndex] && streams[audioIndex]['track_id']) {
+        if (streams[audioIndex].bitrate === 0) {
+          this.onError &&
+            this.onError({
+              error: 'Audio track error',
+            })
+          let idToDelete
+          data.tracks.forEach((item, index) => {
+            if (item.id === this.sb.audioTrackId.id) {
+              idToDelete = index
+            }
           })
-        let idToDelete
-        data.tracks.forEach((item, index) => {
-          if (item.id === this.sb.audioTrackId.id) {
-            idToDelete = index
+          data.tracks.splice(idToDelete, 1)
+          if (this.sb.sourceBuffer.audio) {
+            this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio)
+            // this.sb.audioTrackId = void 0
+            delete this.sb.sourceBuffer.audio
           }
-        })
-        data.tracks.splice(idToDelete, 1)
-        if (this.sb.sourceBuffer.audio) {
-          this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio)
-          // this.sb.audioTrackId = void 0
-          delete this.sb.sourceBuffer.audio
+        } else {
+          activeStreams.audio = streams[audioIndex]['track_id']
         }
-      } else {
-        activeStreams.audio = streams[audioIndex]['track_id']
       }
     }
 
     this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})
     logger.log('%cprocInitSegment:', 'background: lightpink;', data)
-
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.sb.setMediaSource(this.mediaSource)
       this.sb.createSourceBuffers(data)

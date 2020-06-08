@@ -548,6 +548,12 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       }
     }
 
+    if (player.media.readyState <= 2 && player.media.networkState === 2) {
+      player.onStartStalling();
+    } else if (player.media.readyState > 2) {
+      player.onEndStalling();
+    }
+
     if (!l) {
       return;
     }
@@ -555,7 +561,7 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
     // console.log(endTime - ct)
     var delay = Math.abs(endTime - ct);
     if (player._stalling) {
-      player.onEndStalling();
+      // player.onEndStalling()
       // если поставлена пауза
       if (media.paused && player._pause && !player.playing) {
         media.currentTime = endTime - 0.0001;
@@ -795,7 +801,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.5.2";
+      return "20.6.1";
     }
   }]);
 
@@ -974,13 +980,13 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.restart = function restart() {
     var fullRestart = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
 
-    this.onStartStalling();
     var from = fullRestart ? undefined : this.sb.lastLoadedUTC;
 
     this.playing = false;
     this.ws.destroy();
     this.ws.init();
     this.ws.start(this.url, from, this.videoTrack, this.audioTrack);
+    this.onEndStalling();
   };
 
   MSEPlayer.prototype.retryConnection = function retryConnection() {
@@ -1522,6 +1528,8 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
+    var _this9 = this;
+
     // debugger
     var data = JSON.parse(rawData);
 
@@ -1563,18 +1571,38 @@ var MSEPlayer = function () {
 
     var activeStreams = {};
 
-    if (this.sb.videoTrackId) {
-      if (streams[this.sb.videoTrackId - 1] && streams[this.sb.videoTrackId - 1]['track_id']) {
-        activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id'];
+    var videoIndex = this.sb.videoTrackId.index;
+    if (streams[videoIndex] && streams[videoIndex]['track_id']) {
+      if (streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
+        this.onError && this.onError({
+          error: 'Video track error'
+        });
+        return;
       }
+      activeStreams.video = streams[videoIndex]['track_id'];
     }
 
-    if (this.sb.audioTrackId) {
-      if (streams[this.sb.audioTrackId - 1] && streams[this.sb.audioTrackId - 1]['track_id']) {
-        activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id'];
+    var audioIndex = this.sb.audioTrackId.index;
+    if (streams[audioIndex] && streams[audioIndex]['track_id']) {
+      if (streams[audioIndex].bitrate === 0) {
+        this.onError && this.onError({
+          error: 'Audio track error'
+        });
+        var idToDelete = void 0;
+        data.tracks.forEach(function (item, index) {
+          if (item.id === _this9.sb.audioTrackId.id) {
+            idToDelete = index;
+          }
+        });
+        data.tracks.splice(idToDelete, 1);
+        if (this.sb.sourceBuffer.audio) {
+          this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio);
+          // this.sb.audioTrackId = void 0
+          delete this.sb.sourceBuffer.audio;
+        }
+      } else {
+        activeStreams.audio = streams[audioIndex]['track_id'];
       }
-    } else {
-      if (this.mediaSource && this.sb.sourceBuffer && this.sb.sourceBuffer.audio) this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio);
     }
 
     this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams, version: MSEPlayer.version }));
@@ -1629,7 +1657,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this9 = this;
+    var _this10 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1641,14 +1669,23 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this9._pause = false;
-          _this9.playing = true;
+          _this10._pause = false;
+          _this10.playing = true;
         });
       }
     }
   };
 
   MSEPlayer.prototype.onStartStalling = function onStartStalling() {
+    var _this11 = this;
+
+    if (!this.resetTimer) {
+      this.resetTimer = setTimeout(function () {
+        _this11.restart();
+      }, 20000);
+    }
+
+    if (this._stalling) return;
     if (this.opts.onStartStalling) {
       this.opts.onStartStalling();
     }
@@ -1657,11 +1694,15 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onEndStalling = function onEndStalling() {
+    if (!this._stalling) return;
     if (this.opts.onEndStalling) {
       this.opts.onEndStalling();
     }
     this._stalling = false;
     _logger.logger.log('onEndStalling');
+
+    clearTimeout(this.resetTimer);
+    this.resetTimer = void 0;
   };
 
   MSEPlayer.prototype.startProgressTimer = function startProgressTimer() {
@@ -1721,12 +1762,12 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onConnectionRetry = function onConnectionRetry() {
-    var _this10 = this;
+    var _this12 = this;
 
     if (!this.retryConnectionTimer && !this._stop) {
       if (this.retry < this.opts.connectionRetries) {
         this.retryConnectionTimer = setInterval(function () {
-          return _this10.retryConnection();
+          return _this12.retryConnection();
         }, 5000);
       }
     } else if (this.retry >= this.opts.connectionRetries) {
@@ -4298,13 +4339,13 @@ var BuffersController = function () {
     if (data[type].length === 1) {
       this.audioTrackId = null;
     }
-    data[type].forEach(function (s) {
-      _this3[s.content === _common.VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id;
+    data[type].forEach(function (s, index) {
+      _this3[s.content === _common.VIDEO ? 'videoTrackId' : 'audioTrackId'] = { index: index, id: s.id };
     });
   };
 
   BuffersController.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
-    return this.audioTrackId === id ? _common.AUDIO : _common.VIDEO;
+    return this.audioTrackId.id === id ? _common.AUDIO : _common.VIDEO;
   };
 
   BuffersController.prototype.procArrayBuffer = function procArrayBuffer(rawData) {
