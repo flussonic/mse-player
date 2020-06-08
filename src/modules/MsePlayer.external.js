@@ -226,13 +226,13 @@ export default class MSEPlayer {
   }
 
   restart(fullRestart = true) {
-    this.onStartStalling()
     const from = fullRestart ? undefined : this.sb.lastLoadedUTC
 
     this.playing = false
     this.ws.destroy()
     this.ws.init()
     this.ws.start(this.url, from, this.videoTrack, this.audioTrack)
+    this.onEndStalling()
   }
 
   retryConnection(time = null, videoTrack = null, audioTrack = null) {
@@ -394,9 +394,9 @@ export default class MSEPlayer {
           // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
           this.playPromise = this.media.play()
           this.playPromise
-          .then(() => {
-            this.onStartStalling() // switch off at progress checker
-            this.startProgressTimer()
+            .then(() => {
+              this.onStartStalling() // switch off at progress checker
+              this.startProgressTimer()
               if (this.resolveThenMediaSourceOpen) {
                 this._stop = false
                 this.resolveThenMediaSourceOpen()
@@ -806,19 +806,40 @@ export default class MSEPlayer {
 
     const activeStreams = {}
 
-    if (this.sb.videoTrackId) {
-      if (streams[this.sb.videoTrackId - 1] && streams[this.sb.videoTrackId - 1]['track_id']) {
-        activeStreams.video = streams[this.sb.videoTrackId - 1]['track_id']
+    const videoIndex = this.sb.videoTrackId.index
+    if (streams[videoIndex] && streams[videoIndex]['track_id']) {
+      if (streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
+        this.onError &&
+          this.onError({
+            error: 'Video track error',
+          })
+        return
       }
+      activeStreams.video = streams[videoIndex]['track_id']
     }
 
-    if (this.sb.audioTrackId) {
-      if (streams[this.sb.audioTrackId - 1] && streams[this.sb.audioTrackId - 1]['track_id']) {
-        activeStreams.audio = streams[this.sb.audioTrackId - 1]['track_id']
+    const audioIndex = this.sb.audioTrackId.index
+    if (streams[audioIndex] && streams[audioIndex]['track_id']) {
+      if (streams[audioIndex].bitrate === 0) {
+        this.onError &&
+          this.onError({
+            error: 'Audio track error',
+          })
+        let idToDelete
+        data.tracks.forEach((item, index) => {
+          if (item.id === this.sb.audioTrackId.id) {
+            idToDelete = index
+          }
+        })
+        data.tracks.splice(idToDelete, 1)
+        if (this.sb.sourceBuffer.audio) {
+          this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio)
+          // this.sb.audioTrackId = void 0
+          delete this.sb.sourceBuffer.audio
+        }
+      } else {
+        activeStreams.audio = streams[audioIndex]['track_id']
       }
-    } else {
-      if (this.mediaSource && this.sb.sourceBuffer && this.sb.sourceBuffer.audio)
-        this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio)
     }
 
     this.doMediaInfo({...metadata, activeStreams, version: MSEPlayer.version})
@@ -885,6 +906,13 @@ export default class MSEPlayer {
   }
 
   onStartStalling() {
+    if (!this.resetTimer) {
+      this.resetTimer = setTimeout(() => {
+        this.restart()
+      }, 20000)
+    }
+
+    if (this._stalling) return
     if (this.opts.onStartStalling) {
       this.opts.onStartStalling()
     }
@@ -893,11 +921,15 @@ export default class MSEPlayer {
   }
 
   onEndStalling() {
+    if (!this._stalling) return
     if (this.opts.onEndStalling) {
       this.opts.onEndStalling()
     }
     this._stalling = false
     logger.log('onEndStalling')
+
+    clearTimeout(this.resetTimer)
+    this.resetTimer = void 0
   }
 
   startProgressTimer() {

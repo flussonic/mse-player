@@ -151,13 +151,13 @@ export default class BuffersController {
     if (data[type].length === 1) {
       this.audioTrackId = null
     }
-    data[type].forEach((s) => {
-      this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = s.id
+    data[type].forEach((s, index) => {
+      this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = {index, id: s.id}
     })
   }
 
   getTypeBytrackId(id) {
-    return this.audioTrackId === id ? AUDIO : VIDEO
+    return this.audioTrackId.id === id ? AUDIO : VIDEO
   }
 
   procArrayBuffer(rawData) {
