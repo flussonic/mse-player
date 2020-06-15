@@ -157,6 +157,9 @@ export default class BuffersController {
   }
 
   getTypeBytrackId(id) {
+    if (!this.audioTrackId) {
+      return VIDEO
+    }
     return this.audioTrackId.id === id ? AUDIO : VIDEO
   }
 
@@ -175,8 +178,10 @@ export default class BuffersController {
       if (this.sourceBuffer.video && !this.sourceBuffer.video.updating) {
         this.onSBUpdateEnd()
       }
-      if (this.sourceBuffer.audio && !this.sourceBuffer.audio.updating) {
-        this.onAudioSBUpdateEnd()
+      if (this.audioTrackId) {
+        if (this.sourceBuffer.audio && !this.sourceBuffer.audio.updating) {
+          this.onAudioSBUpdateEnd()
+        }
       }
     }
   }
