@@ -801,7 +801,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.6.1";
+      return "20.6.2";
     }
   }]);
 
@@ -1571,7 +1571,7 @@ var MSEPlayer = function () {
 
     var activeStreams = {};
 
-    var videoIndex = this.sb.videoTrackId.index;
+    var videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.index;
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
       if (streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
         this.onError && this.onError({
@@ -1582,32 +1582,33 @@ var MSEPlayer = function () {
       activeStreams.video = streams[videoIndex]['track_id'];
     }
 
-    var audioIndex = this.sb.audioTrackId.index;
-    if (streams[audioIndex] && streams[audioIndex]['track_id']) {
-      if (streams[audioIndex].bitrate === 0) {
-        this.onError && this.onError({
-          error: 'Audio track error'
-        });
-        var idToDelete = void 0;
-        data.tracks.forEach(function (item, index) {
-          if (item.id === _this9.sb.audioTrackId.id) {
-            idToDelete = index;
+    var audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.index;
+    if (audioIndex) {
+      if (streams[audioIndex] && streams[audioIndex]['track_id']) {
+        if (streams[audioIndex].bitrate === 0) {
+          this.onError && this.onError({
+            error: 'Audio track error'
+          });
+          var idToDelete = void 0;
+          data.tracks.forEach(function (item, index) {
+            if (item.id === _this9.sb.audioTrackId.id) {
+              idToDelete = index;
+            }
+          });
+          data.tracks.splice(idToDelete, 1);
+          if (this.sb.sourceBuffer.audio) {
+            this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio);
+            // this.sb.audioTrackId = void 0
+            delete this.sb.sourceBuffer.audio;
           }
-        });
-        data.tracks.splice(idToDelete, 1);
-        if (this.sb.sourceBuffer.audio) {
-          this.mediaSource.removeSourceBuffer(this.sb.sourceBuffer.audio);
-          // this.sb.audioTrackId = void 0
-          delete this.sb.sourceBuffer.audio;
+        } else {
+          activeStreams.audio = streams[audioIndex]['track_id'];
         }
-      } else {
-        activeStreams.audio = streams[audioIndex]['track_id'];
       }
     }
 
     this.doMediaInfo(_extends({}, metadata, { activeStreams: activeStreams, version: MSEPlayer.version }));
     _logger.logger.log('%cprocInitSegment:', 'background: lightpink;', data);
-
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.sb.setMediaSource(this.mediaSource);
       this.sb.createSourceBuffers(data);
@@ -4345,6 +4346,9 @@ var BuffersController = function () {
   };
 
   BuffersController.prototype.getTypeBytrackId = function getTypeBytrackId(id) {
+    if (!this.audioTrackId) {
+      return _common.VIDEO;
+    }
     return this.audioTrackId.id === id ? _common.AUDIO : _common.VIDEO;
   };
 
@@ -4363,8 +4367,10 @@ var BuffersController = function () {
       if (this.sourceBuffer.video && !this.sourceBuffer.video.updating) {
         this.onSBUpdateEnd();
       }
-      if (this.sourceBuffer.audio && !this.sourceBuffer.audio.updating) {
-        this.onAudioSBUpdateEnd();
+      if (this.audioTrackId) {
+        if (this.sourceBuffer.audio && !this.sourceBuffer.audio.updating) {
+          this.onAudioSBUpdateEnd();
+        }
       }
     }
   };
