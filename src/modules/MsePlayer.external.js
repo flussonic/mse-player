@@ -274,7 +274,10 @@ export default class MSEPlayer {
     const audioTracksStr = tracks
       .filter((id) => {
         const stream = this.mediaInfo[videoTracksType].find((s) => id === s['track_id'])
-        if (stream && stream.bitrate && stream.bitrate !== 0) {
+        if (stream) {
+          // if (stream.bitrate && stream.bitrate === 0) {
+          //   return null
+          // }
           return !!stream && stream.content === TYPE_CONTENT_AUDIO
         } else {
           return null
@@ -808,7 +811,11 @@ export default class MSEPlayer {
 
     const videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.index
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
-      if (streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
+      if (
+        (streams[videoIndex].bitrate && streams[videoIndex].bitrate === 0) ||
+        streams[videoIndex].height === 0 ||
+        streams[videoIndex].width === 0
+      ) {
         this.onError &&
           this.onError({
             error: 'Video track error',
@@ -821,7 +828,7 @@ export default class MSEPlayer {
     const audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.index
     if (audioIndex) {
       if (streams[audioIndex] && streams[audioIndex]['track_id']) {
-        if (streams[audioIndex].bitrate === 0) {
+        if (streams[audioIndex].bitrate && streams[audioIndex].bitrate === 0) {
           this.onError &&
             this.onError({
               error: 'Audio track error',
