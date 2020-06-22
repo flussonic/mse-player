@@ -711,26 +711,31 @@ export default class MSEPlayer {
             break
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            logger.log('do playPromise reject with error')
-            if (this.ws.connectionPromise) {
-              this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
-            }
-            if (!this.liveError) {
-              if (this.opts.onError) {
-                this.opts.onError({
-                  error: 'playPromise reject - stream unavaible',
-                })
+            if (parsedData.on_demand) {
+              logger.log('Stream is on on demand mode, waiting for init segment')
+              this.onStartStalling()
+            } else {
+              logger.log('do playPromise reject with error')
+              if (this.ws.connectionPromise) {
+                this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
               }
-              this.liveError = true
-            }
+              if (!this.liveError) {
+                if (this.opts.onError) {
+                  this.opts.onError({
+                    error: 'playPromise reject - stream unavaible',
+                  })
+                }
+                this.liveError = true
+              }
 
-            if (this.rejectThenMediaSourceOpen) {
-              this.rejectThenMediaSourceOpen()
-              this.resolveThenMediaSourceOpen = void 0
-              this.rejectThenMediaSourceOpen = void 0
+              if (this.rejectThenMediaSourceOpen) {
+                this.rejectThenMediaSourceOpen()
+                this.resolveThenMediaSourceOpen = void 0
+                this.rejectThenMediaSourceOpen = void 0
+              }
+              this.playPromise = Promise.reject('stream unavaible')
+              this.mediaSource.endOfStream()
             }
-            this.playPromise = Promise.reject('stream unavaible')
-            this.mediaSource.endOfStream()
             break
           case WS_EVENT_TRACKS_SWITCHED:
             break
