@@ -711,7 +711,7 @@ export default class MSEPlayer {
             break
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            if (parsedData.on_demand) {
+            if (parsedData.static && parsedData.static == false) {
               logger.log('Stream is on on demand mode, waiting for init segment')
               this.onStartStalling()
             } else {
