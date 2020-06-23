@@ -801,7 +801,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.6.2";
+      return "20.6.3";
     }
   }]);
 
@@ -1038,7 +1038,10 @@ var MSEPlayer = function () {
       var stream = _this3.mediaInfo[videoTracksType].find(function (s) {
         return id === s['track_id'];
       });
-      if (stream && stream.bitrate && stream.bitrate !== 0) {
+      if (stream) {
+        // if (stream.bitrate && stream.bitrate === 0) {
+        //   return null
+        // }
         return !!stream && stream.content === TYPE_CONTENT_AUDIO;
       } else {
         return null;
@@ -1475,28 +1478,33 @@ var MSEPlayer = function () {
             break;
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            _logger.logger.log('do playPromise reject with error');
-            if (this.ws.connectionPromise) {
-              this.ws.connectionPromise.then(function () {
-                return _this8.ws.pause();
-              }); // #6694
-            }
-            if (!this.liveError) {
-              if (this.opts.onError) {
-                this.opts.onError({
-                  error: 'playPromise reject - stream unavaible'
-                });
+            if (parsedData.hasOwnProperty('static') && parsedData.static == false) {
+              _logger.logger.info('Stream is on on demand mode, waiting for init segment');
+              this.onStartStalling();
+            } else {
+              _logger.logger.warn('do playPromise reject with error');
+              if (this.ws.connectionPromise) {
+                this.ws.connectionPromise.then(function () {
+                  return _this8.ws.pause();
+                }); // #6694
               }
-              this.liveError = true;
-            }
+              if (!this.liveError) {
+                if (this.opts.onError) {
+                  this.opts.onError({
+                    error: 'playPromise reject - stream unavaible'
+                  });
+                }
+                this.liveError = true;
+              }
 
-            if (this.rejectThenMediaSourceOpen) {
-              this.rejectThenMediaSourceOpen();
-              this.resolveThenMediaSourceOpen = void 0;
-              this.rejectThenMediaSourceOpen = void 0;
+              if (this.rejectThenMediaSourceOpen) {
+                this.rejectThenMediaSourceOpen();
+                this.resolveThenMediaSourceOpen = void 0;
+                this.rejectThenMediaSourceOpen = void 0;
+              }
+              this.playPromise = Promise.reject('stream unavaible');
+              this.mediaSource.endOfStream();
             }
-            this.playPromise = Promise.reject('stream unavaible');
-            this.mediaSource.endOfStream();
             break;
           case WS_EVENT_TRACKS_SWITCHED:
             break;
@@ -1573,7 +1581,7 @@ var MSEPlayer = function () {
 
     var videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.index;
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
-      if (streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
+      if (streams[videoIndex].bitrate && streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
         this.onError && this.onError({
           error: 'Video track error'
         });
@@ -1585,7 +1593,7 @@ var MSEPlayer = function () {
     var audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.index;
     if (audioIndex) {
       if (streams[audioIndex] && streams[audioIndex]['track_id']) {
-        if (streams[audioIndex].bitrate === 0) {
+        if (streams[audioIndex].bitrate && streams[audioIndex].bitrate === 0) {
           this.onError && this.onError({
             error: 'Audio track error'
           });
@@ -4377,9 +4385,9 @@ var BuffersController = function () {
 
   BuffersController.prototype.seek = function seek() {
     for (var k in this.sourceBuffer) {
+      this.sourceBuffer[k].abort();
       this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
       this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2;
-      this.sourceBuffer[k].abort();
     }
 
     // this.videoBufferSize = 0
