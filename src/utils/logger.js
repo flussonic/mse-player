@@ -32,7 +32,7 @@ const global = getSelfScope()
 function consolePrintFn(type) {
   const func = global.console[type]
   if (func) {
-    return function(...args) {
+    return function (...args) {
       if (args[0]) {
         args[0] = formatMsg(type, args[0])
       }
@@ -44,12 +44,12 @@ function consolePrintFn(type) {
 }
 
 function exportLoggerFunctions(debugConfig, ...functions) {
-  functions.forEach(function(type) {
+  functions.forEach(function (type) {
     exportedLogger[type] = debugConfig[type] ? debugConfig[type].bind(debugConfig) : consolePrintFn(type)
   })
 }
 
-export var enableLogs = function(debugConfig) {
+export const enableLogs = function (debugConfig) {
   if (debugConfig === true || typeof debugConfig === 'object') {
     exportLoggerFunctions(
       debugConfig,
@@ -73,4 +73,4 @@ export var enableLogs = function(debugConfig) {
   }
 }
 
-export var logger = exportedLogger
+export const logger = exportedLogger
