@@ -711,11 +711,11 @@ export default class MSEPlayer {
             break
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            if (parsedData.static && parsedData.static == false) {
-              logger.log('Stream is on on demand mode, waiting for init segment')
+            if (parsedData.hasOwnProperty('static') && parsedData.static == false) {
+              logger.info('Stream is on on demand mode, waiting for init segment')
               this.onStartStalling()
             } else {
-              logger.log('do playPromise reject with error')
+              logger.warn('do playPromise reject with error')
               if (this.ws.connectionPromise) {
                 this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
               }
