@@ -35,6 +35,7 @@ export default class BuffersController {
   }
 
   createSourceBuffers(data) {
+    // debugger
     const sb = this.sourceBuffer
     data.tracks.forEach((s) => {
       const isVideo = s.content === VIDEO
@@ -370,6 +371,17 @@ export default class BuffersController {
       logger.warn('exception while calling mediaSource.endOfStream()')
     }
     this._needsEos = false
+  }
+
+  removeSourceBuffer(type = 'audio') {
+    const buffer = this.sourceBuffer[type]
+    if (type === 'audio') {
+      buffer.removeEventListener(BUFFER_UPDATE_END, this.onAudioSBUpdateEnd)
+    } else {
+      buffer.removeEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
+    }
+    this.mediaSource.removeSourceBuffer(buffer)
+    delete this.sourceBuffer[type]
   }
 
   destroy() {

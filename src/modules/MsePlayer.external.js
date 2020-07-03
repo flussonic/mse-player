@@ -253,6 +253,14 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
+    // this.mediaSource = void 0
+    // this.init()
+    // this.sb.destroy()
+    // if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
+    //   this.sb.setMediaSource(this.mediaSource)
+    //   this.sb.createSourceBuffers({...tracks})
+    // }
+    // debugger
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -284,6 +292,15 @@ export default class MSEPlayer {
         }
       })
       .join('')
+
+    console.log({videoTracksStr, audioTracksStr}, this.mediaSource.sourceBuffers)
+
+    if (!audioTracksStr) {
+      if (this.sb.sourceBuffer.audio) {
+        console.log('AHA!')
+        this.sb.removeSourceBuffer()
+      }
+    }
 
     this.onStartStalling()
     this.ws.setTracks(videoTracksStr, audioTracksStr)
