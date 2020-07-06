@@ -50,7 +50,6 @@ export default class MSEPlayer {
    */
 
   constructor(media, urlStream, opts = {}) {
-    // debugger
     if (opts.debug) {
       enableLogs(true)
       window.humanTime = mseUtils.humanTime
@@ -253,14 +252,6 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
-    // this.mediaSource = void 0
-    // this.init()
-    // this.sb.destroy()
-    // if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
-    //   this.sb.setMediaSource(this.mediaSource)
-    //   this.sb.createSourceBuffers({...tracks})
-    // }
-    // debugger
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -272,14 +263,14 @@ export default class MSEPlayer {
 
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
 
-    const videoTracksStr = tracks
+    let videoTracksStr = tracks
       .filter((id) => {
         const stream = this.mediaInfo[videoTracksType].find((s) => id === s['track_id'])
         return !!stream && stream.content === TYPE_CONTENT_VIDEO
       })
       .join('')
 
-    const audioTracksStr = tracks
+    let audioTracksStr = tracks
       .filter((id) => {
         const stream = this.mediaInfo[videoTracksType].find((s) => id === s['track_id'])
         if (stream) {
@@ -293,14 +284,35 @@ export default class MSEPlayer {
       })
       .join('')
 
-    console.log({videoTracksStr, audioTracksStr}, this.mediaSource.sourceBuffers)
+    if (!audioTracksStr && !videoTracksStr) {
+      console.error('No such stream tracks! Setting to default parameters')
+      const videoTracks = this.getVideoTracks()
+      const audioTracks = this.getAudioTracks()
+      console.log({videoTracks, audioTracks})
+      if (audioTracks.length) {
+        audioTracksStr = audioTracks[0].track_id
+      } else {
+        console.error('No audio tracks')
+      }
+      if (videoTracks.length) {
+        // Добавить адаптивный выбор видео дорожки?
+        videoTracksStr = videoTracks[0].track_id
+      } else {
+        console.error('No video tracks')
+      }
+    }
 
     if (!audioTracksStr) {
       if (this.sb.sourceBuffer.audio) {
-        console.log('AHA!')
         this.sb.removeSourceBuffer()
       }
     }
+
+    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
+      this.sb.addSourceBuffer()
+    }
+
+    console.log({videoTracksStr, audioTracksStr}, this.mediaSource.sourceBuffers)
 
     this.onStartStalling()
     this.ws.setTracks(videoTracksStr, audioTracksStr)
@@ -319,7 +331,6 @@ export default class MSEPlayer {
    */
 
   _play(from, videoTrack, audioTrack) {
-    // debugger
     this.liveError = false
     let canPlay = false
     return new Promise((resolve, reject) => {
@@ -789,7 +800,6 @@ export default class MSEPlayer {
   }
 
   procInitSegment(rawData) {
-    // debugger
     const data = JSON.parse(rawData)
 
     if (data.type !== MSE_INIT_SEGMENT) {
