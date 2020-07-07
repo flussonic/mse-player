@@ -372,11 +372,12 @@ export default class BuffersController {
   }
 
   addSourceBuffer(type = 'audio') {
+    // debugger
     const sb = this.sourceBuffer
     const mimeType = type === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
     sb[type] = this.mediaSource.addSourceBuffer(mimeType)
     sb[type].mode = BUFFER_MODE_SEQUENCE
-    sb[type].timestampOffset = 0.25
+    // sb[type].timestampOffset = 0.25
     const buffer = sb[type]
     if (type === 'video') {
       buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)

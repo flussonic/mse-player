@@ -306,10 +306,12 @@ export default class MSEPlayer {
       if (this.sb.sourceBuffer.audio) {
         this.sb.removeSourceBuffer()
       }
+      this.media.muted = true;
     }
 
     if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      this.sb.addSourceBuffer()
+      // Решить в задаче #12506
+      // this.sb.addSourceBuffer()
     }
 
     console.log({videoTracksStr, audioTracksStr}, this.mediaSource.sourceBuffers)
