@@ -252,6 +252,31 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
+    const {videoTracksStr, audioTracksStr} = this.checkTrackAvailability(tracks)
+
+    if (!audioTracksStr) {
+      if (this.sb.sourceBuffer.audio) {
+        this.sb.removeSourceBuffer()
+      }
+      this.media.muted = true
+    }
+
+    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
+      // Решить в задаче #12506
+      // this.sb.addSourceBuffer()
+    }
+
+    this.onStartStalling()
+    this.ws.setTracks(videoTracksStr, audioTracksStr)
+
+    this.videoTrack = videoTracksStr
+    this.audioTrack = audioTracksStr
+    // ?
+    this._setTracksFlag = true
+    this.waitForInitFrame = true
+  }
+
+  checkTrackAvailability(tracks) {
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
@@ -260,6 +285,8 @@ export default class MSEPlayer {
     if (!Array.isArray(tracks)) {
       console.error('tracks should be an Array instance: ["v1", "a1"]')
     }
+    // console.log(tracks)
+    // debugger
 
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
 
@@ -301,29 +328,8 @@ export default class MSEPlayer {
         console.error('No video tracks')
       }
     }
-
-    if (!audioTracksStr) {
-      if (this.sb.sourceBuffer.audio) {
-        this.sb.removeSourceBuffer()
-      }
-      this.media.muted = true;
-    }
-
-    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      // Решить в задаче #12506
-      // this.sb.addSourceBuffer()
-    }
-
-    console.log({videoTracksStr, audioTracksStr}, this.mediaSource.sourceBuffers)
-
-    this.onStartStalling()
-    this.ws.setTracks(videoTracksStr, audioTracksStr)
-
-    this.videoTrack = videoTracksStr
-    this.audioTrack = audioTracksStr
-    // ?
-    this._setTracksFlag = true
-    this.waitForInitFrame = true
+    console.log({videoTracksStr, audioTracksStr})
+    return {videoTracksStr, audioTracksStr}
   }
 
   /**

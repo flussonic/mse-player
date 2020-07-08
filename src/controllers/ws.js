@@ -31,7 +31,7 @@ export default class WebSocketController {
      * #6809
      */
     this.socketURL = {url, time, videoTrack, audioTack}
-
+    // console.log({url, time, videoTrack, audioTack})
     this.connectionPromise = new Promise((res, rej) => {
       const wsURL = getWSURL(url, time, videoTrack, audioTack)
       this.websocket = new WebSocket(wsURL)
@@ -60,7 +60,7 @@ export default class WebSocketController {
 
   send(cmd) {
     this.websocket.send(cmd)
-  } 
+  }
 
   resume() {
     clearTimeout(this.reconnect)
@@ -181,7 +181,10 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
   const tracksExists = !!videoTrack || !!audioTrack
 
   const ampFrom = tracksExists && !!time && time !== LIVE ? '&' : ''
-  const fromQuery = utc === LIVE ? '' : `from=${Math.floor(time)}`
+  let fromQuery = utc === LIVE ? '' : `from=${Math.floor(time)}`
+  if (!utc) {
+    fromQuery = ''
+  }
 
   const resultUrl =
     `${cleanUrl}${tracksExists ? `tracks=${videoTrack}${audioTrack}` : ''}` +
