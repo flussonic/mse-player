@@ -7,6 +7,7 @@ window.onload = onLoad()
 function onLoad() {
   let streamer_ws = 'ws://localhost:8080'
   let stream_name = 'clock'
+  let from, videotrack, audiotrack
 
   // parse query string
   let query = window.location.search
@@ -17,6 +18,15 @@ function onLoad() {
     }
     if (qs.name) {
       stream_name = qs.name
+    }
+    if (qs.videotrack) {
+      videotrack = qs.videotrack
+    }
+    if (qs.audiotrack) {
+      audiotrack = qs.audiotrack
+    }
+    if (qs.from) {
+      from = qs.from
     }
   }
   let url = streamer_ws + '/' + stream_name + '/mse_ld'
@@ -103,6 +113,7 @@ function onLoad() {
       const audioOptions = audioTracks.map(
         (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
       )
+      audioOptions.push('<option value="">None</option>')
 
       videoTracksSelect.innerHTML = videoOptions.join('')
       audioTracksSelect.innerHTML = audioOptions.join('')
@@ -205,9 +216,12 @@ function onLoad() {
   }
 
   window.player = new FlussonicMsePlayer(element, url, opts)
-  window.play = () => {
+  window.play = (from, videotrack = undefined, audiotrack) => {
+    if (!videotrack) {
+      audiotrack = undefined
+    }
     window.player
-      .play()
+      .play(from, videotrack, audiotrack)
       .then((success) => {
         console.log('resolve', success)
       })
@@ -224,7 +238,7 @@ function onLoad() {
     window.autoplayFunc()
   }
 
-  window.play()
+  window.play(from, videotrack, audiotrack)
 
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value

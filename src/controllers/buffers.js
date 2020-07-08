@@ -69,7 +69,6 @@ export default class BuffersController {
           return
         }
         const segment = this.segmentsVideo[0]
-        // console.log({segment}, segment.data.byteLength)
         buffer.appendBuffer(segment.data)
         this.segmentsVideo.shift()
         this.videoBufferSize = this.videoBufferSize - segment.data.byteLength
@@ -370,6 +369,32 @@ export default class BuffersController {
       logger.warn('exception while calling mediaSource.endOfStream()')
     }
     this._needsEos = false
+  }
+
+  addSourceBuffer(type = 'audio') {
+    // debugger
+    const sb = this.sourceBuffer
+    const mimeType = type === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"'
+    sb[type] = this.mediaSource.addSourceBuffer(mimeType)
+    sb[type].mode = BUFFER_MODE_SEQUENCE
+    // sb[type].timestampOffset = 0.25
+    const buffer = sb[type]
+    if (type === 'video') {
+      buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
+    } else {
+      buffer.addEventListener(BUFFER_UPDATE_END, this.onAudioSBUpdateEnd)
+    }
+  }
+
+  removeSourceBuffer(type = 'audio') {
+    const buffer = this.sourceBuffer[type]
+    if (type === 'audio') {
+      buffer.removeEventListener(BUFFER_UPDATE_END, this.onAudioSBUpdateEnd)
+    } else {
+      buffer.removeEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd)
+    }
+    this.mediaSource.removeSourceBuffer(buffer)
+    delete this.sourceBuffer[type]
   }
 
   destroy() {
