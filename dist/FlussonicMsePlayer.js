@@ -801,7 +801,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.6.3";
+      return "20.7.1";
     }
   }]);
 
@@ -1013,33 +1013,6 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.setTracks = function setTracks(tracks) {
-    var _checkTrackAvailabili = this.checkTrackAvailability(tracks),
-        videoTracksStr = _checkTrackAvailabili.videoTracksStr,
-        audioTracksStr = _checkTrackAvailabili.audioTracksStr;
-
-    if (!audioTracksStr) {
-      if (this.sb.sourceBuffer.audio) {
-        this.sb.removeSourceBuffer();
-      }
-      this.media.muted = true;
-    }
-
-    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      // Решить в задаче #12506
-      // this.sb.addSourceBuffer()
-    }
-
-    this.onStartStalling();
-    this.ws.setTracks(videoTracksStr, audioTracksStr);
-
-    this.videoTrack = videoTracksStr;
-    this.audioTrack = audioTracksStr;
-    // ?
-    this._setTracksFlag = true;
-    this.waitForInitFrame = true;
-  };
-
-  MSEPlayer.prototype.checkTrackAvailability = function checkTrackAvailability(tracks) {
     var _this3 = this;
 
     if (!this.mediaInfo) {
@@ -1048,7 +1021,7 @@ var MSEPlayer = function () {
     }
 
     if (!Array.isArray(tracks)) {
-      console.error('tracks should be an Array instance: ["v1", "a1"]');
+      _logger.logger.error('tracks should be an Array instance: ["v1", "a1"]');
     }
 
     var videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks';
@@ -1075,22 +1048,43 @@ var MSEPlayer = function () {
     }).join('');
 
     if (!audioTracksStr && !videoTracksStr) {
-      console.error('No such stream tracks! Setting to default parameters');
+      _logger.logger.warn('No such stream tracks! Setting to default parameters');
       var videoTracks = this.getVideoTracks();
       var audioTracks = this.getAudioTracks();
       if (audioTracks.length) {
         audioTracksStr = audioTracks[0].track_id;
       } else {
-        console.error('No audio tracks');
+        _logger.logger.warn('No audio tracks');
       }
       if (videoTracks.length) {
         // Добавить адаптивный выбор видео дорожки?
         videoTracksStr = videoTracks[0].track_id;
       } else {
-        console.error('No video tracks');
+        _logger.logger.warn('No video tracks');
       }
     }
-    return { videoTracksStr: videoTracksStr, audioTracksStr: audioTracksStr };
+
+    if (!audioTracksStr) {
+      if (this.sb.sourceBuffer.audio) {
+        this.sb.removeSourceBuffer();
+      }
+      this.media.muted = true;
+      _logger.logger.warn('No audio tracks');
+    }
+
+    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
+      // Решить в задаче #12506
+      // this.sb.addSourceBuffer()
+    }
+
+    this.onStartStalling();
+    this.ws.setTracks(videoTracksStr, audioTracksStr);
+
+    this.videoTrack = videoTracksStr;
+    this.audioTrack = audioTracksStr;
+    // ?
+    this._setTracksFlag = true;
+    this.waitForInitFrame = true;
   };
 
   /**
