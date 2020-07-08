@@ -285,8 +285,6 @@ export default class MSEPlayer {
     if (!Array.isArray(tracks)) {
       console.error('tracks should be an Array instance: ["v1", "a1"]')
     }
-    // console.log(tracks)
-    // debugger
 
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
 
@@ -315,7 +313,6 @@ export default class MSEPlayer {
       console.error('No such stream tracks! Setting to default parameters')
       const videoTracks = this.getVideoTracks()
       const audioTracks = this.getAudioTracks()
-      console.log({videoTracks, audioTracks})
       if (audioTracks.length) {
         audioTracksStr = audioTracks[0].track_id
       } else {
@@ -328,7 +325,6 @@ export default class MSEPlayer {
         console.error('No video tracks')
       }
     }
-    console.log({videoTracksStr, audioTracksStr})
     return {videoTracksStr, audioTracksStr}
   }
 
@@ -957,7 +953,7 @@ export default class MSEPlayer {
     if (!this.resetTimer) {
       this.resetTimer = setTimeout(() => {
         this.restart()
-      }, 20000)
+      }, 60000)
     }
 
     if (this._stalling) return

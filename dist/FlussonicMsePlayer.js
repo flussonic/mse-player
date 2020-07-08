@@ -810,7 +810,6 @@ var MSEPlayer = function () {
 
     _classCallCheck(this, MSEPlayer);
 
-    // debugger
     if (opts.debug) {
       (0, _logger.enableLogs)(true);
       window.humanTime = mseUtils.humanTime;
@@ -1014,6 +1013,33 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.setTracks = function setTracks(tracks) {
+    var _checkTrackAvailabili = this.checkTrackAvailability(tracks),
+        videoTracksStr = _checkTrackAvailabili.videoTracksStr,
+        audioTracksStr = _checkTrackAvailabili.audioTracksStr;
+
+    if (!audioTracksStr) {
+      if (this.sb.sourceBuffer.audio) {
+        this.sb.removeSourceBuffer();
+      }
+      this.media.muted = true;
+    }
+
+    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
+      // Решить в задаче #12506
+      // this.sb.addSourceBuffer()
+    }
+
+    this.onStartStalling();
+    this.ws.setTracks(videoTracksStr, audioTracksStr);
+
+    this.videoTrack = videoTracksStr;
+    this.audioTrack = audioTracksStr;
+    // ?
+    this._setTracksFlag = true;
+    this.waitForInitFrame = true;
+  };
+
+  MSEPlayer.prototype.checkTrackAvailability = function checkTrackAvailability(tracks) {
     var _this3 = this;
 
     if (!this.mediaInfo) {
@@ -1048,14 +1074,23 @@ var MSEPlayer = function () {
       }
     }).join('');
 
-    this.onStartStalling();
-    this.ws.setTracks(videoTracksStr, audioTracksStr);
-
-    this.videoTrack = videoTracksStr;
-    this.audioTrack = audioTracksStr;
-    // ?
-    this._setTracksFlag = true;
-    this.waitForInitFrame = true;
+    if (!audioTracksStr && !videoTracksStr) {
+      console.error('No such stream tracks! Setting to default parameters');
+      var videoTracks = this.getVideoTracks();
+      var audioTracks = this.getAudioTracks();
+      if (audioTracks.length) {
+        audioTracksStr = audioTracks[0].track_id;
+      } else {
+        console.error('No audio tracks');
+      }
+      if (videoTracks.length) {
+        // Добавить адаптивный выбор видео дорожки?
+        videoTracksStr = videoTracks[0].track_id;
+      } else {
+        console.error('No video tracks');
+      }
+    }
+    return { videoTracksStr: videoTracksStr, audioTracksStr: audioTracksStr };
   };
 
   /**
@@ -1067,7 +1102,6 @@ var MSEPlayer = function () {
   MSEPlayer.prototype._play = function _play(from, videoTrack, audioTrack) {
     var _this4 = this;
 
-    // debugger
     this.liveError = false;
     var canPlay = false;
     return new Promise(function (resolve, reject) {
@@ -1538,7 +1572,6 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
     var _this9 = this;
 
-    // debugger
     var data = JSON.parse(rawData);
 
     if (data.type !== _segments.MSE_INIT_SEGMENT) {
@@ -1691,7 +1724,7 @@ var MSEPlayer = function () {
     if (!this.resetTimer) {
       this.resetTimer = setTimeout(function () {
         _this11.restart();
-      }, 20000);
+      }, 60000);
     }
 
     if (this._stalling) return;
@@ -2268,9 +2301,9 @@ var WebSocketController = function () {
      * it causes to error message like "ws still in connection status"
      * #6809
      */
-    this.socketURL = { url: url, time: time, videoTrack: videoTrack, audioTack: audioTack };
-
-    this.connectionPromise = new Promise(function (res, rej) {
+    this.socketURL = { url: url, time: time, videoTrack: videoTrack, audioTack: audioTack
+      // console.log({url, time, videoTrack, audioTack})
+    };this.connectionPromise = new Promise(function (res, rej) {
       var wsURL = getWSURL(url, time, videoTrack, audioTack);
       _this.websocket = new WebSocket(wsURL);
       _this.websocket.binaryType = 'arraybuffer';
@@ -2441,6 +2474,9 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
 
   var ampFrom = tracksExists && !!time && time !== LIVE ? '&' : '';
   var fromQuery = utc === LIVE ? '' : 'from=' + Math.floor(time);
+  if (!utc) {
+    fromQuery = '';
+  }
 
   var resultUrl = '' + cleanUrl + (tracksExists ? 'tracks=' + videoTrack + audioTrack : '') + ('' + ampFrom + fromQuery) + ('' + ((tracksExists || !!time && time !== LIVE) && !!othersParams ? '&' : '') + othersParams);
   return resultUrl;
@@ -4262,7 +4298,6 @@ var BuffersController = function () {
           return;
         }
         var segment = this.segmentsVideo[0];
-        // console.log({segment}, segment.data.byteLength)
         buffer.appendBuffer(segment.data);
         this.segmentsVideo.shift();
         this.videoBufferSize = this.videoBufferSize - segment.data.byteLength;
@@ -4570,6 +4605,36 @@ var BuffersController = function () {
       _logger.logger.warn('exception while calling mediaSource.endOfStream()');
     }
     this._needsEos = false;
+  };
+
+  BuffersController.prototype.addSourceBuffer = function addSourceBuffer() {
+    var type = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'audio';
+
+    // debugger
+    var sb = this.sourceBuffer;
+    var mimeType = type === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+    sb[type] = this.mediaSource.addSourceBuffer(mimeType);
+    sb[type].mode = BUFFER_MODE_SEQUENCE;
+    // sb[type].timestampOffset = 0.25
+    var buffer = sb[type];
+    if (type === 'video') {
+      buffer.addEventListener(_events.BUFFER_UPDATE_END, this.onSBUpdateEnd);
+    } else {
+      buffer.addEventListener(_events.BUFFER_UPDATE_END, this.onAudioSBUpdateEnd);
+    }
+  };
+
+  BuffersController.prototype.removeSourceBuffer = function removeSourceBuffer() {
+    var type = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'audio';
+
+    var buffer = this.sourceBuffer[type];
+    if (type === 'audio') {
+      buffer.removeEventListener(_events.BUFFER_UPDATE_END, this.onAudioSBUpdateEnd);
+    } else {
+      buffer.removeEventListener(_events.BUFFER_UPDATE_END, this.onSBUpdateEnd);
+    }
+    this.mediaSource.removeSourceBuffer(buffer);
+    delete this.sourceBuffer[type];
   };
 
   BuffersController.prototype.destroy = function destroy() {
