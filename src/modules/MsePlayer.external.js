@@ -252,38 +252,13 @@ export default class MSEPlayer {
   }
 
   setTracks(tracks) {
-    const {videoTracksStr, audioTracksStr} = this.checkTrackAvailability(tracks)
-
-    if (!audioTracksStr) {
-      if (this.sb.sourceBuffer.audio) {
-        this.sb.removeSourceBuffer()
-      }
-      this.media.muted = true
-    }
-
-    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      // Решить в задаче #12506
-      // this.sb.addSourceBuffer()
-    }
-
-    this.onStartStalling()
-    this.ws.setTracks(videoTracksStr, audioTracksStr)
-
-    this.videoTrack = videoTracksStr
-    this.audioTrack = audioTracksStr
-    // ?
-    this._setTracksFlag = true
-    this.waitForInitFrame = true
-  }
-
-  checkTrackAvailability(tracks) {
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
       return
     }
 
     if (!Array.isArray(tracks)) {
-      console.error('tracks should be an Array instance: ["v1", "a1"]')
+      logger.error('tracks should be an Array instance: ["v1", "a1"]')
     }
 
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks'
@@ -310,22 +285,43 @@ export default class MSEPlayer {
       .join('')
 
     if (!audioTracksStr && !videoTracksStr) {
-      console.error('No such stream tracks! Setting to default parameters')
+      logger.warn('No such stream tracks! Setting to default parameters')
       const videoTracks = this.getVideoTracks()
       const audioTracks = this.getAudioTracks()
       if (audioTracks.length) {
         audioTracksStr = audioTracks[0].track_id
       } else {
-        console.error('No audio tracks')
+        logger.warn('No audio tracks')
       }
       if (videoTracks.length) {
         // Добавить адаптивный выбор видео дорожки?
         videoTracksStr = videoTracks[0].track_id
       } else {
-        console.error('No video tracks')
+        logger.warn('No video tracks')
       }
     }
-    return {videoTracksStr, audioTracksStr}
+
+    if (!audioTracksStr) {
+      if (this.sb.sourceBuffer.audio) {
+        this.sb.removeSourceBuffer()
+      }
+      this.media.muted = true
+      logger.warn('No audio tracks')
+    }
+
+    if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
+      // Решить в задаче #12506
+      // this.sb.addSourceBuffer()
+    }
+
+    this.onStartStalling()
+    this.ws.setTracks(videoTracksStr, audioTracksStr)
+
+    this.videoTrack = videoTracksStr
+    this.audioTrack = audioTracksStr
+    // ?
+    this._setTracksFlag = true
+    this.waitForInitFrame = true
   }
 
   /**
