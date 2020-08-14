@@ -801,7 +801,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.7.1";
+      return "20.8.1";
     }
   }]);
 
@@ -1073,8 +1073,10 @@ var MSEPlayer = function () {
     }
 
     if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      // Решить в задаче #12506
-      // this.sb.addSourceBuffer()
+      this.stop().then(function () {
+        _this3.media.muted = false;
+        _this3.play();
+      });
     }
 
     this.onStartStalling();
