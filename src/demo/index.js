@@ -2,7 +2,7 @@ import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
 import {humanTime} from './utils'
 import {decode} from 'querystring'
 
-window.onload = onLoad()
+window.onload = onLoad
 
 function onLoad() {
   let streamer_ws = 'ws://localhost:8080'
@@ -62,6 +62,8 @@ function onLoad() {
     errorsBeforeStop: 10,
     retryMuted: true,
     maxBufferDelay: 2,
+    videotrack,
+    audiotrack,
     // wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
@@ -215,20 +217,25 @@ function onLoad() {
     },
   }
 
-  window.player = new FlussonicMsePlayer(element, url, opts)
-  window.play = (from, videotrack = undefined, audiotrack) => {
-    if (!videotrack) {
-      audiotrack = undefined
-    }
-    window.player
-      .play(from, videotrack, audiotrack)
-      .then((success) => {
-        console.log('resolve', success)
-      })
-      .catch((err) => {
-        console.log(err)
-      })
-  }
+  // window.player = new FlussonicMsePlayer(undefined, url, opts)
+  window.player = new FlussonicMsePlayer(undefined, url, opts)
+  window.player.attachMedia(element)
+  // window.player.play((videotrack = undefined), (audiotrack = undefined))
+  element.play()
+
+  // window.play = (from, videotrack = undefined, audiotrack) => {
+  //   if (!videotrack) {
+  //     audiotrack = undefined
+  //   }
+  //   window.player
+  //     .play(from, videotrack, audiotrack)
+  //     .then((success) => {
+  //       console.log('resolve', success)
+  //     })
+  //     .catch((err) => {
+  //       console.log(err)
+  //     })
+  // }
 
   window.hidePlayButton = () => {
     const element = document.getElementById('playButton')
@@ -238,7 +245,7 @@ function onLoad() {
     window.autoplayFunc()
   }
 
-  window.play(from, videotrack, audiotrack)
+  // window.play(from, videotrack, audiotrack)
 
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value

@@ -126,6 +126,7 @@ export default class BuffersController {
         this.segmentsVideo = []
       }
       logger.error('trying to append although a media error occured, flush segment and abort')
+      this.media.error && logger.error('Error code:', this.media.error)
       return
     }
     const buffer = this.sourceBuffer[segment.type]

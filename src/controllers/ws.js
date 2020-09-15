@@ -24,16 +24,16 @@ export default class WebSocketController {
     this.reconnect = void 0
   }
 
-  start(url, time, videoTrack = '', audioTack = '') {
+  start(url, /*time, */videoTrack = '', audioTack = '') {
     /**
      * if call ws.send command immediately after start
      * it causes to error message like "ws still in connection status"
      * #6809
      */
-    this.socketURL = {url, time, videoTrack, audioTack}
+    this.socketURL = {url,/* time, */videoTrack, audioTack}
     // console.log({url, time, videoTrack, audioTack})
     this.connectionPromise = new Promise((res, rej) => {
-      const wsURL = getWSURL(url, time, videoTrack, audioTack)
+      const wsURL = getWSURL(url,/* time,*/ videoTrack, audioTack)
       this.websocket = new WebSocket(wsURL)
       this.websocket.binaryType = 'arraybuffer'
       // do that for remove event method
