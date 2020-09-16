@@ -7,7 +7,7 @@ window.onload = onLoad
 function onLoad() {
   let streamer_ws = 'ws://localhost:8080'
   let stream_name = 'clock'
-  let from, videotrack, audiotrack
+  let videotrack, audiotrack
 
   // parse query string
   let query = window.location.search
@@ -126,6 +126,7 @@ function onLoad() {
       console.log('••••• ERRROR', err)
     },
     onEvent: (event) => {
+      console.log('EVENT', event)
       if (typeof event === 'object' && event.type) {
         let color = 'gray'
         switch (event.type) {
@@ -215,13 +216,23 @@ function onLoad() {
       const {utc, messageTimeDiff} = messageStats
       messagesUTC.push([utc, messageTimeDiff])
     },
+    onMediaAttached: () => {
+      element.play()
+    },
+    onPause: () => {
+      const element = document.getElementById('pauseButton')
+      element.style.display = 'flex'
+    },
+    onResume: () => {
+      const element = document.getElementById('pauseButton')
+      element.style.display = 'none'
+    },
   }
 
   // window.player = new FlussonicMsePlayer(undefined, url, opts)
   window.player = new FlussonicMsePlayer(undefined, url, opts)
   window.player.attachMedia(element)
   // window.player.play((videotrack = undefined), (audiotrack = undefined))
-  element.play()
 
   // window.play = (from, videotrack = undefined, audiotrack) => {
   //   if (!videotrack) {

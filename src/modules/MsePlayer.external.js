@@ -115,6 +115,9 @@ export default class MSEPlayer {
     this.onMuted = opts && opts.onMuted
     this.onStats = opts && opts.onStats
     this.onMessage = opts && opts.onMessage
+    this.onMediaAttached = opts && opts.onMediaAttached
+    this.onPause = opts && opts.onPause
+    this.onResume = opts && opts.onResume
 
     this.init()
 
@@ -217,11 +220,11 @@ export default class MSEPlayer {
     this.playing = false
     this.ws.destroy()
     this.ws.init()
-    this.ws.start(this.url, from, this.videoTrack, this.audioTrack)
+    this.ws.start(this.url, /*from, */ this.videoTrack, this.audioTrack)
     this.onEndStalling()
   }
 
-  retryConnection(time = null, videoTrack = null, audioTrack = null) {
+  retryConnection(/*time = null, */ videoTrack = null, audioTrack = null) {
     if (this.retry >= this.opts.connectionRetries) {
       clearInterval(this.retryConnectionTimer)
       return
@@ -232,7 +235,7 @@ export default class MSEPlayer {
     this.ws.destroy()
     this.sb.destroy()
 
-    this.play(time, videoTrack, audioTrack).then(() => {
+    this.play(/*time, */ videoTrack, audioTrack).then(() => {
       this.onEndStalling()
     })
     this.retry = this.retry + 1
@@ -522,9 +525,12 @@ export default class MSEPlayer {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp) // checkVideoProgress
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.errorLog)
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.errorLog)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAY, this.playListener)
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
+
       mediaEmptyPromise = new Promise((resolve) => {
         this._onmee = this.onMediaElementEmptied(resolve).bind(this)
       })
@@ -591,32 +597,14 @@ export default class MSEPlayer {
         this.shouldPlay = true
       }
 
-      // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
-      // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
-      // this.media.onerror = function() {
-      //   console.log("Error " + videoElement.error.code + "; details: " + videoElement.error.message);
-      // }
-      // this.media.addEventListener('onpause', (err) => { console.log('onpause', err)})
-
-      // this.media.addEventListener('pause', (event) => {
-      //   console.log('paused !!!', event);
-      // });
-
       /*
        * SourceBuffers Controller
        */
       this.sb = new BuffersController({media})
 
       this.onAttachMedia({media}).then(() => {
-        media.onplay = (event) => {
-          event.reject()
-          console.log(event)
-          this.play()
-        }
-        media.pause = this.pause.bind(this)
-        // this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
-        // this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
         logger.log('Media Element attached')
+        this.onMediaAttached && this.onMediaAttached()
         return
       })
     } else {
@@ -650,11 +638,13 @@ export default class MSEPlayer {
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp)
 
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.eventLog)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.eventLog)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.eventLog)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.eventLog)
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.eventLog)
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this))
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this))
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAY, this.playListener.bind(this))
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this))
 
       if (this.liveError) {
         this.player = void 0
@@ -665,6 +655,11 @@ export default class MSEPlayer {
         ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
       })
     }
+  }
+
+  playListener(e) {
+    e.preventDefault
+    this._play()
   }
 
   onMediaSourceOpen(resolve) {
@@ -753,6 +748,7 @@ export default class MSEPlayer {
               // wait for "progress" event, for shift currentTime and start playing
               this.onStartStalling()
             }
+            this.onResume && this.onResume()
             break
           case WS_EVENT_PAUSED:
             break
@@ -1066,6 +1062,17 @@ export default class MSEPlayer {
       }
     } else if (this.retry >= this.opts.connectionRetries) {
       clearInterval(this.retryConnectionTimer)
+    }
+  }
+
+  loadingIndication(event) {
+    const {type} = event
+    if (type === 'playing') {
+      this.playing = true
+      this.onEndStalling()
+    } else if (type === 'waiting') {
+      this.playing = false
+      this.onStartStalling()
     }
   }
 

@@ -5,6 +5,8 @@ const EVENTS = {
   MEDIA_SOURCE_SOURCE_CLOSE: 'sourceclose',
 
   // HTMLMediaElement
+  MEDIA_ELEMENT_PLAY: 'play',
+  MEDIA_ELEMENT_PAUSE: 'pause',
   MEDIA_ELEMENT_PROGRESS: 'progress',
   MEDIA_ELEMENT_EMPTIED: 'emptied',
   MEDIA_ELEMENT_SUSPEND: 'suspend',

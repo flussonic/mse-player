@@ -24,16 +24,16 @@ export default class WebSocketController {
     this.reconnect = void 0
   }
 
-  start(url, /*time, */videoTrack = '', audioTack = '') {
+  start(url, /*time, */ videoTrack = '', audioTack = '') {
     /**
      * if call ws.send command immediately after start
      * it causes to error message like "ws still in connection status"
      * #6809
      */
-    this.socketURL = {url,/* time, */videoTrack, audioTack}
+    this.socketURL = {url, /* time, */ videoTrack, audioTack}
     // console.log({url, time, videoTrack, audioTack})
     this.connectionPromise = new Promise((res, rej) => {
-      const wsURL = getWSURL(url,/* time,*/ videoTrack, audioTack)
+      const wsURL = getWSURL(url, /* time,*/ videoTrack, audioTack)
       this.websocket = new WebSocket(wsURL)
       this.websocket.binaryType = 'arraybuffer'
       // do that for remove event method
@@ -121,9 +121,9 @@ export default class WebSocketController {
         logger.log('Clean websocket stop')
         this.destroy()
       } else {
-        const {url, time, videoTrack, audioTack} = this.socketURL
+        const {url, /* time, */ videoTrack, audioTack} = this.socketURL
         this.reconnect = setTimeout(() => {
-          this.start(url, time, videoTrack, audioTack)
+          this.start(url, /*time, */ videoTrack, audioTack)
             .then(() => {
               clearTimeout(this.reconnect)
               return
@@ -155,8 +155,10 @@ export default class WebSocketController {
 }
 
 // TODO
-export function getWSURL(url, utc, videoTrack, audioTrack) {
+export function getWSURL(url, /*utc,*/ videoTrack, audioTrack) {
   // TODO: then use @param time it prevent to wrong data from ws(trackID view[47] for example is 100)
+  // const time = utc
+  const utc = LIVE
   const time = utc
 
   if (!time && !videoTrack && !audioTrack) {
@@ -179,7 +181,6 @@ export function getWSURL(url, utc, videoTrack, audioTrack) {
 
   const cleanUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}?`
   const tracksExists = !!videoTrack || !!audioTrack
-
   const ampFrom = tracksExists && !!time && time !== LIVE ? '&' : ''
   let fromQuery = utc === LIVE ? '' : `from=${Math.floor(time)}`
   if (!utc) {

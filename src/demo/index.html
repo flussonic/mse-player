@@ -43,6 +43,21 @@
       cursor: pointer;
     }
 
+    .pauseButton {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 101;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-size: 180px;
+      color: #fff;
+      cursor: pointer;
+    }
+
     .mbr-controls {
       display: none;
     }
@@ -156,6 +171,7 @@
       [callbacks]
     </div>
     <div id="playButton" class="playButton">▶</div>
+    <div id="pauseButton" class="pauseButton">▌▌</div>
     <div id="loading" class="loading rotating">◌</div>
   </div>
   <div class="controls-panel">
@@ -174,18 +190,20 @@
       <button onclick="window.setTracks()">set tracks</button>
     </div>
     <div style="float: right;">
-      <button onclick="window.player.play()">Play</button>
+      <button onclick="document.getElementById('player').play()">Play</button>
       <button onclick="window.player.stop()">Stop</button>
-      <button onclick="window.player.pause()">Pause</button>
+      <button onclick="document.getElementById('player').pause()">Pause</button>
       <button id="muted" onclick="unmute()">Unmute</button>
     </div>
-    <div>
+    <!-- <div>
       <input type="text" id="seek" value="1538561793"/>
       <button onclick="seek()">seek</button>
-    </div>
+    </div> -->
     <!-- <canvas id="bufferChart" height="60"></canvas> -->
-    <div class="indicator-wrapper"><span>Ready State:</span><div id="indicator" class="gray"></div></div>
-    <div class="indicator-wrapper"><span>Network State:</span><div id="nIndicator" class="gray"></div></div>
+    <div style="display: flex;">
+      <div class="indicator-wrapper"><span>Ready State:</span><div id="indicator" class="gray"></div></div>
+      <div class="indicator-wrapper"><span>Network State:</span><div id="nIndicator" class="gray"></div></div>
+    </div>
     <!-- <canvas id="socketLag" height="50"></canvas>
     <canvas id="bufferLengthChart" height="50"></canvas>
     <canvas id="MSELDBuffers" height="60"></canvas>
