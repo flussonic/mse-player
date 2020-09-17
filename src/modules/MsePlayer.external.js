@@ -144,11 +144,9 @@ export default class MSEPlayer {
     return this._play(/*time, */ videoTrack, audioTrack)
       .then(() => {
         this.playing = true
-        console.log(this.playing)
       })
       .catch(() => {
         this.playing = false
-        console.log(this.playing, 'catch')
       })
   }
 
@@ -220,7 +218,7 @@ export default class MSEPlayer {
     this.playing = false
     this.ws.destroy()
     this.ws.init()
-    this.ws.start(this.url, /*from, */ this.videoTrack, this.audioTrack)
+    this.ws.start(this.url, from, this.videoTrack, this.audioTrack)
     this.onEndStalling()
   }
 
@@ -412,7 +410,7 @@ export default class MSEPlayer {
       })
 
       autoPlayFunc.then(() => {
-        this.ws.start(this.url, /*this.playTime, */ this.videoTrack, this.audioTrack).then(() => {
+        this.ws.start(this.url, this.playTime, this.videoTrack, this.audioTrack).then(() => {
           // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
           this.playPromise = this.media.play()
           this.playPromise

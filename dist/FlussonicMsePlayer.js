@@ -256,6 +256,8 @@ var EVENTS = {
   MEDIA_SOURCE_SOURCE_CLOSE: 'sourceclose',
 
   // HTMLMediaElement
+  MEDIA_ELEMENT_PLAY: 'play',
+  MEDIA_ELEMENT_PAUSE: 'pause',
   MEDIA_ELEMENT_PROGRESS: 'progress',
   MEDIA_ELEMENT_EMPTIED: 'emptied',
   MEDIA_ELEMENT_SUSPEND: 'suspend',
@@ -819,8 +821,6 @@ var MSEPlayer = function () {
 
     this.opts = opts || {};
 
-    this.media = media;
-
     this.url = urlStream;
 
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
@@ -877,24 +877,11 @@ var MSEPlayer = function () {
     this.onMuted = opts && opts.onMuted;
     this.onStats = opts && opts.onStats;
     this.onMessage = opts && opts.onMessage;
+    this.onMediaAttached = opts && opts.onMediaAttached;
+    this.onPause = opts && opts.onPause;
+    this.onResume = opts && opts.onResume;
 
     this.init();
-
-    if (media instanceof HTMLMediaElement) {
-      // iOS autoplay with no fullscreen fix
-      media.WebKitPlaysInline = true;
-      media.controls = false;
-      // this.media.addEventListener('onerror', (err) => { console.log('ERROR', err)})
-      // this.media.addEventListener('error', (err) => { console.log('ERROR', err)})
-      // this.media.onerror = function() {
-      //   console.log("Error " + videoElement.error.code + "; details: " + videoElement.error.message);
-      // }
-      // this.media.addEventListener('onpause', (err) => { console.log('onpause', err)})
-
-      // this.media.addEventListener('pause', (event) => {
-      //   console.log('paused !!!', event);
-      // });
-    }
 
     this.ws = new _ws2.default({
       message: this.dispatchMessage.bind(this),
@@ -903,19 +890,22 @@ var MSEPlayer = function () {
       wsReconnect: this.opts.wsReconnect
     });
 
-    /*
-     * SourceBuffers Controller
-     */
-    this.sb = new _buffers2.default({ media: media });
+    if (media) {
+      this.attachMedia(media);
+    }
 
     this.messageTime = Date.now();
   }
 
-  MSEPlayer.prototype.play = function play(time, videoTrack, audioTrack) {
+  MSEPlayer.prototype.play = function play( /*time, */videoTrack, audioTrack) {
     var _this = this;
 
     _logger.logger.log('[mse-player]: play()');
-    return this._play(time, videoTrack, audioTrack).then(function () {
+    if (this.playing) {
+      _logger.logger.log('MSE is already playing');
+      return;
+    }
+    return this._play( /*time, */videoTrack, audioTrack).then(function () {
       _this.playing = true;
     }).catch(function () {
       _this.playing = false;
@@ -989,12 +979,10 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.retryConnection = function retryConnection() {
-    var time = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
-
     var _this2 = this;
 
-    var videoTrack = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-    var audioTrack = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+    var videoTrack = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+    var audioTrack = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
 
     if (this.retry >= this.opts.connectionRetries) {
       clearInterval(this.retryConnectionTimer);
@@ -1006,7 +994,7 @@ var MSEPlayer = function () {
     this.ws.destroy();
     this.sb.destroy();
 
-    this.play(time, videoTrack, audioTrack).then(function () {
+    this.play( /*time, */videoTrack, audioTrack).then(function () {
       _this2.onEndStalling();
     });
     this.retry = this.retry + 1;
@@ -1095,13 +1083,12 @@ var MSEPlayer = function () {
    *
    */
 
-  MSEPlayer.prototype._play = function _play(from, videoTrack, audioTrack) {
+  MSEPlayer.prototype._play = function _play( /*from, */videoTrack, audioTrack) {
     var _this4 = this;
 
     this.liveError = false;
-    var canPlay = false;
     return new Promise(function (resolve, reject) {
-      _logger.logger.log('_play', from, videoTrack, audioTrack);
+      _logger.logger.log('_play', /*from, */videoTrack, audioTrack);
 
       if (_this4.playing) {
         var message = '[mse-player] _play: terminate because already has been playing';
@@ -1130,21 +1117,21 @@ var MSEPlayer = function () {
         return _this4.playPromise;
       }
 
-      _this4.playTime = from;
+      // this.playTime = from
       _this4.videoTrack = videoTrack;
       _this4.audioTrack = audioTrack;
       _this4._pause = false;
 
       // TODO: to observe this case, I have no idea when it fired
       if (!_this4.mediaSource) {
-        _this4.onAttachMedia({ media: _this4.media }).then(function () {
-          _this4.onsoa = _this4._play.bind(_this4, from, videoTrack, audioTrack);
-          _this4.mediaSource.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this4.onsoa);
-          _logger.logger.warn('mediaSource did not create');
-          _this4.resolveThenMediaSourceOpen = _this4.resolveThenMediaSourceOpen ? _this4.resolveThenMediaSourceOpen : resolve;
-          _this4.rejectThenMediaSourceOpen = _this4.rejectThenMediaSourceOpen ? _this4.rejectThenMediaSourceOpen : reject;
-          return;
-        });
+        _logger.logger.warn('mediaSource was not created');
+        // this.onAttachMedia({media: this.media}).then(() => {
+        //   this.onsoa = this._play.bind(this, from, videoTrack, audioTrack)
+        //   this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
+        //   this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
+        //   this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
+        return;
+        // })
       }
 
       // deferring execution
@@ -1217,7 +1204,7 @@ var MSEPlayer = function () {
                 _this4.onMuted();
               }
               _this4.media.muted = true;
-              _this4._play(from, videoTrack, audioTrack);
+              _this4._play( /*from, */videoTrack, audioTrack);
             }
 
             if (_this4.onError) {
@@ -1250,7 +1237,7 @@ var MSEPlayer = function () {
     // flag to pending execution(true)
     this.shouldPlay = false;
     // store to execute pended method play
-    this.playTime = void 0;
+    // this.playTime = void 0
     this.audioTrack = '';
     this.videoTrack = '';
     this.endProgressTimer();
@@ -1303,9 +1290,12 @@ var MSEPlayer = function () {
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp); // checkVideoProgress
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.errorLog);
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.errorLog);
-      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.errorLog);
       this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
-      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.errorLog);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.loadingIndication);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.loadingIndication);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAY, this.playListener);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PAUSE, this.pause);
+
       mediaEmptyPromise = new Promise(function (resolve) {
         _this6._onmee = _this6.onMediaElementEmptied(resolve).bind(_this6);
       });
@@ -1364,8 +1354,35 @@ var MSEPlayer = function () {
     return resolve();
   };
 
-  MSEPlayer.prototype.onAttachMedia = function onAttachMedia(data) {
+  MSEPlayer.prototype.attachMedia = function attachMedia(media) {
     var _this7 = this;
+
+    if (media instanceof HTMLMediaElement) {
+      this.media = media;
+      // iOS autoplay with no fullscreen fix
+      this.media.WebKitPlaysInline = true;
+      this.media.controls = false;
+      if (this.media.autoplay) {
+        this.shouldPlay = true;
+      }
+
+      /*
+       * SourceBuffers Controller
+       */
+      this.sb = new _buffers2.default({ media: media });
+
+      this.onAttachMedia({ media: media }).then(function () {
+        _logger.logger.log('Media Element attached');
+        _this7.onMediaAttached && _this7.onMediaAttached();
+        return;
+      });
+    } else {
+      _logger.logger.error('Media is not a HTMLMediaElement');
+    }
+  };
+
+  MSEPlayer.prototype.onAttachMedia = function onAttachMedia(data) {
+    var _this8 = this;
 
     this.media = data.media;
     var media = this.media;
@@ -1384,29 +1401,36 @@ var MSEPlayer = function () {
       // link video and media Source
       media.src = URL.createObjectURL(ms);
       this.eventLog = function (event) {
-        if (_this7.onEvent) {
-          _this7.onEvent(event);
+        if (_this8.onEvent) {
+          _this8.onEvent(event);
         }
       };
 
       this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
 
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.eventLog);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.eventLog);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.eventLog);
       this.media.addEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.eventLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.eventLog);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this));
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this));
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAY, this.playListener.bind(this));
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PAUSE, this.pause.bind(this));
 
       if (this.liveError) {
         this.player = void 0;
         return;
       }
       return new Promise(function (resolve) {
-        _this7.onmso = _this7.onMediaSourceOpen.bind(_this7, resolve);
-        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this7.onmso);
+        _this8.onmso = _this8.onMediaSourceOpen.bind(_this8, resolve);
+        ms.addEventListener(_events2.default.MEDIA_SOURCE_SOURCE_OPEN, _this8.onmso);
       });
     }
+  };
+
+  MSEPlayer.prototype.playListener = function playListener(e) {
+    e.preventDefault;
+    this._play();
   };
 
   MSEPlayer.prototype.onMediaSourceOpen = function onMediaSourceOpen(resolve) {
@@ -1423,8 +1447,10 @@ var MSEPlayer = function () {
     // and time is come to execute it
     if (this.shouldPlay) {
       this.shouldPlay = false;
-      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played', this.playTime, this.audioTrack, this.videoTrack);
-      this._play(this.playTime, this.audioTrack, this.videoTrack);
+      _logger.logger.info('readyState now is ' + this.mediaSource.readyState + ', and will be played',
+      // this.playTime,
+      this.audioTrack, this.videoTrack);
+      this._play( /*this.playTime, */this.audioTrack, this.videoTrack);
     }
   };
 
@@ -1446,7 +1472,7 @@ var MSEPlayer = function () {
   // }
 
   MSEPlayer.prototype.dispatchMessage = function dispatchMessage(e) {
-    var _this8 = this;
+    var _this9 = this;
 
     if (this.stopRunning) {
       return;
@@ -1488,6 +1514,7 @@ var MSEPlayer = function () {
               // wait for "progress" event, for shift currentTime and start playing
               this.onStartStalling();
             }
+            this.onResume && this.onResume();
             break;
           case WS_EVENT_PAUSED:
             break;
@@ -1515,7 +1542,7 @@ var MSEPlayer = function () {
               _logger.logger.warn('do playPromise reject with error');
               if (this.ws.connectionPromise) {
                 this.ws.connectionPromise.then(function () {
-                  return _this8.ws.pause();
+                  return _this9.ws.pause();
                 }); // #6694
               }
               if (!this.liveError) {
@@ -1566,7 +1593,7 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.procInitSegment = function procInitSegment(rawData) {
-    var _this9 = this;
+    var _this10 = this;
 
     var data = JSON.parse(rawData);
 
@@ -1628,7 +1655,7 @@ var MSEPlayer = function () {
           });
           var idToDelete = void 0;
           data.tracks.forEach(function (item, index) {
-            if (item.id === _this9.sb.audioTrackId.id) {
+            if (item.id === _this10.sb.audioTrackId.id) {
               idToDelete = index;
             }
           });
@@ -1695,7 +1722,7 @@ var MSEPlayer = function () {
 
 
   MSEPlayer.prototype.immediateLevelSwitchEnd = function immediateLevelSwitchEnd() {
-    var _this10 = this;
+    var _this11 = this;
 
     var media = this.media;
     if (media && media.buffered.length) {
@@ -1707,19 +1734,19 @@ var MSEPlayer = function () {
       if (!this.previouslyPaused) {
         this.playPromise = media.play();
         this.playPromise.then(function () {
-          _this10._pause = false;
-          _this10.playing = true;
+          _this11._pause = false;
+          _this11.playing = true;
         });
       }
     }
   };
 
   MSEPlayer.prototype.onStartStalling = function onStartStalling() {
-    var _this11 = this;
+    var _this12 = this;
 
     if (!this.resetTimer) {
       this.resetTimer = setTimeout(function () {
-        _this11.restart();
+        _this12.restart();
       }, 60000);
     }
 
@@ -1800,16 +1827,28 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.onConnectionRetry = function onConnectionRetry() {
-    var _this12 = this;
+    var _this13 = this;
 
     if (!this.retryConnectionTimer && !this._stop) {
       if (this.retry < this.opts.connectionRetries) {
         this.retryConnectionTimer = setInterval(function () {
-          return _this12.retryConnection();
+          return _this13.retryConnection();
         }, 5000);
       }
     } else if (this.retry >= this.opts.connectionRetries) {
       clearInterval(this.retryConnectionTimer);
+    }
+  };
+
+  MSEPlayer.prototype.loadingIndication = function loadingIndication(event) {
+    var type = event.type;
+
+    if (type === 'playing') {
+      this.playing = true;
+      this.onEndStalling();
+    } else if (type === 'waiting') {
+      this.playing = false;
+      this.onStartStalling();
     }
   };
 
@@ -2400,12 +2439,11 @@ var WebSocketController = function () {
       } else {
         var _socketURL = this.socketURL,
             url = _socketURL.url,
-            time = _socketURL.time,
             videoTrack = _socketURL.videoTrack,
             audioTack = _socketURL.audioTack;
 
         this.reconnect = setTimeout(function () {
-          _this3.start(url, time, videoTrack, audioTack).then(function () {
+          _this3.start(url, /*time, */videoTrack, audioTack).then(function () {
             clearTimeout(_this3.reconnect);
             return;
           }).catch(function () {
@@ -2442,6 +2480,8 @@ var WebSocketController = function () {
 exports.default = WebSocketController;
 function getWSURL(url, utc, videoTrack, audioTrack) {
   // TODO: then use @param time it prevent to wrong data from ws(trackID view[47] for example is 100)
+  // const time = utc
+  utc = LIVE;
   var time = utc;
 
   if (!time && !videoTrack && !audioTrack) {
@@ -2467,13 +2507,11 @@ function getWSURL(url, utc, videoTrack, audioTrack) {
 
   var cleanUrl = parsedUrl.protocol + '//' + parsedUrl.host + parsedUrl.pathname + '?';
   var tracksExists = !!videoTrack || !!audioTrack;
-
   var ampFrom = tracksExists && !!time && time !== LIVE ? '&' : '';
   var fromQuery = utc === LIVE ? '' : 'from=' + Math.floor(time);
   if (!utc) {
     fromQuery = '';
   }
-
   var resultUrl = '' + cleanUrl + (tracksExists ? 'tracks=' + videoTrack + audioTrack : '') + ('' + ampFrom + fromQuery) + ('' + ((tracksExists || !!time && time !== LIVE) && !!othersParams ? '&' : '') + othersParams);
   return resultUrl;
 }
@@ -4353,6 +4391,7 @@ var BuffersController = function () {
         this.segmentsVideo = [];
       }
       _logger.logger.error('trying to append although a media error occured, flush segment and abort');
+      this.media.error && _logger.logger.error('Error code:', this.media.error);
       return;
     }
     var buffer = this.sourceBuffer[segment.type];
