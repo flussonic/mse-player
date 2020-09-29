@@ -151,6 +151,10 @@ export default class MSEPlayer {
   }
 
   stop() {
+    if (this.resetTimer) {
+      clearTimeout(this.resetTimer)
+      this.resetTimer = void 0
+    }
     return this.onMediaDetaching()
   }
 
@@ -324,7 +328,6 @@ export default class MSEPlayer {
     this.liveError = false
     return new Promise((resolve, reject) => {
       logger.log('_play', /*from, */ videoTrack, audioTrack)
-
       if (this.playing) {
         const message = '[mse-player] _play: terminate because already has been playing'
         logger.log(message)
@@ -602,7 +605,9 @@ export default class MSEPlayer {
 
       this.onAttachMedia({media}).then(() => {
         logger.log('Media Element attached')
-        this.onMediaAttached && this.onMediaAttached()
+        if (!this.media.autoplay) {
+          this.onMediaAttached && this.onMediaAttached()
+        }
         return
       })
     } else {
@@ -657,7 +662,9 @@ export default class MSEPlayer {
 
   playListener(e) {
     e.preventDefault
-    this._play()
+    if (this._pause) {
+      this._play()
+    }
   }
 
   onMediaSourceOpen(resolve) {

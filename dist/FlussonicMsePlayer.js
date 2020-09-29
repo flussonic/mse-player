@@ -913,6 +913,10 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.stop = function stop() {
+    if (this.resetTimer) {
+      clearTimeout(this.resetTimer);
+      this.resetTimer = void 0;
+    }
     return this.onMediaDetaching();
   };
 
@@ -1089,7 +1093,6 @@ var MSEPlayer = function () {
     this.liveError = false;
     return new Promise(function (resolve, reject) {
       _logger.logger.log('_play', /*from, */videoTrack, audioTrack);
-
       if (_this4.playing) {
         var message = '[mse-player] _play: terminate because already has been playing';
         _logger.logger.log(message);
@@ -1373,7 +1376,9 @@ var MSEPlayer = function () {
 
       this.onAttachMedia({ media: media }).then(function () {
         _logger.logger.log('Media Element attached');
-        _this7.onMediaAttached && _this7.onMediaAttached();
+        if (!_this7.media.autoplay) {
+          _this7.onMediaAttached && _this7.onMediaAttached();
+        }
         return;
       });
     } else {
@@ -1430,7 +1435,9 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.playListener = function playListener(e) {
     e.preventDefault;
-    this._play();
+    if (this._pause) {
+      this._play();
+    }
   };
 
   MSEPlayer.prototype.onMediaSourceOpen = function onMediaSourceOpen(resolve) {
