@@ -128,8 +128,11 @@ export default class MSEPlayer {
       wsReconnect: this.opts.wsReconnect,
     })
 
-    if (media) {
+    if (media && media instanceof HTMLMediaElement) {
+      media.autoplay = true
       this.attachMedia(media)
+    } else {
+      logger.error('Media is not a HTMLMediaElement')
     }
 
     this.messageTime = Date.now()
@@ -662,7 +665,7 @@ export default class MSEPlayer {
 
   playListener(e) {
     e.preventDefault
-    if (this._pause) {
+    if (!this.media.autoplay) {
       this._play()
     }
   }
