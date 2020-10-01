@@ -1435,8 +1435,8 @@ var MSEPlayer = function () {
 
   MSEPlayer.prototype.playListener = function playListener(e) {
     e.preventDefault;
-    if (this._pause) {
-      this._play();
+    if (!this.media.autoplay) {
+      return this._play();
     }
   };
 
