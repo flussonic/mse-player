@@ -217,7 +217,7 @@ function onLoad() {
       messagesUTC.push([utc, messageTimeDiff])
     },
     onMediaAttached: () => {
-      element.play()
+    //   element.play()
     },
     onPause: () => {
       const element = document.getElementById('pauseButton')
@@ -230,8 +230,8 @@ function onLoad() {
   }
 
   // window.player = new FlussonicMsePlayer(undefined, url, opts)
-  window.player = new FlussonicMsePlayer(undefined, url, opts)
-  window.player.attachMedia(element)
+  window.player = new FlussonicMsePlayer(element, url, opts)
+  // window.player.attachMedia(element)
   // window.player.play((videotrack = undefined), (audiotrack = undefined))
 
   // window.play = (from, videotrack = undefined, audiotrack) => {
