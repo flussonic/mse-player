@@ -803,7 +803,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.9.3";
+      return "20.10.1";
     }
   }]);
 

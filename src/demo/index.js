@@ -217,7 +217,7 @@ function onLoad() {
       messagesUTC.push([utc, messageTimeDiff])
     },
     onMediaAttached: () => {
-    //   element.play()
+      element.play()
     },
     onPause: () => {
       const element = document.getElementById('pauseButton')
