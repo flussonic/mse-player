@@ -68,12 +68,12 @@ export default class MediaSourceController {
     if (this.shouldPlay) {
       logger.info(
         `readyState now is ${this.mediaSource.readyState}, and will be played`,
-        this.playTime,
+        // this.playTime,
         this.audioTack,
         this.videoTrack
       )
       this.shouldPlay = false
-      this._play(this.playTime, this.audioTack, this.videoTrack)
+      this._play(/*this.playTime, */this.audioTack, this.videoTrack)
     }
   }
 

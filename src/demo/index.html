@@ -166,7 +166,7 @@
   </style>
 <body>
   <div class="player-container">
-    <video id="player" muted autoplay></video>
+    <video id="player" muted></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
@@ -190,9 +190,9 @@
       <button onclick="window.setTracks()">set tracks</button>
     </div>
     <div style="float: right;">
-      <button onclick="document.getElementById('player').play()">Play</button>
+      <button onclick="window.player.play()">Play</button>
       <button onclick="window.player.stop()">Stop</button>
-      <button onclick="document.getElementById('player').pause()">Pause</button>
+      <button onclick="window.player.pause()">Pause</button>
       <button id="muted" onclick="unmute()">Unmute</button>
     </div>
     <!-- <div>

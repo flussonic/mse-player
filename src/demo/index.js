@@ -216,9 +216,6 @@ function onLoad() {
       const {utc, messageTimeDiff} = messageStats
       messagesUTC.push([utc, messageTimeDiff])
     },
-    onMediaAttached: () => {
-      element.play()
-    },
     onPause: () => {
       const element = document.getElementById('pauseButton')
       element.style.display = 'flex'
@@ -229,24 +226,20 @@ function onLoad() {
     },
   }
 
-  // window.player = new FlussonicMsePlayer(undefined, url, opts)
   window.player = new FlussonicMsePlayer(element, url, opts)
-  // window.player.attachMedia(element)
-  // window.player.play((videotrack = undefined), (audiotrack = undefined))
-
-  // window.play = (from, videotrack = undefined, audiotrack) => {
-  //   if (!videotrack) {
-  //     audiotrack = undefined
-  //   }
-  //   window.player
-  //     .play(from, videotrack, audiotrack)
-  //     .then((success) => {
-  //       console.log('resolve', success)
-  //     })
-  //     .catch((err) => {
-  //       console.log(err)
-  //     })
-  // }
+  window.play = (videotrack = undefined, audiotrack) => {
+    if (!videotrack) {
+      audiotrack = undefined
+    }
+    window.player
+      .play(videotrack, audiotrack)
+      .then((success) => {
+        console.log('resolve', success)
+      })
+      .catch((err) => {
+        console.log(err)
+      })
+  }
 
   window.hidePlayButton = () => {
     const element = document.getElementById('playButton')
@@ -256,7 +249,7 @@ function onLoad() {
     window.autoplayFunc()
   }
 
-  // window.play(from, videotrack, audiotrack)
+  window.play(videotrack, audiotrack)
 
   window.setTracks = () => {
     const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value

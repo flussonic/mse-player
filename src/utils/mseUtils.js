@@ -162,22 +162,22 @@ export const checkVideoProgress = (media, player) => (evt) => {
   const endTime = buffered.end(l - 1)
   // console.log(endTime - ct)
   const delay = Math.abs(endTime - ct)
-  if (player._stalling) {
-    // player.onEndStalling()
-    // если поставлена пауза
-    if (media.paused && player._pause && !player.playing) {
-      media.currentTime = endTime - 0.0001
-      player.playPromise = media.play()
-      player.playPromise
-        .then(() => {
-          player._pause = false
-          player.playing = true
-        })
-        .catch(() => {
-          return
-        })
-    }
-  }
+  // if (player._stalling) {
+  //   // player.onEndStalling()
+  //   // если поставлена пауза
+  //   if (media.paused && player._pause && !player.playing) {
+  //     media.currentTime = endTime - 0.0001
+  //     player.playPromise = media.play()
+  //     player.playPromise
+  //       .then(() => {
+  //         player._pause = false
+  //         player.playing = true
+  //       })
+  //       .catch(() => {
+  //         return
+  //       })
+  //   }
+  // }
 
   // // logger.log('readyState', player.media.readyState)
   if (player.onStats) {

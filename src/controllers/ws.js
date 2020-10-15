@@ -18,6 +18,9 @@ export default class WebSocketController {
   }
 
   init() {
+    if (this.websocket) {
+      delete this.websocket
+    }
     this.opened = false
     this.connectionPromise = void 0
     clearTimeout(this.reconnect)
@@ -31,7 +34,6 @@ export default class WebSocketController {
      * #6809
      */
     this.socketURL = {url, time, videoTrack, audioTack}
-    // console.log({url, time, videoTrack, audioTack})
     this.connectionPromise = new Promise((res, rej) => {
       const wsURL = getWSURL(url, time, videoTrack, audioTack)
       this.websocket = new WebSocket(wsURL)
@@ -142,13 +144,14 @@ export default class WebSocketController {
 
   destroy() {
     if (this.websocket) {
-      this.pause()
+      // this.pause()
       this.websocket.removeEventListener(EVENTS.WS_MESSAGE, this.onwsm)
       this.websocket.removeEventListener(EVENTS.WS_CLOSE, this.onwsc)
       this.websocket.close()
       this.websocket.onclose = void 0 // disable onclose handler first
+      this.websocket = void 0
       clearTimeout(this.reconnect)
-      this.reconnect = void 0 // disable onclose handler first
+      this.reconnect = void 0
       this.init()
     }
   }

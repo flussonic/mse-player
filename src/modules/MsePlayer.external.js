@@ -59,6 +59,7 @@ export default class MSEPlayer {
 
     this.opts = opts || {}
 
+    this.media = media
     this.url = urlStream
 
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE
@@ -115,11 +116,16 @@ export default class MSEPlayer {
     this.onMuted = opts && opts.onMuted
     this.onStats = opts && opts.onStats
     this.onMessage = opts && opts.onMessage
-    this.onMediaAttached = opts && opts.onMediaAttached
     this.onPause = opts && opts.onPause
     this.onResume = opts && opts.onResume
 
     this.init()
+
+    if (media instanceof HTMLMediaElement) {
+      // iOS autoplay with no fullscreen fix
+      media.WebKitPlaysInline = true
+      media.controls = false
+    }
 
     this.ws = new WebSocketController({
       message: this.dispatchMessage.bind(this),
@@ -128,9 +134,10 @@ export default class MSEPlayer {
       wsReconnect: this.opts.wsReconnect,
     })
 
-    if (media) {
-      this.attachMedia(media)
-    }
+    /*
+     * SourceBuffers Controller
+     */
+    this.sb = new BuffersController({media})
 
     this.messageTime = Date.now()
   }
@@ -141,9 +148,15 @@ export default class MSEPlayer {
       logger.log('MSE is already playing')
       return
     }
+    if (this.ws && this.ws.websocket && !this._pause) {
+      logger.log('[mse-player]: websocket already opened')
+      return
+    }
+
     return this._play(/*time, */ videoTrack, audioTrack)
       .then(() => {
         this.playing = true
+        this._stop = false
       })
       .catch(() => {
         this.playing = false
@@ -151,32 +164,54 @@ export default class MSEPlayer {
   }
 
   stop() {
-    if (this.resetTimer) {
-      clearTimeout(this.resetTimer)
-      this.resetTimer = void 0
+    if (this.playPromise) {
+      this.playPromise
+        .catch(() => {
+          if (this.resetTimer) {
+            clearTimeout(this.resetTimer)
+            this.resetTimer = void 0
+          }
+          if (this._stop) {
+            logger.log('[mse-player]: already stopped')
+            return
+          }
+          return this.onMediaDetaching()
+        })
+        .finally(() => {
+          if (this.resetTimer) {
+            clearTimeout(this.resetTimer)
+            this.resetTimer = void 0
+          }
+          if (this._stop) {
+            logger.log('[mse-player]: already stopped')
+            return
+          }
+          return this.onMediaDetaching()
+        })
+    } else {
+      logger.log('[mse-player]: no playPromise exists, nothing to stop')
     }
-    return this.onMediaDetaching()
   }
 
-  seek(utc) {
-    if (this.playing) {
-      try {
-        if (!utc) {
-          throw new Error('utc should be "live" or UTC value')
-        }
-        this.ws.seek(utc)
-        this.sb.seek()
-        this.onStartStalling()
-        // need for determine old frames
-        this.seekValue = utc
-        this.media.pause()
-        this._pause = true
-        this.playing = false
-      } catch (err) {
-        logger.warn(`seek:${err.message}`)
-      }
-    }
-  }
+  // seek(utc) {
+  //   if (this.playing) {
+  //     try {
+  //       if (!utc) {
+  //         throw new Error('utc should be "live" or UTC value')
+  //       }
+  //       this.ws.seek(utc)
+  //       this.sb.seek()
+  //       this.onStartStalling()
+  //       // need for determine old frames
+  //       this.seekValue = utc
+  //       this.media.pause()
+  //       this._pause = true
+  //       this.playing = false
+  //     } catch (err) {
+  //       logger.warn(`seek:${err.message}`)
+  //     }
+  //   }
+  // }
 
   pause() {
     if (!canPause.bind(this)()) {
@@ -184,7 +219,7 @@ export default class MSEPlayer {
     }
     const binded = _pause.bind(this)
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    this.playPromise.then(binded, binded)
+    this.playPromise.then(binded, binded).catch(binded, binded)
     function _pause() {
       this.ws.pause()
       this.media.pause()
@@ -342,7 +377,7 @@ export default class MSEPlayer {
         if (this.ws && this.ws.opened === false) {
           logger.log('WebSocket Closed, trying to restart it')
           this._pause = false
-          this.restart()
+          this.restart(true)
           return
         } else {
           logger.log('WebSocket is in opened state, resuming')
@@ -362,14 +397,15 @@ export default class MSEPlayer {
 
       // TODO: to observe this case, I have no idea when it fired
       if (!this.mediaSource) {
-        logger.warn('mediaSource was not created')
-        // this.onAttachMedia({media: this.media}).then(() => {
-        //   this.onsoa = this._play.bind(this, from, videoTrack, audioTrack)
-        //   this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
-        //   this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
-        //   this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
-        return
-        // })
+        this.onAttachMedia({media: this.media}).then(() => {
+          this.onsoa = this._play.bind(this, videoTrack, audioTrack)
+          this.sb.setMediaSource(this.mediaSource)
+          this.mediaSource.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onsoa)
+          logger.warn('mediaSource did not create')
+          this.resolveThenMediaSourceOpen = this.resolveThenMediaSourceOpen ? this.resolveThenMediaSourceOpen : resolve
+          this.rejectThenMediaSourceOpen = this.rejectThenMediaSourceOpen ? this.rejectThenMediaSourceOpen : reject
+          return
+        })
       }
 
       // deferring execution
@@ -433,9 +469,8 @@ export default class MSEPlayer {
               logger.log('playPromise rejection.', err)
               // if error, this.ws.connectionPromise can be undefined
               if (this.ws.connectionPromise) {
-                this.ws.connectionPromise.then(() => this.ws.pause()) // #6694
+                this.ws.connectionPromise.then(() => this.ws.destroy()) // #6694
               }
-              // this._pause = true
 
               if (this.opts.retryMuted && this.media.muted == false) {
                 if (this.onMuted) {
@@ -494,60 +529,57 @@ export default class MSEPlayer {
     // workaround pending playPromise state
     // TODO: how to be with pending internal statuses
     // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-    const bindedMD = this.handlerMediaDetaching.bind(this)
+    // const bindedMD =
+    this.handlerMediaDetaching.bind(this)
     if (this.playPromise) {
       // there are two cases:
       // resolved/rejected
       // both required to shutdown ws, mediasources and etc.
       this.playPromise
-        .then(() => {
-          return this.handlerMediaDetaching()
-        })
         .catch(() => {
           return this.handlerMediaDetaching()
         })
-    }
-    if (!this.playPromise) {
+        .finally(() => {
+          return this.handlerMediaDetaching()
+        })
+    } else {
       return this.handlerMediaDetaching()
     }
-
-    return this.handlerMediaDetaching()
   }
 
   handlerMediaDetaching() {
     logger.info('media source detaching')
-    let mediaEmptyPromise
+    return new Promise((resolve, reject) => {
+      // destroy media source and detach from media element
+      this.removeMediaSource()
+      if (!this.media) {
+        return reject('no media to detach')
+      }
 
-    // destroy media source and detach from media element
-    this.removeMediaSource()
-    this._stop = true
-
-    if (this.media) {
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp) // checkVideoProgress
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.errorLog)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication)
       this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication)
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAY, this.playListener)
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
 
-      mediaEmptyPromise = new Promise((resolve) => {
-        this._onmee = this.onMediaElementEmptied(resolve).bind(this)
-      })
-      mediaEmptyPromise.then(() => (this.stopRunning = false))
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_EMPTIED, this._onmee)
-    }
+      this.oncvp = null
+      this.errorLog = null
 
-    this.oncvp = null
-    this.errorLog = null
+      this.mediaSource = null
 
-    this.mediaSource = null
-
-    this.init()
-    this.ws.destroy()
-    this.sb.destroy()
-    return mediaEmptyPromise
+      this.init()
+      this.ws.destroy()
+      this.sb.destroy()
+      this.media.onemptied = () => {
+        logger.log('[mse-player]: media emptied')
+        this.stopRunning = false
+        this._stop = true
+        delete this.playPromise
+        return resolve()
+      }
+    })
   }
 
   removeMediaSource() {
@@ -576,43 +608,31 @@ export default class MSEPlayer {
     // Detach properly the MediaSource from the HTMLMediaElement as
     // suggested in https://github.com/w3c/media-source/issues/53.
     // URL.revokeObjectURL(this.media.src)
-    this.media.removeAttribute('src')
-    this.media.load()
+    const close = () => {
+      this.media.src = ''
+      this.media.load()
+      if (this.resetTimer) {
+        clearTimeout(this.resetTimer)
+        this.resetTimer = void 0
+      }
+    }
+
+    this.playPromise &&
+      this.playPromise
+        .then(() => {
+          close()
+        })
+        .catch(() => {
+          close()
+        })
   }
 
   onMediaElementEmptied(resolve) {
-    if (this._onmee && this.media) {
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_EMPTIED, this._onmee)
+    if (this.onMediaElementEmptied && this.media) {
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_EMPTIED, this.onMediaElementEmptied)
       this._onmee = void 0
     }
-    return resolve()
-  }
-
-  attachMedia(media) {
-    if (media instanceof HTMLMediaElement) {
-      this.media = media
-      // iOS autoplay with no fullscreen fix
-      this.media.WebKitPlaysInline = true
-      this.media.controls = false
-      if (this.media.autoplay) {
-        this.shouldPlay = true
-      }
-
-      /*
-       * SourceBuffers Controller
-       */
-      this.sb = new BuffersController({media})
-
-      this.onAttachMedia({media}).then(() => {
-        logger.log('Media Element attached')
-        if (!this.media.autoplay) {
-          this.onMediaAttached && this.onMediaAttached()
-        }
-        return
-      })
-    } else {
-      logger.error('Media is not a HTMLMediaElement')
-    }
+    return resolve
   }
 
   onAttachMedia(data) {
@@ -646,8 +666,7 @@ export default class MSEPlayer {
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.eventLog)
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this))
       this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this))
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAY, this.playListener.bind(this))
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this))
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this))
 
       if (this.liveError) {
         this.player = void 0
@@ -657,13 +676,6 @@ export default class MSEPlayer {
         this.onmso = this.onMediaSourceOpen.bind(this, resolve)
         ms.addEventListener(EVENTS.MEDIA_SOURCE_SOURCE_OPEN, this.onmso)
       })
-    }
-  }
-
-  playListener(e) {
-    e.preventDefault
-    if (!this.media.autoplay) {
-      return this._play()
     }
   }
 
@@ -810,7 +822,6 @@ export default class MSEPlayer {
         }
         return
       }
-
       // MSE_INIT_SEGMENT
       if (parsedData && parsedData.type === MSE_INIT_SEGMENT) {
         return this.procInitSegment(rawData)
@@ -928,8 +939,8 @@ export default class MSEPlayer {
 
   doMediaInfo(metadata) {
     logger.log('%cmediaInfo:', 'background: orange;', metadata)
+    this.mediaInfo = metadata
     if (this.onMediaInfo) {
-      this.mediaInfo = metadata
       try {
         this.onMediaInfo(metadata)
       } catch (e) {
