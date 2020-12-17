@@ -1,6 +1,6 @@
 {
   "name": "@flussonic/flussonic-mse-player",
-  "version": "20.10.4",
+  "version": "20.12.1",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/FlussonicMsePlayer.js",
   "unpkg": "./dist/FlussonicMsePlayer.min.js",
@@ -23,7 +23,7 @@
     "url": "https://github.com/flussonic/mse-player/issues"
   },
   "license": "ISC",
-  "devDependencies": {
+  "devDependencies": { 
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.2",
     "babel-plugin-add-module-exports": "^0.2.1",

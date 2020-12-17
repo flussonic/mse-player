@@ -777,6 +777,7 @@ var WS_EVENT_EOS = 'recordings_ended';
 var WS_EVENT_NO_LIVE = 'stream_unavailable';
 var WS_EVENT_TRACKS_SWITCHED = 'tracks_switched';
 var WS_TRY_RECONNECT = false;
+var WS_PREFER_HIGH_QUALITY = false;
 
 var TYPE_CONTENT_VIDEO = _common.VIDEO;
 var TYPE_CONTENT_AUDIO = _common.AUDIO;
@@ -805,7 +806,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "20.10.4";
+      return "20.12.1";
     }
   }]);
 
@@ -844,6 +845,12 @@ var MSEPlayer = function () {
 
     if (typeof this.opts.wsReconnect !== 'boolean') {
       throw new Error('invalid wsReconnect param, should be boolean');
+    }
+
+    this.opts.preferHQ = this.opts.preferHQ ? this.opts.preferHQ : WS_PREFER_HIGH_QUALITY;
+
+    if (typeof this.opts.preferHQ !== 'boolean') {
+      throw new Error('invalid preferHQ param, should be boolean');
     }
 
     this.retry = 0;
@@ -1102,10 +1109,9 @@ var MSEPlayer = function () {
     }
 
     if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      this.stop().then(function () {
-        _this4.media.muted = false;
-        _this4.play();
-      });
+      this.stop();
+      this.media.muted = false;
+      this.play();
     }
 
     this.onStartStalling();
@@ -1116,6 +1122,75 @@ var MSEPlayer = function () {
     // ?
     this._setTracksFlag = true;
     this.waitForInitFrame = true;
+  };
+
+  MSEPlayer.prototype.autoTrackSelection = function autoTrackSelection(bestestBest) {
+    if (!this.mediaInfo) {
+      _logger.logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
+      return;
+    }
+
+    var videoTracks = this.getVideoTracks();
+    var audioTracks = this.getAudioTracks();
+
+    var resultVideo = void 0,
+        resultAudio = void 0;
+    if (bestestBest) {
+      var bestVideo = void 0,
+          videoParam = void 0;
+      if (videoTracks[0].bitrate) {
+        videoParam = 'bitrate';
+      } else if (videoTracks[0].pixel_width) {
+        videoParam = 'pixel_width';
+      }
+      bestVideo = videoTracks[0][videoParam];
+      resultVideo = videoTracks[0].track_id;
+      videoTracks.forEach(function (track) {
+        if (track[videoParam] > bestVideo) {
+          bestVideo = track[videoParam];
+          resultVideo = track.track_id;
+        }
+      });
+      if (audioTracks.length) {
+        var bestAudio = void 0;
+        bestAudio = audioTracks[0].sample_rate;
+        resultAudio = audioTracks[0].track_id;
+        audioTracks.forEach(function (track) {
+          if (track.sample_rate > bestVideo) {
+            bestAudio = track.sample_rate;
+            resultAudio = track.track_id;
+          }
+        });
+      }
+    } else {
+      var worstVideo = void 0,
+          _videoParam = void 0;
+      if (videoTracks[0].bitrate) {
+        _videoParam = 'bitrate';
+      } else if (videoTracks[0].pixel_width) {
+        _videoParam = 'pixel_width';
+      }
+      worstVideo = videoTracks[0][_videoParam];
+      resultVideo = videoTracks[0].track_id;
+      videoTracks.forEach(function (track) {
+        if (track[_videoParam] < worstVideo) {
+          worstVideo = track[_videoParam];
+          resultVideo = track.track_id;
+        }
+      });
+      if (audioTracks.length) {
+        var worstAudio = void 0;
+        worstAudio = audioTracks[0].sample_rate;
+        resultAudio = audioTracks[0].track_id;
+        audioTracks.forEach(function (track) {
+          if (track.sample_rate < worstAudio) {
+            worstAudio = track.sample_rate;
+            resultAudio = track.track_id;
+          }
+        });
+      }
+    }
+    return [resultVideo, resultAudio];
   };
 
   /**
@@ -1650,7 +1725,7 @@ var MSEPlayer = function () {
 
     var activeStreams = {};
 
-    var videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.index;
+    var videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.id - 1;
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
       if (streams[videoIndex].bitrate && streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
         this.onError && this.onError({
@@ -1661,7 +1736,7 @@ var MSEPlayer = function () {
       activeStreams.video = streams[videoIndex]['track_id'];
     }
 
-    var audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.index;
+    var audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.id - 1;
     if (audioIndex) {
       if (streams[audioIndex] && streams[audioIndex]['track_id']) {
         if (streams[audioIndex].bitrate && streams[audioIndex].bitrate === 0) {
@@ -1694,6 +1769,13 @@ var MSEPlayer = function () {
     }
     if (!this.liveError) {
       this.sb.createTracks(data.tracks);
+    }
+
+    if (this.opts.preferHQ) {
+      var tracks = this.autoTrackSelection(true);
+      if (tracks[0] !== activeStreams.video) {
+        this.setTracks(tracks);
+      }
     }
   };
 

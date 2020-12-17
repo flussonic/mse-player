@@ -20,6 +20,7 @@ const WS_EVENT_EOS = 'recordings_ended'
 const WS_EVENT_NO_LIVE = 'stream_unavailable'
 const WS_EVENT_TRACKS_SWITCHED = 'tracks_switched'
 const WS_TRY_RECONNECT = false
+const WS_PREFER_HIGH_QUALITY = false
 
 const TYPE_CONTENT_VIDEO = VIDEO
 const TYPE_CONTENT_AUDIO = AUDIO
@@ -80,6 +81,12 @@ export default class MSEPlayer {
 
     if (typeof this.opts.wsReconnect !== 'boolean') {
       throw new Error('invalid wsReconnect param, should be boolean')
+    }
+
+    this.opts.preferHQ = this.opts.preferHQ ? this.opts.preferHQ : WS_PREFER_HIGH_QUALITY
+
+    if (typeof this.opts.preferHQ !== 'boolean') {
+      throw new Error('invalid preferHQ param, should be boolean')
     }
 
     this.retry = 0
@@ -337,10 +344,9 @@ export default class MSEPlayer {
     }
 
     if (videoTracksStr && audioTracksStr && this.mediaSource.sourceBuffers.length <= 1) {
-      this.stop().then(() => {
-        this.media.muted = false
-        this.play()
-      })
+      this.stop()
+      this.media.muted = false
+      this.play()
     }
 
     this.onStartStalling()
@@ -351,6 +357,72 @@ export default class MSEPlayer {
     // ?
     this._setTracksFlag = true
     this.waitForInitFrame = true
+  }
+
+  autoTrackSelection(bestestBest) {
+    if (!this.mediaInfo) {
+      logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.')
+      return
+    }
+
+    const videoTracks = this.getVideoTracks()
+    const audioTracks = this.getAudioTracks()
+
+    let resultVideo, resultAudio
+    if (bestestBest) {
+      let bestVideo, videoParam
+      if (videoTracks[0].bitrate) {
+        videoParam = 'bitrate'
+      } else if (videoTracks[0].pixel_width) {
+        videoParam = 'pixel_width'
+      }
+      bestVideo = videoTracks[0][videoParam]
+      resultVideo = videoTracks[0].track_id
+      videoTracks.forEach((track) => {
+        if (track[videoParam] > bestVideo) {
+          bestVideo = track[videoParam]
+          resultVideo = track.track_id
+        }
+      })
+      if (audioTracks.length) {
+        let bestAudio
+        bestAudio = audioTracks[0].sample_rate
+        resultAudio = audioTracks[0].track_id
+        audioTracks.forEach((track) => {
+          if (track.sample_rate > bestVideo) {
+            bestAudio = track.sample_rate
+            resultAudio = track.track_id
+          }
+        })
+      }
+    } else {
+      let worstVideo, videoParam
+      if (videoTracks[0].bitrate) {
+        videoParam = 'bitrate'
+      } else if (videoTracks[0].pixel_width) {
+        videoParam = 'pixel_width'
+      }
+      worstVideo = videoTracks[0][videoParam]
+      resultVideo = videoTracks[0].track_id
+      videoTracks.forEach((track) => {
+        if (track[videoParam] < worstVideo) {
+          worstVideo = track[videoParam]
+          resultVideo = track.track_id
+        }
+      })
+      if (audioTracks.length) {
+        let worstAudio
+        worstAudio = audioTracks[0].sample_rate
+        resultAudio = audioTracks[0].track_id
+        audioTracks.forEach((track) => {
+          if (track.sample_rate < worstAudio) {
+            worstAudio = track.sample_rate
+            resultAudio = track.track_id
+          }
+        })
+      }
+    }
+    return [resultVideo, resultAudio]
   }
 
   /**
@@ -884,7 +956,7 @@ export default class MSEPlayer {
 
     const activeStreams = {}
 
-    const videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.index
+    const videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.id - 1
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
       if (
         (streams[videoIndex].bitrate && streams[videoIndex].bitrate === 0) ||
@@ -900,7 +972,7 @@ export default class MSEPlayer {
       activeStreams.video = streams[videoIndex]['track_id']
     }
 
-    const audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.index
+    const audioIndex = this.sb.audioTrackId && this.sb.audioTrackId.id - 1
     if (audioIndex) {
       if (streams[audioIndex] && streams[audioIndex]['track_id']) {
         if (streams[audioIndex].bitrate && streams[audioIndex].bitrate === 0) {
@@ -934,6 +1006,13 @@ export default class MSEPlayer {
     }
     if (!this.liveError) {
       this.sb.createTracks(data.tracks)
+    }
+
+    if (this.opts.preferHQ) {
+      const tracks = this.autoTrackSelection(true)
+      if (tracks[0] !== activeStreams.video) {
+        this.setTracks(tracks)
+      }
     }
   }
 

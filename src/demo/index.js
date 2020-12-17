@@ -64,6 +64,7 @@ function onLoad() {
     maxBufferDelay: 2,
     videotrack,
     audiotrack,
+    preferHQ: true,
     // wsReconnect: true,
     onStartStalling: () => {
       showStallingIndicator('start stalling')
