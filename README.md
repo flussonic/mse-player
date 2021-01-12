@@ -58,14 +58,37 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
   - `progressUpdateTime?: number` - time period for invoking `onProgress`.
 
+  - `connectionRetries?: number` - number of reconnection retries if player can't start playback.
+
+  - `wsReconnect?: boolean` - trying to restart websocket connection on error closing.
+
+  - `preferHQ?: boolean` - if `true`, player will automatically select the highest available quality of the stream.
+
+  - `retryMuted?: boolean` - if `true`, in some cases, due to "Browser Autoplay Policy Changes" it will try to restart playing process with initialy muted video element.
+
+  - `maxBufferDelay?: number` - maxBufferDelay option for sourceBuffer
+
   - `onProgress(utc: number)` - triggered every 100ms(progressUpdateTime) while a stream is playing and gives current playback time
 
   - `onMediaInfo(info: MediaInfo)` - triggered when metadata of the stream is available. metadata include a common information of the stream such as width, height, information about mbr streams and so on. After this callback triggered you can use getVideoTracks()/getAudioTracks() methods.
 
+  - `onDisconnect(status: object)` - triggered on websocket connection lost.
+
+  - `onError(error: object)` - triggered on player errors.
+
+  - `onEvent(event: object)` - triggered on player events.
+
+  - `onMuted()` - triggered on player set muted.
+
+  - `onPause()` - triggered on player set paused.
+
+  - `onResume()` - triggered on player gets resumed from pause.
+
+  - `onStats(stats: object)` - triggered on player stats change. Stats include a common ststistics of the stream: endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState.
+
   - `onSeeked()` - triggered when process of seeking is finished
 
   - `onStartStalling()` - triggered when playing is stalled
-
   - `onEndStalling()` - triggered when the video tag is progressed(start playing). `onStartStalling()/onEndStalling()` useful callback for implementation loading-spinner.
 
   - **•••DEPRECATED•••** `bufferMode: 'segments'|'sequence'` - [SourceBuffer Object Append Mode](https://www.w3.org/TR/media-source/#h-sourcebuffer). Default value is `'sequence'`.
@@ -74,7 +97,7 @@ const player = new FlussonicMsePlayer(element, url, opts)
 
 ### Methods:
 
-- **play(from?: UtcOrLive, videoTrack?: Track, audioTrack?: Track) => Promise<any>** - start playing.
+- **play(videoTrack?: Track, audioTrack?: Track) => Promise<any>** - start playing.
 
   Return a `Promise`. Resolved if HTMLMediaElement.play() resolved([HTMLMediaElement.play() Returns a Promise](https://developers.google.com/web/updates/2016/03/play-returns-promise)). Overwise rejected with error message.
 
@@ -85,6 +108,10 @@ const player = new FlussonicMsePlayer(element, url, opts)
 - **pause()** - send `pause` command by websocket
 
 - **stop()** - close websocket connection; detach mediaSource from given HTMLMediaElement; invoke the HTMLMediaElement stop method
+
+- **restart()** - perform a full restart of playing process
+
+- **autoTrackSelection(preferBest: boolean) => tracks: Array<TrackId>** - if `true` - returns array with the tracks of highest available quality. If `false` - returns array with the tracks of the lowest available quality.
 
 - **seek(utc: number)** - send `seek` command by websocket
 
