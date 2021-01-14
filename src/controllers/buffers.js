@@ -151,8 +151,9 @@ export default class BuffersController {
     if (data[type].length === 1) {
       this.audioTrackId = null
     }
-    data[type].forEach((s, index) => {
-      this[s.content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = {index, id: s.id}
+    data[type].forEach(s => {
+      const {content, id} = s
+      this[content === VIDEO ? 'videoTrackId' : 'audioTrackId'] = {index: id - 1, id}
     })
   }
 
