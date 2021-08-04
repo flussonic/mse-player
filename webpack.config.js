@@ -1,14 +1,15 @@
-const path = require('path')
-const webpack = require('webpack')
-const Clean = require('clean-webpack-plugin')
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
-const HtmlWebPackPlugin = require("html-webpack-plugin");
+const path = require('path');
+const webpack = require('webpack');
+const Clean = require('clean-webpack-plugin');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+const HtmlWebPackPlugin = require('html-webpack-plugin');
+const WebpackBundleSizeAnalyzerPlugin = require('webpack-bundle-size-analyzer').WebpackBundleSizeAnalyzerPlugin;
 
-var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin')
+var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin');
 
 module.exports = {
   mode: 'production',
-  node: {Buffer: false, global: true, process: true, setImmediate: false},
+  node: { Buffer: false, global: true, process: true, setImmediate: false },
   entry: {
     FlussonicMsePlayer: [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
     'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
@@ -21,23 +22,27 @@ module.exports = {
   },
   plugins: [
     new webpack.DefinePlugin({
-      VERSION: JSON.stringify(require('./package.json').version)
+      VERSION: JSON.stringify(require('./package.json').version),
     }),
+    new WebpackBundleSizeAnalyzerPlugin('./reports/plain-report.txt'),
   ],
   module: {
     rules: [
       {
         test: /\.js$/,
         loader: 'babel-loader',
-        exclude: [path.resolve(__dirname, './node_modules')]
+        exclude: [path.resolve(__dirname, './node_modules')],
       },
-    ]
+      {
+        test: /\.worker\.js$/,
+        loader: "worker-loader",
+        options: { inline: "fallback" },
+      },
+    ],
   },
   resolve: {
     modules: ['node_modules'],
-    plugins: [
-      new DirectoryNamedWebpackPlugin(true)
-    ]
+    plugins: [new DirectoryNamedWebpackPlugin(true)],
   },
   optimization: {
     minimize: true,
@@ -49,13 +54,13 @@ module.exports = {
         uglifyOptions: {
           compress: true,
           ecma: 5,
-          mangle: true
+          mangle: true,
         },
-        sourceMap: false
-      })
-    ]
+        sourceMap: false,
+      }),
+    ],
   },
   devServer: {
     disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882
-  }
-}
+  },
+};

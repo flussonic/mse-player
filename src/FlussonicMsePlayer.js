@@ -1,3 +1,3 @@
-import FlussonicMsePlayer from './modules/MsePlayer.external'
+import FlussonicMsePlayer from './modules/MsePlayer.external';
 
-export default FlussonicMsePlayer
+export default FlussonicMsePlayer;

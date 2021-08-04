@@ -1,49 +1,48 @@
 module.exports = {
-  "env": {
-    "browser": true,
-    "commonjs": true,
-    "es6": true,
+  env: {
+    browser: true,
+    commonjs: true,
+    es6: true,
   },
-  "globals": {
-    "_gaq": false,
-    "process": false,
-    "ActiveXObject": false,
-    "VERSION": false,
+  globals: {
+    _gaq: false,
+    process: false,
+    ActiveXObject: false,
+    VERSION: false,
     // Build globals
-    "__dirname": false,
+    __dirname: false,
     // Test globals
-    "after": false,
-    "afterEach": false,
-    "assert": false,
-    "before": false,
-    "beforeEach": false,
-    "describe": false,
-    "expect": false,
-    "it": false,
-    "sinon": false,
-    "xit": false
+    after: false,
+    afterEach: false,
+    assert: false,
+    before: false,
+    beforeEach: false,
+    describe: false,
+    expect: false,
+    it: false,
+    sinon: false,
+    xit: false,
   },
-  "extends": "eslint:recommended",
-  "parserOptions": {
-    "sourceType": "module"
+  extends: 'eslint:recommended',
+  parserOptions: {
+    ecmaVersion: 9,
+    sourceType: 'module',
   },
-  "rules": {
-    "indent": [
-      "error",
-      2
-    ],
-    "linebreak-style": [
-      "error",
-      "unix"
-    ],
-    "quotes": [
-      "error",
-      "single"
-    ],
-    "semi": [
-      "error",
-      "never"
-    ],
-    "no-var": "error"
-  }
+  rules: {
+    indent: ['error', 2, { SwitchCase: 1 }],
+    // 'linebreak-style': ['error', 'unix'],
+    quotes: ['error', 'single'],
+    semi: ['error', 'always'],
+    'object-curly-spacing': ['error', 'always'],
+    'no-var': 'error',
+    'no-console': 2,
+    parserOptions: {
+      ecmaVersion: 6,
+      ecmaFeatures: {
+        experimentalObjectRestSpread: true,
+        spread: true,
+        jsx: true,
+      },
+    },
+  },
 };

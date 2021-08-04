@@ -1,59 +1,58 @@
-import FlussonicMsePlayer from '../FlussonicMsePlayer.js'
-import {humanTime} from './utils'
-import {decode} from 'querystring'
+import FlussonicMsePlayer from '../FlussonicMsePlayer.js';
+import { humanTime } from './utils';
+import { decode } from 'querystring';
 
-window.onload = onLoad
+window.onload = onLoad;
 
 function onLoad() {
-  let streamer_ws = 'ws://localhost:8080'
-  let stream_name = 'clock'
-  let videotrack, audiotrack
+  let streamer_ws = 'ws://localhost:8080';
+  let stream_name = 'clock';
+  let videotrack, audiotrack;
 
   // parse query string
-  let query = window.location.search
+  let query = window.location.search;
   if (query) {
-    let qs = decode(query.replace(/^\?/, ''))
+    let qs = decode(query.replace(/^\?/, ''));
     if (qs.host) {
-      streamer_ws = qs.host
+      streamer_ws = qs.host;
     }
     if (qs.name) {
-      stream_name = qs.name
+      stream_name = qs.name;
     }
     if (qs.videotrack) {
-      videotrack = qs.videotrack
+      videotrack = qs.videotrack;
     }
     if (qs.audiotrack) {
-      audiotrack = qs.audiotrack
+      audiotrack = qs.audiotrack;
     }
     if (qs.from) {
-      from = qs.from
+      from = qs.from;
     }
   }
-  let url = streamer_ws + '/' + stream_name + '/mse_ld'
+  let url = streamer_ws + '/' + stream_name + '/mse_ld';
 
-  const element = document.getElementById('player')
-  const videoTracksSelect = document.getElementById('videoTracks')
-  const audioTracksSelect = document.getElementById('audioTracks')
-  const mbrControls = document.querySelector('.mbr-controls')
-  const utcLabel = document.getElementById('utc')
-  const loading = document.getElementById('loading')
-  const stallingLabel = document.getElementById('stallingLabel')
+  const element = document.getElementById('player');
+  const videoTracksSelect = document.getElementById('videoTracks');
+  const audioTracksSelect = document.getElementById('audioTracks');
+  const mbrControls = document.querySelector('.mbr-controls');
+  const loading = document.getElementById('loading');
+  const stallingLabel = document.getElementById('stallingLabel');
   const showStallingIndicator = (value) => {
-    stallingLabel.innerText = '' + value
-  }
+    stallingLabel.innerText = '' + value;
+  };
 
-  let showFirstFrameUTC = false
+  let showFirstFrameUTC = false;
 
   // let timeLineChart = []
   // let graphUTCLabels = []
   // let graphCurrentTime = []
   // let graphBufferedTime = []
-  let graphBufferedLength = []
-  let readySt = []
-  let mseVideoBufferSize = []
-  let mseAudioBufferSize = []
+  let graphBufferedLength = [];
+  let readySt = [];
+  let mseVideoBufferSize = [];
+  let mseAudioBufferSize = [];
 
-  let messagesUTC = []
+  let messagesUTC = [];
   // const messagesTimelag = []
 
   const opts = {
@@ -65,23 +64,23 @@ function onLoad() {
     videotrack,
     audiotrack,
     preferHQ: true,
+    progressUpdateTime: 500,
     // wsReconnect: true,
     onStartStalling: () => {
-      showStallingIndicator('start stalling')
-      loading.classList.add('visible')
+      showStallingIndicator('start stalling');
+      loading.classList.add('visible');
     },
     onEndStalling: () => {
-      showStallingIndicator('stop stalling')
-      loading.classList.remove('visible')
+      showStallingIndicator('stop stalling');
+      loading.classList.remove('visible');
     },
     onSeeked: () => {
-      showFirstFrameUTC = true
+      showFirstFrameUTC = true;
     },
     onProgress: (utc) => {
-      utcLabel.innerText = humanTime(utc)
       if (showFirstFrameUTC) {
-        console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red')
-        showFirstFrameUTC = false
+        console.log('%c first frame after action: ' + humanTime(utc) + ' ' + utc, 'background: red');
+        showFirstFrameUTC = false;
       }
       // timeLineChart.push({
       //   x: new Date(),
@@ -93,384 +92,384 @@ function onLoad() {
       // eventsChart.update()
     },
     onDisconnect: (status) => {
-      console.log('Websocket status:', status)
+      console.log('Websocket status:', status);
       const restart = () => {
-        window.player.restart()
-        clearInterval(restartTimer)
-      }
-      let restartTimer = setInterval(restart, 10000)
+        window.player.restart();
+        clearInterval(restartTimer);
+      };
+      let restartTimer = setInterval(restart, 10000);
     },
     onMediaInfo: (rawMetaData) => {
-      console.log('rawMetaData:', rawMetaData)
-      const videoTracks = window.player.getVideoTracks()
-      const audioTracks = window.player.getAudioTracks()
+      console.log('rawMetaData:', rawMetaData);
+      const videoTracks = window.player.getVideoTracks();
+      const audioTracks = window.player.getAudioTracks();
       const videoOptions = videoTracks.map(
         (v, i) =>
           `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${v['height']}</option>`
-      )
+      );
 
       const audioOptions = audioTracks.map(
         (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
-      )
-      audioOptions.push('<option value="">None</option>')
+      );
+      audioOptions.push('<option value="">None</option>');
 
-      videoTracksSelect.innerHTML = videoOptions.join('')
-      audioTracksSelect.innerHTML = audioOptions.join('')
+      videoTracksSelect.innerHTML = videoOptions.join('');
+      audioTracksSelect.innerHTML = audioOptions.join('');
 
-      mbrControls.style.display = 'block'
+      mbrControls.style.display = 'block';
     },
     onError: (err) => {
-      console.log('••••• ERRROR', err)
+      console.log('••••• ERRROR', err);
     },
     onEvent: (event) => {
-      console.log('EVENT', event)
+      console.log('EVENT', event);
       if (typeof event === 'object' && event.type) {
-        let color = 'gray'
+        let color = 'gray';
         switch (event.type) {
           case 'waiting':
-            color = 'red'
-            break
+            color = 'red';
+            break;
           case 'playing':
-            color = 'green'
-            break
+            color = 'green';
+            break;
           default:
-            color = 'gray'
-            break
+            color = 'gray';
+            break;
         }
-        const time = new Date()
+        const time = new Date();
         myChart.xAxis[0].addPlotBand({
-          label: {text: event.type},
+          label: { text: event.type },
           color,
           width: 2,
           value: Date.now(time),
           zIndex: 3,
-        })
+        });
       }
     },
     onAutoplay: (func) => {
       // console.log('onAutoplay', func)
-      const element = document.getElementById('playButton')
-      element.style.display = 'flex'
-      window.autoplayFunc = func.bind(this)
-      window.addEventListener('click', window.hidePlayButton)
-      window.addEventListener('touchstart', window.hidePlayButton)
+      const element = document.getElementById('playButton');
+      element.style.display = 'flex';
+      window.autoplayFunc = func.bind(this);
+      window.addEventListener('click', window.hidePlayButton);
+      window.addEventListener('touchstart', window.hidePlayButton);
     },
     onMuted: () => {
-      console.log('[onMuted]')
+      console.log('[onMuted]');
     },
-    onStats: (stats) => {
-      const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
+    // onStats: (stats) => {
+    //   const {endTime, currentTime, videoBuffer, audioBuffer, timestamp, readyState, networkState} = stats
 
-      mseVideoBufferSize.push([timestamp, videoBuffer])
-      mseAudioBufferSize.push([timestamp, audioBuffer])
+    //   mseVideoBufferSize.push([timestamp, videoBuffer])
+    //   mseAudioBufferSize.push([timestamp, audioBuffer])
 
-      const readyIndicator = document.getElementById('indicator')
-      readyIndicator.className = ''
-      switch (readyState) {
-        case 0:
-          readyIndicator.classList.add('black')
-          break
-        case 1:
-          readyIndicator.classList.add('gray')
-          break
-        case 2:
-          readyIndicator.classList.add('red')
-          break
-        case 3:
-          readyIndicator.classList.add('yellow')
-          break
-        case 4:
-          readyIndicator.classList.add('green')
-          break
-        default:
-          readyIndicator.classList.add('gray')
-          break
-      }
-      const networkIndicator = document.getElementById('nIndicator')
-      networkIndicator.className = ''
-      switch (networkState) {
-        case 0:
-          networkIndicator.classList.add('black')
-          break
-        case 1:
-          networkIndicator.classList.add('yellow')
-          break
-        case 2:
-          networkIndicator.classList.add('green')
-          break
-        case 3:
-          networkIndicator.classList.add('red')
-          break
-        default:
-          networkIndicator.classList.add('gray')
-          break
-      }
+    //   const readyIndicator = document.getElementById('indicator')
+    //   readyIndicator.className = ''
+    //   switch (readyState) {
+    //     case 0:
+    //       readyIndicator.classList.add('black')
+    //       break
+    //     case 1:
+    //       readyIndicator.classList.add('gray')
+    //       break
+    //     case 2:
+    //       readyIndicator.classList.add('red')
+    //       break
+    //     case 3:
+    //       readyIndicator.classList.add('yellow')
+    //       break
+    //     case 4:
+    //       readyIndicator.classList.add('green')
+    //       break
+    //     default:
+    //       readyIndicator.classList.add('gray')
+    //       break
+    //   }
+    //   const networkIndicator = document.getElementById('nIndicator')
+    //   networkIndicator.className = ''
+    //   switch (networkState) {
+    //     case 0:
+    //       networkIndicator.classList.add('black')
+    //       break
+    //     case 1:
+    //       networkIndicator.classList.add('yellow')
+    //       break
+    //     case 2:
+    //       networkIndicator.classList.add('green')
+    //       break
+    //     case 3:
+    //       networkIndicator.classList.add('red')
+    //       break
+    //     default:
+    //       networkIndicator.classList.add('gray')
+    //       break
+    //   }
 
-      graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
-      readySt.push([timestamp, readyState])
-    },
+    //   graphBufferedLength.push([timestamp, (endTime - currentTime) * 1000])
+    //   readySt.push([timestamp, readyState])
+    // },
     onMessage: (messageStats) => {
-      const {utc, messageTimeDiff} = messageStats
-      messagesUTC.push([utc, messageTimeDiff])
+      const { utc, messageTimeDiff } = messageStats;
+      messagesUTC.push([utc, messageTimeDiff]);
     },
     onPause: () => {
-      const element = document.getElementById('pauseButton')
-      element.style.display = 'flex'
+      const element = document.getElementById('pauseButton');
+      element.style.display = 'flex';
     },
     onResume: () => {
-      const element = document.getElementById('pauseButton')
-      element.style.display = 'none'
+      const element = document.getElementById('pauseButton');
+      element.style.display = 'none';
     },
-  }
+  };
 
-  window.player = new FlussonicMsePlayer(element, url, opts)
+  window.player = new FlussonicMsePlayer(element, url, opts);
   window.play = (videotrack = undefined, audiotrack) => {
     if (!videotrack) {
-      audiotrack = undefined
+      audiotrack = undefined;
     }
     window.player
       .play(videotrack, audiotrack)
       .then((success) => {
-        console.log('resolve', success)
+        console.log('resolve', success);
       })
       .catch((err) => {
-        console.log(err)
-      })
-  }
+        console.log(err);
+      });
+  };
 
   window.hidePlayButton = () => {
-    const element = document.getElementById('playButton')
-    element.style.display = 'none'
-    window.removeEventListener('click', window.hidePlayButton)
-    window.removeEventListener('touchstart', window.hidePlayButton)
-    window.autoplayFunc()
-  }
+    const element = document.getElementById('playButton');
+    element.style.display = 'none';
+    window.removeEventListener('click', window.hidePlayButton);
+    window.removeEventListener('touchstart', window.hidePlayButton);
+    window.autoplayFunc();
+  };
 
-  window.play(videotrack, audiotrack)
+  window.play(videotrack, audiotrack);
 
   window.setTracks = () => {
-    const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value
-    const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value
-    console.log({videoTracksSelect}, videoTrackId, audioTrackId)
-    window.player.setTracks([videoTrackId, audioTrackId])
-  }
+    const videoTrackId = videoTracksSelect.options[videoTracksSelect.selectedIndex].value;
+    const audioTrackId = audioTracksSelect.options[audioTracksSelect.selectedIndex].value;
+    console.log({ videoTracksSelect }, videoTrackId, audioTrackId);
+    window.player.setTracks([videoTrackId, audioTrackId]);
+  };
 
   window.seek = () => {
-    const element = document.getElementById('seek')
-    let value
+    const element = document.getElementById('seek');
+    let value;
     if (!element || element instanceof HTMLInputElement) {
       if (element.value === 'live') {
-        value = 'live'
+        value = 'live';
       } else {
-        value = parseInt(element.value, 10)
-        value = value > 0 ? value : void 0
+        value = parseInt(element.value, 10);
+        value = value > 0 ? value : void 0;
       }
     }
     if (value) {
-      window.player.seek(value)
-    } else throw new Error('incorrect input!')
-  }
+      window.player.seek(value);
+    } else throw new Error('incorrect input!');
+  };
 
   window.unmute = () => {
-    const element = document.getElementById('muted')
+    const element = document.getElementById('muted');
     if (window.player && window.player.media) {
       if (window.player.media.muted) {
-        window.player.media.muted = false
-        element.innerText = 'Mute'
+        window.player.media.muted = false;
+        element.innerText = 'Mute';
       } else {
-        window.player.media.muted = true
-        element.innerText = 'Unmute'
+        window.player.media.muted = true;
+        element.innerText = 'Unmute';
       }
     }
-  }
+  };
 
-  let myChart = Highcharts.stockChart('container', {
-    // Create the chart
-    chart: {},
+  //   let myChart = Highcharts.stockChart('container', {
+  //     // Create the chart
+  //     chart: {},
 
-    time: {
-      useUTC: true,
-    },
+  //     time: {
+  //       useUTC: true,
+  //     },
 
-    rangeSelector: {
-      buttons: [
-        {
-          count: 1,
-          type: 'minute',
-          text: '1M',
-        },
-        {
-          count: 5,
-          type: 'minute',
-          text: '5M',
-        },
-        {
-          type: 'all',
-          text: 'All',
-        },
-      ],
-      inputEnabled: false,
-      selected: 0,
-    },
+  //     rangeSelector: {
+  //       buttons: [
+  //         {
+  //           count: 1,
+  //           type: 'minute',
+  //           text: '1M',
+  //         },
+  //         {
+  //           count: 5,
+  //           type: 'minute',
+  //           text: '5M',
+  //         },
+  //         {
+  //           type: 'all',
+  //           text: 'All',
+  //         },
+  //       ],
+  //       inputEnabled: false,
+  //       selected: 0,
+  //     },
 
-    title: {
-      text: 'MSELD Statistics',
-    },
+  //     title: {
+  //       text: 'MSELD Statistics',
+  //     },
 
-    // exporting: {
-    //   enabled: false,
-    // },
+  //     // exporting: {
+  //     //   enabled: false,
+  //     // },
 
-    xAxis: {
-      plotBands: [],
-      plotLines: [],
-    },
+  //     xAxis: {
+  //       plotBands: [],
+  //       plotLines: [],
+  //     },
 
-    yAxis: [
-      {
-        title: {
-          text: 'Milliseconds',
-        },
-        align: 'left',
-      },
-      {
-        title: {
-          text: 'State',
-        },
-        opposite: true,
-        align: 'right',
-        // floor: 0,
-        // ceiling: 4,
-        max: 4,
-      },
-    ],
+  //     yAxis: [
+  //       {
+  //         title: {
+  //           text: 'Milliseconds',
+  //         },
+  //         align: 'left',
+  //       },
+  //       {
+  //         title: {
+  //           text: 'State',
+  //         },
+  //         opposite: true,
+  //         align: 'right',
+  //         // floor: 0,
+  //         // ceiling: 4,
+  //         max: 4,
+  //       },
+  //     ],
 
-    series: [
-      {
-        name: 'WS message lag',
-        data: [],
-      },
-      {
-        name: 'Media Element have seconds in buffer',
-        data: [],
-      },
-      {
-        name: 'Ready State',
-        type: 'line',
-        yAxis: 1,
-        data: [],
-        max: 4,
-        zones: [
-          {
-            value: 0,
-            color: 'black',
-          },
-          {
-            value: 1,
-            color: 'gray',
-          },
-          {
-            value: 2,
-            color: 'red',
-          },
-          {
-            value: 3,
-            color: 'yellow',
-          },
-          {
-            value: 4,
-            color: 'green',
-          },
-          {
-            color: 'gray',
-          },
-        ],
-      },
-    ],
-  })
+  //     series: [
+  //       {
+  //         name: 'WS message lag',
+  //         data: [],
+  //       },
+  //       {
+  //         name: 'Media Element have seconds in buffer',
+  //         data: [],
+  //       },
+  //       {
+  //         name: 'Ready State',
+  //         type: 'line',
+  //         yAxis: 1,
+  //         data: [],
+  //         max: 4,
+  //         zones: [
+  //           {
+  //             value: 0,
+  //             color: 'black',
+  //           },
+  //           {
+  //             value: 1,
+  //             color: 'gray',
+  //           },
+  //           {
+  //             value: 2,
+  //             color: 'red',
+  //           },
+  //           {
+  //             value: 3,
+  //             color: 'yellow',
+  //           },
+  //           {
+  //             value: 4,
+  //             color: 'green',
+  //           },
+  //           {
+  //             color: 'gray',
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //   });
 
-  let myMseChart = Highcharts.stockChart('container2', {
-    // Create the chart
-    chart: {},
+  //   let myMseChart = Highcharts.stockChart('container2', {
+  //     // Create the chart
+  //     chart: {},
 
-    time: {
-      useUTC: true,
-    },
+  //     time: {
+  //       useUTC: true,
+  //     },
 
-    rangeSelector: {
-      buttons: [
-        {
-          count: 1,
-          type: 'minute',
-          text: '1M',
-        },
-        {
-          count: 5,
-          type: 'minute',
-          text: '5M',
-        },
-        {
-          type: 'all',
-          text: 'All',
-        },
-      ],
-      inputEnabled: false,
-      selected: 0,
-    },
+  //     rangeSelector: {
+  //       buttons: [
+  //         {
+  //           count: 1,
+  //           type: 'minute',
+  //           text: '1M',
+  //         },
+  //         {
+  //           count: 5,
+  //           type: 'minute',
+  //           text: '5M',
+  //         },
+  //         {
+  //           type: 'all',
+  //           text: 'All',
+  //         },
+  //       ],
+  //       inputEnabled: false,
+  //       selected: 0,
+  //     },
 
-    title: {
-      text: 'MSELD Buffer Statistics',
-    },
+  //     title: {
+  //       text: 'MSELD Buffer Statistics',
+  //     },
 
-    // xAxis: {
-    //   plotBands: [],
-    //   plotLines: [],
-    // },
+  //     // xAxis: {
+  //     //   plotBands: [],
+  //     //   plotLines: [],
+  //     // },
 
-    yAxis: [
-      {
-        title: {
-          text: 'Bytes',
-        },
-        align: 'left',
-      },
-    ],
+  //     yAxis: [
+  //       {
+  //         title: {
+  //           text: 'Bytes',
+  //         },
+  //         align: 'left',
+  //       },
+  //     ],
 
-    series: [
-      {
-        name: 'WS audio buffer',
-        data: [],
-      },
-      {
-        name: 'WS video buffer',
-        data: [],
-      },
-    ],
-  })
+  //     series: [
+  //       {
+  //         name: 'WS audio buffer',
+  //         data: [],
+  //       },
+  //       {
+  //         name: 'WS video buffer',
+  //         data: [],
+  //       },
+  //     ],
+  //   });
 
-  setInterval(() => {
-    const prepare = function (data) {
-      // const maxElements = 5000
-      data.sort((a, b) => {
-        return a[0] - b[0]
-      })
-      // if (data.length >= maxElements) {
-      //   data = data.splice(data.length - maxElements, data.length)
-      // }
-      return data
-    }
+  //   setInterval(() => {
+  //     const prepare = function (data) {
+  //       // const maxElements = 5000
+  //       data.sort((a, b) => {
+  //         return a[0] - b[0];
+  //       });
+  //       // if (data.length >= maxElements) {
+  //       //   data = data.splice(data.length - maxElements, data.length)
+  //       // }
+  //       return data;
+  //     };
 
-    messagesUTC = prepare(messagesUTC)
-    graphBufferedLength = prepare(graphBufferedLength)
-    readySt = prepare(readySt)
-    mseAudioBufferSize = prepare(mseAudioBufferSize)
-    mseVideoBufferSize = prepare(mseVideoBufferSize)
+  //     messagesUTC = prepare(messagesUTC);
+  //     graphBufferedLength = prepare(graphBufferedLength);
+  //     readySt = prepare(readySt);
+  //     mseAudioBufferSize = prepare(mseAudioBufferSize);
+  //     mseVideoBufferSize = prepare(mseVideoBufferSize);
 
-    myChart.series[0].setData(messagesUTC)
-    myChart.series[1].setData(graphBufferedLength)
-    myChart.series[2].setData(readySt)
+  //     myChart.series[0].setData(messagesUTC);
+  //     myChart.series[1].setData(graphBufferedLength);
+  //     myChart.series[2].setData(readySt);
 
-    myMseChart.series[0].setData(mseAudioBufferSize)
-    myMseChart.series[1].setData(mseVideoBufferSize)
-  }, 5000)
+  //     myMseChart.series[0].setData(mseAudioBufferSize);
+  //     myMseChart.series[1].setData(mseVideoBufferSize);
+  //   }, 5000);
 }
