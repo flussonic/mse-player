@@ -81,7 +81,6 @@ export default class WebSocketController {
     this.opened = true;
     this.paused = true;
     this._openingResolve(); // #6809
-    this.resume();
   }
 
   send(cmd) {

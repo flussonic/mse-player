@@ -1,11 +1,11 @@
 const path = require('path');
 const webpack = require('webpack');
-const Clean = require('clean-webpack-plugin');
+// const Clean = require('clean-webpack-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
-const HtmlWebPackPlugin = require('html-webpack-plugin');
+// const HtmlWebPackPlugin = require('html-webpack-plugin');
 const WebpackBundleSizeAnalyzerPlugin = require('webpack-bundle-size-analyzer').WebpackBundleSizeAnalyzerPlugin;
 
-var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin');
+const DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin');
 
 module.exports = {
   mode: 'production',
@@ -25,6 +25,9 @@ module.exports = {
       VERSION: JSON.stringify(require('./package.json').version),
     }),
     new WebpackBundleSizeAnalyzerPlugin('./reports/plain-report.txt'),
+    new webpack.IgnorePlugin({
+      resourceRegExp: /@sentry/,
+    }),
   ],
   module: {
     rules: [
@@ -35,8 +38,8 @@ module.exports = {
       },
       {
         test: /\.worker\.js$/,
-        loader: "worker-loader",
-        options: { inline: "fallback" },
+        loader: 'worker-loader',
+        options: { inline: 'fallback', filename: '[name].js' },
       },
     ],
   },

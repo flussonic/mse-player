@@ -12,6 +12,10 @@
       border: 1px solid black;
       position: relative;
       height: 50vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
     }
 
     #player {
@@ -166,7 +170,7 @@
   </style>
 <body>
   <div class="player-container">
-    <video id="player" muted></video>
+    <video id="player" autoplay muted></video>
     <div id="stallingLabel" class="stallingLabel">
       [callbacks]
     </div>
@@ -206,8 +210,8 @@
     <canvas id="MSELDBuffers" height="60"></canvas>
     <canvas id="MSELDEvents" height="50"></canvas> -->
 
-    <div id="container" style="height: 300px; min-width: 310px"></div>
-    <div id="container2" style="height: 300px; min-width: 310px"></div>
+    <!-- <div id="container" style="height: 300px; min-width: 310px"></div>
+    <div id="container2" style="height: 300px; min-width: 310px"></div> -->
   </div>
   <script type="text/javascript" src="index.js"></script>
 </body>

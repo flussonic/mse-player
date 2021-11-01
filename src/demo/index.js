@@ -7,7 +7,7 @@ window.onload = onLoad;
 function onLoad() {
   let streamer_ws = 'ws://localhost:8080';
   let stream_name = 'clock';
-  let videotrack, audiotrack;
+  let videotrack, audiotrack, token, videoQuality;
 
   // parse query string
   let query = window.location.search;
@@ -28,8 +28,14 @@ function onLoad() {
     if (qs.from) {
       from = qs.from;
     }
+    if (qs.token) {
+      token = qs.token;
+    }
+    if (qs.videoQuality) {
+      videoQuality = qs.videoQuality;
+    }
   }
-  let url = streamer_ws + '/' + stream_name + '/mse_ld';
+  let url = `${streamer_ws}/${stream_name}/mse_ld${token ? `?token=${token}` : ''}`;
 
   const element = document.getElementById('player');
   const videoTracksSelect = document.getElementById('videoTracks');
@@ -57,15 +63,20 @@ function onLoad() {
 
   const opts = {
     debug: true,
-    connectionRetries: 0,
-    errorsBeforeStop: 10,
+    connectionRetries: 3,
+    errorsBeforeStop: 1,
     retryMuted: true,
+    onCrashTryVideoOnly: true,
     maxBufferDelay: 2,
     videotrack,
     audiotrack,
-    preferHQ: true,
-    progressUpdateTime: 500,
-    // wsReconnect: true,
+    // preferHQ: true,
+    videoQuality,
+    progressUpdateTime: 100,
+    wsReconnect: false,
+    retroviewURL: 'testURL',
+    retroviewSendTime: 40000,
+    sentryConfig: 'https://f2440c6bf8744ed6a11acd097770dc45@sentry.flussonic.com/6',
     onStartStalling: () => {
       showStallingIndicator('start stalling');
       loading.classList.add('visible');
@@ -101,51 +112,55 @@ function onLoad() {
     },
     onMediaInfo: (rawMetaData) => {
       console.log('rawMetaData:', rawMetaData);
+      let videoOptions, audioOptions;
       const videoTracks = window.player.getVideoTracks();
       const audioTracks = window.player.getAudioTracks();
-      const videoOptions = videoTracks.map(
-        (v, i) =>
-          `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${v['height']}</option>`
-      );
+      if (videoTracks) {
+        videoOptions = videoTracks.map(
+          (v, i) =>
+            `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['fps']} ${v['width']}x${v['height']}</option>`
+        );
+        videoTracksSelect.innerHTML = videoOptions.join('');
+      }
 
-      const audioOptions = audioTracks.map(
-        (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
-      );
-      audioOptions.push('<option value="">None</option>');
-
-      videoTracksSelect.innerHTML = videoOptions.join('');
-      audioTracksSelect.innerHTML = audioOptions.join('');
+      if (audioTracks) {
+        audioOptions = audioTracks.map(
+          (v) => `<option value="${v['track_id']}">${v['bitrate']} ${v['codec']} ${v['lang']}</option>`
+        );
+        audioOptions.push('<option value="">None</option>');
+        audioTracksSelect.innerHTML = audioOptions.join('');
+      }
 
       mbrControls.style.display = 'block';
     },
     onError: (err) => {
       console.log('••••• ERRROR', err);
     },
-    onEvent: (event) => {
-      console.log('EVENT', event);
-      if (typeof event === 'object' && event.type) {
-        let color = 'gray';
-        switch (event.type) {
-          case 'waiting':
-            color = 'red';
-            break;
-          case 'playing':
-            color = 'green';
-            break;
-          default:
-            color = 'gray';
-            break;
-        }
-        const time = new Date();
-        myChart.xAxis[0].addPlotBand({
-          label: { text: event.type },
-          color,
-          width: 2,
-          value: Date.now(time),
-          zIndex: 3,
-        });
-      }
-    },
+    // onEvent: (event) => {
+    //   console.log('EVENT', event);
+    //   if (typeof event === 'object' && event.type) {
+    //     let color = 'gray';
+    //     switch (event.type) {
+    //       case 'waiting':
+    //         color = 'red';
+    //         break;
+    //       case 'playing':
+    //         color = 'green';
+    //         break;
+    //       default:
+    //         color = 'gray';
+    //         break;
+    //     }
+    //     const time = new Date();
+    //     myChart.xAxis[0].addPlotBand({
+    //       label: { text: event.type },
+    //       color,
+    //       width: 2,
+    //       value: Date.now(time),
+    //       zIndex: 3,
+    //     });
+    //   }
+    // },
     onAutoplay: (func) => {
       // console.log('onAutoplay', func)
       const element = document.getElementById('playButton');

@@ -24,7 +24,7 @@
         //   disconnect() //Terminate WebSocket connection
       } else if (command === 'disconnect') {
         disconnect();
-      } else {
+      } else if (command === 'send') {
         sendOMMmessage(data.commandObj);
       }
     },

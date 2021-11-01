@@ -3,7 +3,7 @@ const webpack = require('webpack');
 const Clean = require('clean-webpack-plugin');
 const HtmlWebPackPlugin = require('html-webpack-plugin');
 
-var DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin');
+const DirectoryNamedWebpackPlugin = require('directory-named-webpack-plugin');
 
 module.exports = {
   node: { Buffer: false, global: true, process: true, setImmediate: false },
@@ -37,8 +37,8 @@ module.exports = {
       },
       {
         test: /\.worker\.js$/,
-        loader: "worker-loader",
-        options: { inline: "fallback" },
+        loader: 'worker-loader',
+        options: { inline: 'fallback' },
       },
     ],
   },

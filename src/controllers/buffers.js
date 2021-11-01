@@ -5,6 +5,7 @@ import { AUDIO, VIDEO } from '../enums/common';
 import { BUFFER_UPDATE_END } from '../enums/events';
 
 const BUFFER_MODE_SEQUENCE = 'segments'; // segments
+// const BUFFER_MODE_SEQUENCE = 'sequence'; // segments
 
 export default class BuffersController {
   constructor(opts = {}) {
@@ -28,6 +29,7 @@ export default class BuffersController {
     this.sourceBuffer = {};
     this.audioBufferSize = 0;
     this.videoBufferSize = 0;
+    this.totalBytesCollected = 0;
   }
 
   setMediaSource(ms) {
@@ -42,7 +44,7 @@ export default class BuffersController {
 
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType);
       sb[s.content].mode = BUFFER_MODE_SEQUENCE;
-      sb[s.content].timestampOffset = 0.25;
+      // sb[s.content].timestampOffset = 0.25;
       const buffer = sb[s.content];
       if (isVideo) {
         buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd);
@@ -172,6 +174,7 @@ export default class BuffersController {
       this.segmentsVideo.push(segment);
       this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
     }
+    this.totalBytesCollected = this.totalBytesCollected + segment.data.byteLength;
 
     this.doArrayBuffer(segment);
     if (this.sourceBuffer) {
@@ -190,7 +193,7 @@ export default class BuffersController {
     for (let k in this.sourceBuffer) {
       this.sourceBuffer[k].abort();
       this.sourceBuffer[k].mode = BUFFER_MODE_SEQUENCE;
-      this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2;
+      // this.sourceBuffer[k].timestampOffset = this.sourceBuffer[k].timestampOffset - 0.2;
     }
 
     // this.videoBufferSize = 0
@@ -377,7 +380,7 @@ export default class BuffersController {
     const mimeType = type === 'video' ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
     sb[type] = this.mediaSource.addSourceBuffer(mimeType);
     sb[type].mode = BUFFER_MODE_SEQUENCE;
-    sb[type].timestampOffset = 0.25;
+    // sb[type].timestampOffset = 0.25;
     const buffer = sb[type];
     if (type === 'video') {
       buffer.addEventListener(BUFFER_UPDATE_END, this.onSBUpdateEnd);

@@ -27,6 +27,11 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 9,
     sourceType: 'module',
+    ecmaFeatures: {
+      experimentalObjectRestSpread: true,
+      spread: true,
+      jsx: true,
+    },
   },
   rules: {
     indent: ['error', 2, { SwitchCase: 1 }],
@@ -36,13 +41,5 @@ module.exports = {
     'object-curly-spacing': ['error', 'always'],
     'no-var': 'error',
     'no-console': 2,
-    parserOptions: {
-      ecmaVersion: 6,
-      ecmaFeatures: {
-        experimentalObjectRestSpread: true,
-        spread: true,
-        jsx: true,
-      },
-    },
   },
 };

@@ -179,12 +179,31 @@ export const checkVideoProgress = (media, player) => () => {
   // }
 
   // // logger.log('readyState', player.media.readyState)
+  if (player.retroviewWorker) {
+    player.retroviewWorker.postMessage({
+      command: 'add',
+      commandObj: {
+        key: Date.now(),
+        data: {
+          appended: player.sb.appended,
+          videoBuffer: player.sb.videoBufferSize,
+          audioBuffer: player.sb.audioBufferSize,
+          totalBytesCollected: player.sb.totalBytesCollected,
+          currentTime: ct,
+          endTime,
+          readyState: player.media.readyState,
+          networkState: player.media.networkState,
+        },
+      },
+    });
+  }
   if (player.onStats) {
     player.onStats({
       timestamp: Date.now(),
       appended: player.sb.appended,
       videoBuffer: player.sb.videoBufferSize,
       audioBuffer: player.sb.audioBufferSize,
+      totalBytesCollected: player.sb.totalBytesCollected,
       // videoSegments: player.sb.segmentsVideo.length,
       // audioSegments: player.sb.segmentsAudio.length,
       currentTime: ct,

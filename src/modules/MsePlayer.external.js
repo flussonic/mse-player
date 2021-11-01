@@ -1,8 +1,7 @@
 import WebSocketController from '../controllers/ws';
 import BuffersController from '../controllers/buffers';
 // import MediaSourceController from '../controllers/mediaSource'
-
-import * as Sentry from '@sentry/browser';
+import Worker from '../workers/retroview.worker.js';
 
 import * as mseUtils from '../utils/mseUtils';
 import { logger, enableLogs } from '../utils/logger';
@@ -63,6 +62,7 @@ export default class MSEPlayer {
 
     this.media = media;
     this.url = urlStream;
+    this.firstStart = true;
 
     this.opts.progressUpdateTime = this.opts.progressUpdateTime || DEFAULT_UPDATE;
 
@@ -115,21 +115,60 @@ export default class MSEPlayer {
       throw new Error('invalid maxBufferDelay param, should be number');
     }
 
-    this.opts.sentryConfig = this.opts.sentryConfig ? this.opts.sentryConfig : '';
+    if (this.opts.videoQuality) {
+      if (typeof this.opts.videoQuality !== 'string') {
+        throw new Error('invalid videoQuality param, should be string');
+      }
+      if (this.opts.videoQuality !== 'highest' && this.opts.videoQuality !== 'lowest') {
+        throw new Error('invalid videoQuality param, should be highest or lowest');
+      }
+    }
 
+    try {
+      this.Sentry = require('@sentry/browser');
+    } catch (e) {
+      this.noSentry = true;
+    }
+
+    this.opts.sentryConfig = this.opts.sentryConfig ? this.opts.sentryConfig : '';
     if (typeof this.opts.sentryConfig !== 'string') {
       throw new Error('invalid sentryConfig param, should be string');
     }
-    if (this.opts.sentryConfig.length) {
-      Sentry.init({
+
+    if (this.opts.sentryConfig.length && !this.noSentry) {
+      this.Sentry.init({
         dsn: this.opts.sentryConfig,
         environment: process.env.NODE_ENV || 'development',
         release: 'Mse Player@' + MSEPlayer.version,
       });
 
       document.onerror = (err) => {
-        Sentry.captureException(err);
+        this.Sentry.captureException(err);
       };
+    }
+
+    if (this.opts.retroviewURL) {
+      if (window.Worker) {
+        this.retroviewWorker = new Worker();
+        // this.retroviewWorker.onmessage = this.onretroviewWorkerMessage.bind(this)
+
+        if (this.opts.retroviewSendTime) {
+          this.retroviewWorker.postMessage({
+            command: 'time',
+            commandObj: this.opts.retroviewSendTime,
+          });
+        }
+        this.retroviewWorker.postMessage({
+          command: 'start',
+          commandObj: this.opts.retroviewURL,
+        });
+
+        const options = JSON.stringify(this.opts);
+        this.retroviewWorker.postMessage({
+          command: 'add',
+          commandObj: { key: Date.now(), data: { options } },
+        });
+      }
     }
 
     this.onProgress = opts && opts.onProgress;
@@ -142,7 +181,7 @@ export default class MSEPlayer {
     }
     this.onMediaInfo = opts && opts.onMediaInfo;
     this.onError = opts && opts.onError;
-    this.onEvent = opts && opts.onEvent;
+    this.onEventCallback = opts && opts.onEvent;
     this.onAutoplay = opts && opts.onAutoplay;
     this.onMuted = opts && opts.onMuted;
     this.onStats = opts && opts.onStats;
@@ -150,15 +189,13 @@ export default class MSEPlayer {
     this.onPause = opts && opts.onPause;
     this.onResume = opts && opts.onResume;
 
-    this.init();
-
     if (media instanceof HTMLMediaElement) {
       // iOS autoplay with no fullscreen fix
       media.WebKitPlaysInline = true;
       media.controls = false;
-      media.onerror = (error) => {
-        this.stop();
-      };
+      // media.onerror = () => {
+      //   this.stop();
+      // };
     }
 
     this.ws = new WebSocketController({
@@ -174,9 +211,10 @@ export default class MSEPlayer {
     this.sb = new BuffersController({ media });
 
     this.messageTime = Date.now();
+    this.init();
   }
 
-  play(/*time, */ videoTrack, audioTrack) {
+  play(videoTrack, audioTrack) {
     logger.log('[mse-player]: play()');
     if (this.playing) {
       logger.log('MSE is already playing');
@@ -187,12 +225,21 @@ export default class MSEPlayer {
       return;
     }
 
-    return this._play(/*time, */ videoTrack, audioTrack)
+    return this._play(videoTrack, audioTrack)
       .then(() => {
         this.playing = true;
         this._stop = false;
+
+        if (this.pendingTracks) {
+          this.setTracks(this.pendingTracks);
+          this.pendingTracks = undefined;
+        }
       })
-      .catch(() => {
+      .catch((error) => {
+        if (this.onError) {
+          this.onError(error);
+        }
+        logger.error('[mse-player]: got error on play', error);
         this.playing = false;
       });
   }
@@ -225,6 +272,7 @@ export default class MSEPlayer {
     } else {
       logger.log('[mse-player]: no playPromise exists, nothing to stop');
     }
+    this.firstStart = true;
   }
 
   // seek(utc) {
@@ -266,6 +314,17 @@ export default class MSEPlayer {
         } catch (e) {
           logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
         }
+      }
+      if (this.retroviewWorker) {
+        this.retroviewWorker.postMessage({
+          command: 'add',
+          commandObj: {
+            key: Date.now(),
+            data: {
+              event: 'play_pause',
+            },
+          },
+        });
       }
     }
 
@@ -312,14 +371,25 @@ export default class MSEPlayer {
     this.retry = this.retry + 1;
   }
 
-  setTracks(tracks) {
+  setTracks(data) {
+    let tracks = data;
     if (!this.mediaInfo) {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
       return;
     }
 
-    if (!Array.isArray(tracks)) {
+    if (tracks === 'lowest') {
+      tracks = this.autoTrackSelection(false);
+    } else if (tracks === 'highest') {
+      tracks = this.autoTrackSelection(true);
+    } else if (!Array.isArray(tracks)) {
       logger.error('tracks should be an Array instance: ["v1", "a1"]');
+      return;
+    }
+
+    if (!this.playing) {
+      this.pendingTracks = tracks;
+      return;
     }
 
     const videoTracksType = this.mediaInfo.streams ? 'streams' : 'tracks';
@@ -379,6 +449,19 @@ export default class MSEPlayer {
     this.onStartStalling();
     this.ws.setTracks(videoTracksStr, audioTracksStr);
 
+    if (this.retroviewWorker) {
+      this.retroviewWorker.postMessage({
+        command: 'add',
+        commandObj: {
+          key: Date.now(),
+          data: {
+            event: 'play_options',
+            selectedTracks: { videoTracksStr, audioTracksStr },
+          },
+        },
+      });
+    }
+
     this.videoTrack = videoTracksStr;
     this.audioTrack = audioTracksStr;
     // ?
@@ -391,15 +474,8 @@ export default class MSEPlayer {
       logger.warn('Media info did not loaded. Should try after onMediaInfo triggered or inside.');
       return;
     }
-
     const videoTracks = this.getVideoTracks();
     const audioTracks = this.getAudioTracks();
-
-    if (videoTracks.length <= 1) {
-      if (audioTracks.length <= 1) {
-        return;
-      }
-    }
 
     let resultVideo, resultAudio;
     if (bestestBest) {
@@ -454,7 +530,15 @@ export default class MSEPlayer {
         });
       }
     }
-    return [resultVideo, resultAudio];
+
+    const resultData = [];
+    if (resultVideo && resultVideo.length) {
+      resultData.push(resultVideo);
+    }
+    if (resultAudio && resultAudio.length) {
+      resultData.push(resultAudio);
+    }
+    return resultData;
   }
 
   /**
@@ -569,6 +653,12 @@ export default class MSEPlayer {
                 clearInterval(this.retryConnectionTimer);
                 this.retry = 0;
               }
+              this.onEvent({
+                key: Date.now(),
+                data: {
+                  event: 'play_started',
+                },
+              });
             })
             .catch((err) => {
               logger.log('playPromise rejection.', err);
@@ -617,7 +707,7 @@ export default class MSEPlayer {
     });
   }
 
-  init() {
+  init(fromStop = false) {
     this._pause = false;
     this.playing = false;
     // flag to pending execution(true)
@@ -627,10 +717,28 @@ export default class MSEPlayer {
     this.audioTrack = '';
     this.videoTrack = '';
     this.endProgressTimer();
+
+    if (!fromStop) {
+      this.onEvent({
+        key: Date.now(),
+        data: {
+          event: 'play_init',
+          userInfo: window.navigator.userAgent,
+          playerInfo: `MSEPlayer${MSEPlayer.version ? `@${MSEPlayer.version}` : ''}`,
+        },
+      });
+    }
   }
 
   _resume() {
     this.ws.resume();
+
+    this.onEvent({
+      key: Date.now(),
+      data: {
+        event: 'play_websocket_resume',
+      },
+    });
   }
 
   onMediaDetaching() {
@@ -682,7 +790,7 @@ export default class MSEPlayer {
 
       this.mediaSource = null;
 
-      this.init();
+      this.init(true);
       this.ws.destroy();
       this.sb.destroy();
       this.media.onemptied = () => {
@@ -690,6 +798,13 @@ export default class MSEPlayer {
         this.stopRunning = false;
         this._stop = true;
         delete this.playPromise;
+
+        this.onEvent({
+          key: Date.now(),
+          data: {
+            event: 'play_stop',
+          },
+        });
         return resolve();
       };
     });
@@ -817,6 +932,12 @@ export default class MSEPlayer {
   }
 
   onDisconnect(event) {
+    this.onEvent({
+      key: Date.now(),
+      data: {
+        event: 'play_diconnected',
+      },
+    });
     if (this.opts.onDisconnect) {
       this.opts.onDisconnect(event);
     }
@@ -842,12 +963,23 @@ export default class MSEPlayer {
 
     // mseUtils.logDM(isDataAB, parsedData)
 
-    const messageTimeDiff = Date.now() - this.messageTime;
+    const websocketLag = Date.now() - this.messageTime;
     this.messageTime = Date.now();
     if (this.opts.onMessage) {
       this.opts.onMessage({
         utc: Date.now(),
-        messageTimeDiff,
+        messageTimeDiff: websocketLag,
+      });
+    }
+    if (this.retroviewWorker) {
+      this.retroviewWorker.postMessage({
+        command: 'add',
+        commandObj: {
+          key: Date.now(),
+          data: {
+            websocketLag,
+          },
+        },
       });
     }
 
@@ -898,7 +1030,7 @@ export default class MSEPlayer {
             break;
           // if live source is unavailability
           case WS_EVENT_NO_LIVE:
-            if (parsedData.hasOwnProperty('static') && parsedData.static == false) {
+            if ('static' in parsedData && parsedData.static == false) {
               logger.info('Stream is on on demand mode, waiting for init segment');
               this.onStartStalling();
             } else {
@@ -1052,8 +1184,17 @@ export default class MSEPlayer {
       }
     }
 
-    this.doMediaInfo({ ...metadata, activeStreams, version: MSEPlayer.version });
+    const activeInfo = { ...metadata, activeStreams, version: MSEPlayer.version, xsid: data.session_id };
+    this.doMediaInfo(activeInfo);
     logger.log('%cprocInitSegment:', 'background: lightpink;', data);
+    this.onEvent({
+      key: Date.now(),
+      data: {
+        event: 'play_metadata',
+        ...activeInfo,
+      },
+    });
+
     if (this.mediaSource && !this.mediaSource.sourceBuffers.length) {
       this.sb.setMediaSource(this.mediaSource);
       this.sb.createSourceBuffers(data);
@@ -1062,17 +1203,28 @@ export default class MSEPlayer {
       this.sb.createTracks(data.tracks);
     }
 
-    if (this.opts.preferHQ) {
-      const videoTracks = this.getVideoTracks();
-      const audioTracks = this.getAudioTracks();
-      if (videoTracks.length <= 1 && audioTracks.length <= 1) {
+    if (this.opts.videoQuality && this.firstStart) {
+      let selectedTracks;
+      if (this.opts.videoQuality === 'lowest') {
+        selectedTracks = this.autoTrackSelection(false);
+      } else if (this.opts.videoQuality === 'highest') {
+        selectedTracks = this.autoTrackSelection(true);
+      }
+      if (
+        selectedTracks[0] !== activeStreams.video ||
+        (activeStreams.audio && selectedTracks[1] !== activeStreams.audio)
+      ) {
+        this.ws.setTracks(selectedTracks[0] || '', selectedTracks[1] || '');
         return;
       }
-      const tracks = this.autoTrackSelection(true);
-      if (tracks[0] !== activeStreams.video) {
-        this.setTracks(tracks);
-      }
+      this.firstStart = false;
     }
+
+    if (this.opts.preferHQ) {
+      logger.info('[MSE]: preferHQ option is depricated. Use videoQuality(lowest/highest) instead');
+    }
+
+    this.ws.resume();
   }
 
   doMediaInfo(metadata) {
@@ -1139,6 +1291,13 @@ export default class MSEPlayer {
     }
     this._stalling = true;
     logger.log('onStartStalling');
+
+    this.onEvent({
+      key: Date.now(),
+      data: {
+        event: 'play_stalled',
+      },
+    });
   }
 
   onEndStalling() {
@@ -1151,6 +1310,13 @@ export default class MSEPlayer {
 
     clearTimeout(this.resetTimer);
     this.resetTimer = void 0;
+
+    this.onEvent({
+      key: Date.now(),
+      data: {
+        event: 'play_resumed',
+      },
+    });
   }
 
   startProgressTimer() {
@@ -1224,25 +1390,37 @@ export default class MSEPlayer {
     if (type === 'playing') {
       this.playing = true;
       this.onEndStalling();
+      if (this.stallingStartTime) {
+        if (this.retroviewWorker) {
+          this.retroviewWorker.postMessage({
+            command: 'add',
+            commandObj: {
+              key: Date.now(),
+              data: {
+                stallingTime: performance.now() - this.stallingStartTime,
+              },
+            },
+          });
+        }
+        delete this.stallingStartTime;
+      }
     } else if (type === 'waiting') {
       this.playing = false;
+      this.stallingStartTime = performance.now();
       this.onStartStalling();
     }
   }
 
-  debounce(func, wait, immediate) {
-    let timeout;
-    return function () {
-      let context = this,
-        args = arguments;
-      let later = function () {
-        timeout = null;
-        if (!immediate) func.apply(context, args);
-      };
-      let callNow = immediate && !timeout;
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-      if (callNow) func.apply(context, args);
-    };
+  onEvent(event) {
+    if (this.retroviewWorker) {
+      this.retroviewWorker.postMessage({
+        command: 'add',
+        commandObj: event,
+      });
+    }
+
+    if (this.onEventCallback) {
+      this.onEventCallback(event);
+    }
   }
 }
