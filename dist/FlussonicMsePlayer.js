@@ -325,6 +325,7 @@ function debugData(rawData) {
 
   return { trackId: trackId, utc: utc, view: view };
 }
+
 var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgress(media, player) {
   return function () {
     var ct = media.currentTime,
@@ -413,7 +414,6 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       return;
     }
     var endTime = buffered.end(l - 1);
-    // console.log(endTime - ct)
     var delay = Math.abs(endTime - ct);
     // if (player._stalling) {
     //   // player.onEndStalling()
@@ -432,43 +432,30 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
     //   }
     // }
 
-    // // logger.log('readyState', player.media.readyState)
-    if (player.retroviewWorker) {
-      player.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: {
-          key: Date.now(),
-          data: {
-            appended: player.sb.appended,
-            videoBuffer: player.sb.videoBufferSize,
-            audioBuffer: player.sb.audioBufferSize,
-            totalBytesCollected: player.sb.totalBytesCollected,
-            currentTime: ct,
-            endTime: endTime,
-            readyState: player.media.readyState,
-            networkState: player.media.networkState
+    if (player.playerStatsObject) {
+      player.playerStatsObject.bytes = player.sb.totalBytesCollected;
+      player.playerStatsObject.updated_at = Date.now();
+      if (player.playing) {
+        if (player.playbackSegmentStart) {
+          var playerIns = player.playerStatsObject.player;
+
+          if (playerIns) {
+            var playback_duration = playerIns.playback_duration;
+
+            playback_duration += player.playerStatsObject.updated_at - player.playbackSegmentStart;
+            player.addPlayerStat('playback_duration', playback_duration);
           }
         }
-      });
-    }
-    if (player.onStats) {
-      player.onStats({
-        timestamp: Date.now(),
-        appended: player.sb.appended,
-        videoBuffer: player.sb.videoBufferSize,
-        audioBuffer: player.sb.audioBufferSize,
-        totalBytesCollected: player.sb.totalBytesCollected,
-        // videoSegments: player.sb.segmentsVideo.length,
-        // audioSegments: player.sb.segmentsAudio.length,
-        currentTime: ct,
-        endTime: endTime,
-        readyState: player.media.readyState,
-        networkState: player.media.networkState
+        player.playbackSegmentStart = player.playerStatsObject.updated_at;
+      }
+
+      player.addStat({
+        updated_at: player.playerStatsObject.updated_at,
+        bytes: player.sb.totalBytesCollected
       });
     }
 
     if (delay <= player.opts.maxBufferDelay) {
-      //   // console.log('lower the delay', delay, player.opts.maxBufferDelay)
       return;
     }
 
@@ -658,9 +645,9 @@ var _buffers = __webpack_require__(20);
 
 var _buffers2 = _interopRequireDefault(_buffers);
 
-var _retroviewWorker = __webpack_require__(21);
+var _statsWorker = __webpack_require__(21);
 
-var _retroviewWorker2 = _interopRequireDefault(_retroviewWorker);
+var _statsWorker2 = _interopRequireDefault(_statsWorker);
 
 var _mseUtils = __webpack_require__(2);
 
@@ -705,6 +692,7 @@ var DEFAULT_RETRY_MUTED = false;
 // const DEFAULT_FORCE_UNMUTED = false;
 var MAX_BUFFER_DELAY = 2;
 var DEFAULT_ON_CRASH_TRY_VIDEO_ONLY = true;
+var DEFAULT_STATS_SEND = false;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -724,7 +712,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "21.10.3";
+      return "22.2.1";
     }
   }]);
 
@@ -831,29 +819,56 @@ var MSEPlayer = function () {
       };
     }
 
-    if (this.opts.retroviewURL) {
-      if (window.Worker) {
-        this.retroviewWorker = new _retroviewWorker2.default();
-        // this.retroviewWorker.onmessage = this.onretroviewWorkerMessage.bind(this)
-
-        if (this.opts.retroviewSendTime) {
-          this.retroviewWorker.postMessage({
-            command: 'time',
-            commandObj: this.opts.retroviewSendTime
-          });
+    // Stats block start
+    this.resetStats = function () {
+      _this.playerStatsObject = {
+        proto: 'mseld',
+        user_agent: navigator.userAgent,
+        bytes: 0,
+        // player info
+        player: {
+          player_type: 'mseld_player',
+          player_version: MSEPlayer.version,
+          // counts
+          stall_count: 0,
+          pause_count: 0,
+          error_count: 0,
+          reconnect_count: 0,
+          bitrate_change_count: 0,
+          // durations
+          playback_duration: 0,
+          stall_duration: 0,
+          pause_duration: 0,
+          bytes_played: 0
         }
-        this.retroviewWorker.postMessage({
-          command: 'start',
-          commandObj: this.opts.retroviewURL
-        });
+      };
+      _this.addStat(_this.playerStatsObject);
+    };
 
-        var options = JSON.stringify(this.opts);
-        this.retroviewWorker.postMessage({
-          command: 'add',
-          commandObj: { key: Date.now(), data: { options: options } }
+    this.opts.statsSendEnable = this.opts.statsSendEnable ? this.opts.statsSendEnable : DEFAULT_STATS_SEND;
+    if (typeof this.opts.maxBufferDelay !== 'number') {
+      throw new Error('invalid maxBufferDelay param, should be number');
+    }
+
+    if (window.Worker) {
+      this.statsWorker = new _statsWorker2.default();
+      this.statsWorker.onmessage = this.onStatsWorkerMessage.bind(this);
+
+      if (this.opts.statsSendTime) {
+        if (typeof this.opts.statsSendTime !== 'number') {
+          throw new Error('invalid statsSendTime param, should be number');
+        }
+        this.statsWorker.postMessage({
+          command: 'time',
+          commandObj: this.opts.statsSendTime
         });
       }
+      this.statsWorker.postMessage({
+        command: 'start',
+        commandObj: this.url
+      });
     }
+    // Stats block end
 
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
@@ -877,9 +892,6 @@ var MSEPlayer = function () {
       // iOS autoplay with no fullscreen fix
       media.WebKitPlaysInline = true;
       media.controls = false;
-      // media.onerror = () => {
-      //   this.stop();
-      // };
     }
 
     this.ws = new _ws2.default({
@@ -920,9 +932,7 @@ var MSEPlayer = function () {
         _this2.pendingTracks = undefined;
       }
     }).catch(function (error) {
-      if (_this2.onError) {
-        _this2.onError(error);
-      }
+      _this2.onPlayerError(error);
       _logger.logger.error('[mse-player]: got error on play', error);
       _this2.playing = false;
     });
@@ -932,6 +942,23 @@ var MSEPlayer = function () {
     var _this3 = this;
 
     if (this.playPromise) {
+      this.onEvent({
+        key: Date.now(),
+        data: {
+          event: 'play_stop'
+        }
+      });
+      this.playerStatsObject.closed_at = Date.now();
+      this.addStat({
+        closed_at: this.playerStatsObject.closed_at
+      });
+      this.addStat({
+        event: 'play_stop'
+      });
+      if (this.opts.statsSendEnable) {
+        this.ws.sendStats(this.getStats());
+      }
+
       this.playPromise.catch(function () {
         if (_this3.resetTimer) {
           clearTimeout(_this3.resetTimer);
@@ -957,27 +984,9 @@ var MSEPlayer = function () {
       _logger.logger.log('[mse-player]: no playPromise exists, nothing to stop');
     }
     this.firstStart = true;
+    delete this.playbackSegmentStart;
+    delete this.uuid;
   };
-
-  // seek(utc) {
-  //   if (this.playing) {
-  //     try {
-  //       if (!utc) {
-  //         throw new Error('utc should be "live" or UTC value')
-  //       }
-  //       this.ws.seek(utc)
-  //       this.sb.seek()
-  //       this.onStartStalling()
-  //       // need for determine old frames
-  //       this.seekValue = utc
-  //       this.media.pause()
-  //       this._pause = true
-  //       this.playing = false
-  //     } catch (err) {
-  //       logger.warn(`seek:${err.message}`)
-  //     }
-  //   }
-  // }
 
   MSEPlayer.prototype.pause = function pause() {
     if (!canPause.bind(this)()) {
@@ -992,23 +1001,15 @@ var MSEPlayer = function () {
       this._pause = true;
       this.playing = false;
 
+      this.addPlayerStat('pause_count');
+      this.pauseStarted = Date.now();
+
       if (this.onPause) {
         try {
           this.onPause();
         } catch (e) {
           _logger.logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
         }
-      }
-      if (this.retroviewWorker) {
-        this.retroviewWorker.postMessage({
-          command: 'add',
-          commandObj: {
-            key: Date.now(),
-            data: {
-              event: 'play_pause'
-            }
-          }
-        });
       }
     }
 
@@ -1029,6 +1030,8 @@ var MSEPlayer = function () {
     this.ws.destroy();
     this.ws.init();
     this.ws.start(this.url, from, this.videoTrack, this.audioTrack);
+
+    this.addPlayerStat('reconnect_count');
     this.onEndStalling();
   };
 
@@ -1048,7 +1051,7 @@ var MSEPlayer = function () {
     this.ws.destroy();
     this.sb.destroy();
 
-    this.play( /*time, */videoTrack, audioTrack).then(function () {
+    this.play(videoTrack, audioTrack).then(function () {
       _this4.onEndStalling();
     });
     this.retry = this.retry + 1;
@@ -1134,18 +1137,7 @@ var MSEPlayer = function () {
     this.onStartStalling();
     this.ws.setTracks(videoTracksStr, audioTracksStr);
 
-    if (this.retroviewWorker) {
-      this.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: {
-          key: Date.now(),
-          data: {
-            event: 'play_options',
-            selectedTracks: { videoTracksStr: videoTracksStr, audioTracksStr: audioTracksStr }
-          }
-        }
-      });
-    }
+    this.addPlayerStat('bitrate_change_count');
 
     this.videoTrack = videoTracksStr;
     this.audioTrack = audioTracksStr;
@@ -1235,12 +1227,12 @@ var MSEPlayer = function () {
    *
    */
 
-  MSEPlayer.prototype._play = function _play( /*from, */videoTrack, audioTrack) {
+  MSEPlayer.prototype._play = function _play(videoTrack, audioTrack) {
     var _this6 = this;
 
     this.liveError = false;
     return new Promise(function (resolve, reject) {
-      _logger.logger.log('_play', /*from, */videoTrack, audioTrack);
+      _logger.logger.log('_play', videoTrack, audioTrack);
       if (_this6.playing) {
         var message = '[mse-player] _play: terminate because already has been playing';
         _logger.logger.log(message);
@@ -1261,6 +1253,17 @@ var MSEPlayer = function () {
           _logger.logger.log('WebSocket is in opened state, resuming');
           _this6._pause = false;
           _this6._resume(); // ws
+          if (_this6.pauseStarted) {
+            var player = _this6.playerStatsObject.player;
+
+            if (player) {
+              var pause_duration = player.pause_duration;
+
+              pause_duration += Date.now() - _this6.pauseStarted;
+              _this6.addPlayerStat('pause_duration', pause_duration);
+              delete _this6.pauseStarted;
+            }
+          }
         }
 
         _this6.playPromise = _this6.media.play();
@@ -1268,7 +1271,11 @@ var MSEPlayer = function () {
         return _this6.playPromise;
       }
 
-      // this.playTime = from
+      _this6.resetStats();
+      _this6.playerStatsObject.opened_at = Date.now();
+      _this6.uuid = _this6.generateUUID();
+      _this6.addStat({ opened_at: _this6.playerStatsObject.opened_at, id: _this6.uuid });
+
       _this6.videoTrack = videoTrack;
       _this6.audioTrack = audioTrack;
       _this6._pause = false;
@@ -1365,12 +1372,10 @@ var MSEPlayer = function () {
               _this6._play( /*from, */videoTrack, audioTrack);
             }
 
-            if (_this6.onError) {
-              _this6.onError({
-                error: 'play_promise_reject',
-                err: err
-              });
-            }
+            _this6.onPlayerError({
+              error: 'play_promise_reject',
+              err: err
+            });
 
             if (_this6.rejectThenMediaSourceOpen) {
               _this6.rejectThenMediaSourceOpen();
@@ -1471,18 +1476,8 @@ var MSEPlayer = function () {
       if (!_this8.media) {
         return reject('no media to detach');
       }
-
-      _this8.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, _this8.oncvp); // checkVideoProgress
-      _this8.media.removeEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, _this8.errorLog);
-      _this8.media.removeEventListener(_events2.default.MEDIA_ELEMENT_STALLED, _this8.errorLog);
-      _this8.media.removeEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, _this8.errorLog);
-      _this8.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, _this8.loadingIndication);
-      _this8.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, _this8.loadingIndication);
-      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
-
+      _this8.removeListeners();
       _this8.oncvp = null;
-      _this8.errorLog = null;
-
       _this8.mediaSource = null;
 
       _this8.init(true);
@@ -1493,13 +1488,6 @@ var MSEPlayer = function () {
         _this8.stopRunning = false;
         _this8._stop = true;
         delete _this8.playPromise;
-
-        _this8.onEvent({
-          key: Date.now(),
-          data: {
-            event: 'play_stop'
-          }
-        });
         return resolve();
       };
     });
@@ -1581,16 +1569,7 @@ var MSEPlayer = function () {
           _this10.onEvent(event);
         }
       };
-
-      this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
-
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_STALLED, this.eventLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_SUSPEND, this.eventLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_RATECHANGE, this.eventLog);
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this));
-      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this));
-      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this))
+      this.addListeners();
 
       if (this.liveError) {
         this.player = void 0;
@@ -1654,31 +1633,15 @@ var MSEPlayer = function () {
       return;
     }
 
+    if (!this.playerStatsObject.first_byte_at) {
+      this.playerStatsObject.first_byte_at = Date.now();
+      this.addStat({ first_byte_at: this.playerStatsObject.first_byte_at });
+    }
+
     var rawData = data.rawData,
         parsedData = data.parsedData,
         isDataAB = data.isDataAB;
-
     // mseUtils.logDM(isDataAB, parsedData)
-
-    var websocketLag = Date.now() - this.messageTime;
-    this.messageTime = Date.now();
-    if (this.opts.onMessage) {
-      this.opts.onMessage({
-        utc: Date.now(),
-        messageTimeDiff: websocketLag
-      });
-    }
-    if (this.retroviewWorker) {
-      this.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: {
-          key: Date.now(),
-          data: {
-            websocketLag: websocketLag
-          }
-        }
-      });
-    }
 
     try {
       // ArrayBuffer data
@@ -1734,11 +1697,9 @@ var MSEPlayer = function () {
                 }); // #6694
               }
               if (!this.liveError) {
-                if (this.opts.onError) {
-                  this.opts.onError({
-                    error: 'playPromise reject - stream unavaible'
-                  });
-                }
+                this.onPlayerError({
+                  error: 'playPromise reject - stream unavaible'
+                });
                 this.liveError = true;
               }
 
@@ -1769,7 +1730,7 @@ var MSEPlayer = function () {
       mseUtils.showDispatchError.bind(this)(err);
       try {
         if (this.media.error) {
-          this.onError && this.onError({
+          this.onPlayerError({
             error: 'Media error',
             mediaError: this.media.error
           });
@@ -1838,7 +1799,7 @@ var MSEPlayer = function () {
     var videoIndex = this.sb.videoTrackId && this.sb.videoTrackId.id - 1;
     if (streams[videoIndex] && streams[videoIndex]['track_id']) {
       if (streams[videoIndex].bitrate && streams[videoIndex].bitrate === 0 || streams[videoIndex].height === 0 || streams[videoIndex].width === 0) {
-        this.onError && this.onError({
+        this.onPlayerError({
           error: 'Video track error'
         });
         return;
@@ -1850,7 +1811,7 @@ var MSEPlayer = function () {
     if (audioIndex) {
       if (streams[audioIndex] && streams[audioIndex]['track_id']) {
         if (streams[audioIndex].bitrate && streams[audioIndex].bitrate === 0) {
-          this.onError && this.onError({
+          this.onPlayerError({
             error: 'Audio track error'
           });
           var idToDelete = void 0;
@@ -1871,7 +1832,9 @@ var MSEPlayer = function () {
       }
     }
 
-    var activeInfo = _extends({}, metadata, { activeStreams: activeStreams, version: MSEPlayer.version, xsid: data.session_id });
+    var activeInfo = _extends({}, metadata, { activeStreams: activeStreams, version: MSEPlayer.version });
+    this.playerStatsObject.source_id = data.session_id;
+    this.addStat({ source_id: this.playerStatsObject.source_id });
     this.doMediaInfo(activeInfo);
     _logger.logger.log('%cprocInitSegment:', 'background: lightpink;', data);
     this.onEvent({
@@ -1972,6 +1935,7 @@ var MSEPlayer = function () {
   MSEPlayer.prototype.onStartStalling = function onStartStalling() {
     var _this14 = this;
 
+    if (this._pause) return;
     if (!this.resetTimer) {
       this.resetTimer = setTimeout(function () {
         _this14.restart();
@@ -1985,6 +1949,10 @@ var MSEPlayer = function () {
     this._stalling = true;
     _logger.logger.log('onStartStalling');
 
+    if (this.playerStatsObject.started_at) {
+      this.addPlayerStat('stall_count');
+      this.startStallingTime = Date.now();
+    }
     this.onEvent({
       key: Date.now(),
       data: {
@@ -2003,6 +1971,18 @@ var MSEPlayer = function () {
 
     clearTimeout(this.resetTimer);
     this.resetTimer = void 0;
+
+    if (this.startStallingTime) {
+      var player = this.playerStatsObject.player;
+
+      if (player) {
+        var stall_duration = player.stall_duration;
+
+        stall_duration += Date.now() - this.startStallingTime;
+        this.startStallingTime = null;
+        this.addPlayerStat('stall_duration', stall_duration);
+      }
+    }
 
     this.onEvent({
       key: Date.now(),
@@ -2088,38 +2068,113 @@ var MSEPlayer = function () {
     if (type === 'playing') {
       this.playing = true;
       this.onEndStalling();
-      if (this.stallingStartTime) {
-        if (this.retroviewWorker) {
-          this.retroviewWorker.postMessage({
-            command: 'add',
-            commandObj: {
-              key: Date.now(),
-              data: {
-                stallingTime: performance.now() - this.stallingStartTime
-              }
-            }
-          });
-        }
-        delete this.stallingStartTime;
+
+      if (!this.playerStatsObject.started_at) {
+        this.playerStatsObject.started_at = Date.now();
+        this.addStat({ started_at: this.playerStatsObject.started_at });
       }
+      this.playbackSegmentStart = Date.now();
     } else if (type === 'waiting') {
       this.playing = false;
-      this.stallingStartTime = performance.now();
       this.onStartStalling();
+      delete this.playbackSegmentStart;
     }
   };
 
   MSEPlayer.prototype.onEvent = function onEvent(event) {
-    if (this.retroviewWorker) {
-      this.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: event
-      });
-    }
-
     if (this.onEventCallback) {
       this.onEventCallback(event);
     }
+  };
+
+  MSEPlayer.prototype.onPlayerError = function onPlayerError(errorData) {
+    if (this.playerStatsObject) {
+      this.addPlayerStat('error_count');
+    }
+
+    this.onError && this.onError(errorData);
+  };
+
+  MSEPlayer.prototype.addListeners = function addListeners() {
+    if (this.media) {
+      // checkVideoProgress
+      this.oncvp = mseUtils.checkVideoProgress(this.media, this).bind(this);
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.loadingIndication.bind(this));
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.loadingIndication.bind(this));
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.loadingIndication.bind(this));
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this));
+      this.media.addEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this));
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this));
+    }
+  };
+
+  MSEPlayer.prototype.removeListeners = function removeListeners() {
+    if (this.media) {
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.loadingIndication.bind(this));
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.loadingIndication.bind(this));
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.loadingIndication.bind(this));
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_PLAYING, this.loadingIndication);
+      this.media.removeEventListener(_events2.default.MEDIA_ELEMENT_WAITING, this.loadingIndication);
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
+    }
+  };
+
+  MSEPlayer.prototype.generateUUID = function generateUUID() {
+    // Public Domain/MIT
+    var d = new Date().getTime(); //Timestamp
+    var d2 = typeof performance !== 'undefined' && performance.now && performance.now() * 1000 || 0; //Time in microseconds since page-load or 0 if unsupported
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16; //random number between 0 and 16
+      if (d > 0) {
+        //Use timestamp until depleted
+        r = (d + r) % 16 | 0;
+        d = Math.floor(d / 16);
+      } else {
+        //Use microseconds since page-load if supported
+        r = (d2 + r) % 16 | 0;
+        d2 = Math.floor(d2 / 16);
+      }
+      return (c === 'x' ? r : r & 0x3 | 0x8).toString(16);
+    });
+  };
+
+  MSEPlayer.prototype.addPlayerStat = function addPlayerStat(name) {
+    var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+    var player = this.playerStatsObject.player;
+
+    if (player) {
+      if (data) {
+        player[name] = data;
+      } else {
+        player[name]++;
+      }
+      this.playerStatsObject.player = player;
+      this.addStat({ player: player });
+    }
+  };
+
+  MSEPlayer.prototype.addStat = function addStat(data) {
+    this.statsWorker && this.statsWorker.postMessage({
+      command: 'add',
+      commandObj: data
+    });
+  };
+
+  MSEPlayer.prototype.getStats = function getStats() {
+    return _extends({}, this.playerStatsObject, {
+      id: this.uuid
+    });
+  };
+
+  MSEPlayer.prototype.onStatsWorkerMessage = function onStatsWorkerMessage(message) {
+    if (!this.opts.statsSendEnable) return;
+    var data = message.data;
+
+    this.ws.sendStats(data);
   };
 
   return MSEPlayer;
@@ -2283,6 +2338,12 @@ var WebSocketController = function () {
     var audioTrack = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
 
     this.send('set_tracks=' + videoTrack + audioTrack);
+  };
+
+  WebSocketController.prototype.sendStats = function sendStats(data) {
+    // console.log(data);
+    var encoded = JSON.stringify(data);
+    this.send(encoded);
   };
 
   WebSocketController.prototype.handleReceiveMessage = function handleReceiveMessage(e) {
@@ -4191,8 +4252,8 @@ var BuffersController = function () {
     this.segmentsVideo = [];
     this.segmentsAudio = [];
     this.sourceBuffer = {};
-    this.audioBufferSize = 0;
-    this.videoBufferSize = 0;
+    // this.audioBufferSize = 0;
+    // this.videoBufferSize = 0;
     this.totalBytesCollected = 0;
   };
 
@@ -4207,6 +4268,9 @@ var BuffersController = function () {
     data.tracks.forEach(function (s) {
       var isVideo = s.content === _common.VIDEO;
       var mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+      if (s.mime_type) {
+        mimeType = s.mime_type;
+      }
 
       sb[s.content] = _this.mediaSource.addSourceBuffer(mimeType);
       sb[s.content].mode = BUFFER_MODE_SEQUENCE;
@@ -4264,7 +4328,7 @@ var BuffersController = function () {
         var segment = this.segmentsAudio[0];
         buffer.appendBuffer(segment.data);
         this.segmentsAudio.shift();
-        this.audioBufferSize = this.audioBufferSize - segment.data.byteLength;
+        // this.audioBufferSize = this.audioBufferSize - segment.data.byteLength;
         this.appended++;
       }
     }
@@ -4339,10 +4403,10 @@ var BuffersController = function () {
     var segment = this.rawDataToSegmnet(rawData);
     if (segment.type === 'audio') {
       this.segmentsAudio.push(segment);
-      this.audioBufferSize = this.audioBufferSize + segment.data.byteLength;
+      // this.audioBufferSize = this.audioBufferSize + segment.data.byteLength;
     } else {
       this.segmentsVideo.push(segment);
-      this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
+      // this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
     }
     this.totalBytesCollected = this.totalBytesCollected + segment.data.byteLength;
 
@@ -4606,7 +4670,7 @@ var _inline2 = _interopRequireDefault(_inline);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function Worker_fn() {
-  return (0, _inline2.default)("/******/ (function(modules) { // webpackBootstrap\n/******/ \t// The module cache\n/******/ \tvar installedModules = {};\n/******/\n/******/ \t// The require function\n/******/ \tfunction __webpack_require__(moduleId) {\n/******/\n/******/ \t\t// Check if module is in cache\n/******/ \t\tif(installedModules[moduleId]) {\n/******/ \t\t\treturn installedModules[moduleId].exports;\n/******/ \t\t}\n/******/ \t\t// Create a new module (and put it into the cache)\n/******/ \t\tvar module = installedModules[moduleId] = {\n/******/ \t\t\ti: moduleId,\n/******/ \t\t\tl: false,\n/******/ \t\t\texports: {}\n/******/ \t\t};\n/******/\n/******/ \t\t// Execute the module function\n/******/ \t\tmodules[moduleId].call(module.exports, module, module.exports, __webpack_require__);\n/******/\n/******/ \t\t// Flag the module as loaded\n/******/ \t\tmodule.l = true;\n/******/\n/******/ \t\t// Return the exports of the module\n/******/ \t\treturn module.exports;\n/******/ \t}\n/******/\n/******/\n/******/ \t// expose the modules object (__webpack_modules__)\n/******/ \t__webpack_require__.m = modules;\n/******/\n/******/ \t// expose the module cache\n/******/ \t__webpack_require__.c = installedModules;\n/******/\n/******/ \t// define getter function for harmony exports\n/******/ \t__webpack_require__.d = function(exports, name, getter) {\n/******/ \t\tif(!__webpack_require__.o(exports, name)) {\n/******/ \t\t\tObject.defineProperty(exports, name, { enumerable: true, get: getter });\n/******/ \t\t}\n/******/ \t};\n/******/\n/******/ \t// define __esModule on exports\n/******/ \t__webpack_require__.r = function(exports) {\n/******/ \t\tif(typeof Symbol !== 'undefined' && Symbol.toStringTag) {\n/******/ \t\t\tObject.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });\n/******/ \t\t}\n/******/ \t\tObject.defineProperty(exports, '__esModule', { value: true });\n/******/ \t};\n/******/\n/******/ \t// create a fake namespace object\n/******/ \t// mode & 1: value is a module id, require it\n/******/ \t// mode & 2: merge all properties of value into the ns\n/******/ \t// mode & 4: return value when already ns object\n/******/ \t// mode & 8|1: behave like require\n/******/ \t__webpack_require__.t = function(value, mode) {\n/******/ \t\tif(mode & 1) value = __webpack_require__(value);\n/******/ \t\tif(mode & 8) return value;\n/******/ \t\tif((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;\n/******/ \t\tvar ns = Object.create(null);\n/******/ \t\t__webpack_require__.r(ns);\n/******/ \t\tObject.defineProperty(ns, 'default', { enumerable: true, value: value });\n/******/ \t\tif(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));\n/******/ \t\treturn ns;\n/******/ \t};\n/******/\n/******/ \t// getDefaultExport function for compatibility with non-harmony modules\n/******/ \t__webpack_require__.n = function(module) {\n/******/ \t\tvar getter = module && module.__esModule ?\n/******/ \t\t\tfunction getDefault() { return module['default']; } :\n/******/ \t\t\tfunction getModuleExports() { return module; };\n/******/ \t\t__webpack_require__.d(getter, 'a', getter);\n/******/ \t\treturn getter;\n/******/ \t};\n/******/\n/******/ \t// Object.prototype.hasOwnProperty.call\n/******/ \t__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };\n/******/\n/******/ \t// __webpack_public_path__\n/******/ \t__webpack_require__.p = \"\";\n/******/\n/******/\n/******/ \t// Load entry module and return exports\n/******/ \treturn __webpack_require__(__webpack_require__.s = 0);\n/******/ })\n/************************************************************************/\n/******/ ([\n/* 0 */\n/***/ (function(module, exports) {\n\n(function () {\n  let retroviewURL = null;\n  let sendTime = 60000;\n  let jsonTable = {};\n  let sendingInterval = null;\n\n  self.addEventListener(\n    'message',\n    function (e) {\n      let data = e.data;\n      //Get command parameter to identify operation\n      const { command, commandObj } = data;\n      switch (command) {\n        case 'start':\n          retroviewURL = commandObj;\n          start();\n          break;\n        case 'time':\n          correctSendTime(commandObj);\n          break;\n        case 'stop':\n          stop();\n          break;\n        case 'add':\n          addToTable(commandObj);\n          break;\n        default:\n          break;\n      }\n    },\n    false\n  );\n\n  function correctSendTime(time) {\n    sendTime = time;\n  }\n\n  function start() {\n    sendingInterval = this.setInterval(() => {\n      post();\n    }, sendTime);\n  }\n\n  function stop() {\n    clearInterval(sendingInterval);\n    post();\n  }\n\n  function addToTable(tData) {\n    const { key, data } = tData;\n    if (key in jsonTable) {\n      jsonTable = { ...jsonTable, [key]: { ...jsonTable[key], ...data } };\n    } else {\n      jsonTable = { ...jsonTable, ...tData };\n    }\n    if (data.event && data.event === 'play_stop') {\n      stop();\n    }\n  }\n\n  function roughSizeOfObject(object) {\n    let objectList = [];\n    let stack = [object];\n    let bytes = 0;\n\n    while (stack.length) {\n      let value = stack.pop();\n\n      if (typeof value === 'boolean') {\n        bytes += 4;\n      } else if (typeof value === 'string') {\n        bytes += value.length * 2;\n      } else if (typeof value === 'number') {\n        bytes += 8;\n      } else if (\n        typeof value === 'object' &&\n        objectList.indexOf(value) === -1\n      ) {\n        objectList.push(value);\n\n        for (let i in value) {\n          stack.push(value[i]);\n        }\n      }\n    }\n    return bytes;\n  }\n\n  function post() {\n    console.log('post', {\n      jsonTable,\n      sendTime,\n      tableSize: roughSizeOfObject(jsonTable),\n    });\n  }\n})();\n\n\n/***/ })\n/******/ ]);", "Worker", undefined, __webpack_require__.p + "retroview.worker.js");
+  return (0, _inline2.default)("/******/ (function(modules) { // webpackBootstrap\n/******/ \t// The module cache\n/******/ \tvar installedModules = {};\n/******/\n/******/ \t// The require function\n/******/ \tfunction __webpack_require__(moduleId) {\n/******/\n/******/ \t\t// Check if module is in cache\n/******/ \t\tif(installedModules[moduleId]) {\n/******/ \t\t\treturn installedModules[moduleId].exports;\n/******/ \t\t}\n/******/ \t\t// Create a new module (and put it into the cache)\n/******/ \t\tvar module = installedModules[moduleId] = {\n/******/ \t\t\ti: moduleId,\n/******/ \t\t\tl: false,\n/******/ \t\t\texports: {}\n/******/ \t\t};\n/******/\n/******/ \t\t// Execute the module function\n/******/ \t\tmodules[moduleId].call(module.exports, module, module.exports, __webpack_require__);\n/******/\n/******/ \t\t// Flag the module as loaded\n/******/ \t\tmodule.l = true;\n/******/\n/******/ \t\t// Return the exports of the module\n/******/ \t\treturn module.exports;\n/******/ \t}\n/******/\n/******/\n/******/ \t// expose the modules object (__webpack_modules__)\n/******/ \t__webpack_require__.m = modules;\n/******/\n/******/ \t// expose the module cache\n/******/ \t__webpack_require__.c = installedModules;\n/******/\n/******/ \t// define getter function for harmony exports\n/******/ \t__webpack_require__.d = function(exports, name, getter) {\n/******/ \t\tif(!__webpack_require__.o(exports, name)) {\n/******/ \t\t\tObject.defineProperty(exports, name, { enumerable: true, get: getter });\n/******/ \t\t}\n/******/ \t};\n/******/\n/******/ \t// define __esModule on exports\n/******/ \t__webpack_require__.r = function(exports) {\n/******/ \t\tif(typeof Symbol !== 'undefined' && Symbol.toStringTag) {\n/******/ \t\t\tObject.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });\n/******/ \t\t}\n/******/ \t\tObject.defineProperty(exports, '__esModule', { value: true });\n/******/ \t};\n/******/\n/******/ \t// create a fake namespace object\n/******/ \t// mode & 1: value is a module id, require it\n/******/ \t// mode & 2: merge all properties of value into the ns\n/******/ \t// mode & 4: return value when already ns object\n/******/ \t// mode & 8|1: behave like require\n/******/ \t__webpack_require__.t = function(value, mode) {\n/******/ \t\tif(mode & 1) value = __webpack_require__(value);\n/******/ \t\tif(mode & 8) return value;\n/******/ \t\tif((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;\n/******/ \t\tvar ns = Object.create(null);\n/******/ \t\t__webpack_require__.r(ns);\n/******/ \t\tObject.defineProperty(ns, 'default', { enumerable: true, value: value });\n/******/ \t\tif(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));\n/******/ \t\treturn ns;\n/******/ \t};\n/******/\n/******/ \t// getDefaultExport function for compatibility with non-harmony modules\n/******/ \t__webpack_require__.n = function(module) {\n/******/ \t\tvar getter = module && module.__esModule ?\n/******/ \t\t\tfunction getDefault() { return module['default']; } :\n/******/ \t\t\tfunction getModuleExports() { return module; };\n/******/ \t\t__webpack_require__.d(getter, 'a', getter);\n/******/ \t\treturn getter;\n/******/ \t};\n/******/\n/******/ \t// Object.prototype.hasOwnProperty.call\n/******/ \t__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };\n/******/\n/******/ \t// __webpack_public_path__\n/******/ \t__webpack_require__.p = \"\";\n/******/\n/******/\n/******/ \t// Load entry module and return exports\n/******/ \treturn __webpack_require__(__webpack_require__.s = 0);\n/******/ })\n/************************************************************************/\n/******/ ([\n/* 0 */\n/***/ (function(module, exports) {\n\n(function () {\n  let statsURL = null;\n  let sendTime = 60000;\n  let jsonTable = {};\n  let sendingInterval = null;\n\n  self.addEventListener(\n    'message',\n    function (e) {\n      let data = e.data;\n      //Get command parameter to identify operation\n      const { command, commandObj } = data;\n      switch (command) {\n        case 'start':\n          statsURL = commandObj\n            .replace(/ws:/, 'http:')\n            .replace(/wss:/, 'https:')\n            .replace(/mse_ld/, 'session');\n          start();\n          break;\n        case 'time':\n          correctSendTime(commandObj);\n          break;\n        case 'stop':\n          stop();\n          break;\n        case 'add':\n          addToTable(commandObj);\n          break;\n        default:\n          break;\n      }\n    },\n    false\n  );\n\n  function correctSendTime(time) {\n    sendTime = time;\n  }\n\n  function start() {\n    sendingInterval = this.setInterval(() => {\n      post();\n    }, sendTime);\n  }\n\n  function stop() {\n    clearInterval(sendingInterval);\n  }\n\n  function addToTable(data) {\n    jsonTable = { ...jsonTable, ...data };\n\n    if (data.event && data.event === 'play_stop') {\n      stop();\n    }\n  }\n\n  // function roughSizeOfObject(object) {\n  //   let objectList = [];\n  //   let stack = [object];\n  //   let bytes = 0;\n\n  //   while (stack.length) {\n  //     let value = stack.pop();\n\n  //     if (typeof value === 'boolean') {\n  //       bytes += 4;\n  //     } else if (typeof value === 'string') {\n  //       bytes += value.length * 2;\n  //     } else if (typeof value === 'number') {\n  //       bytes += 8;\n  //     } else if (typeof value === 'object' && objectList.indexOf(value) === -1) {\n  //       objectList.push(value);\n\n  //       for (let i in value) {\n  //         stack.push(value[i]);\n  //       }\n  //     }\n  //   }\n  //   return bytes;\n  // }\n\n  function post() {\n    fetch(statsURL, {\n      headers: {\n        Accept: 'application/json',\n        'Content-Type': 'application/json',\n      },\n      method: 'PUT',\n      body: JSON.stringify(jsonTable),\n    });\n  }\n})();\n\n\n/***/ })\n/******/ ]);", "Worker", undefined, __webpack_require__.p + "stats.worker.js");
 }
 module.exports = exports["default"];
 

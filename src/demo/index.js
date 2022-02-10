@@ -74,9 +74,9 @@ function onLoad() {
     videoQuality,
     progressUpdateTime: 100,
     wsReconnect: false,
-    retroviewURL: 'testURL',
-    retroviewSendTime: 40000,
-    sentryConfig: 'https://f2440c6bf8744ed6a11acd097770dc45@sentry.flussonic.com/6',
+    statsSendEnable: false,
+    statsSendTime: 20000,
+    // sentryConfig: 'https://*some sentry instance*',
     onStartStalling: () => {
       showStallingIndicator('start stalling');
       loading.classList.add('visible');

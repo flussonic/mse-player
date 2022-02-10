@@ -1,7 +1,7 @@
 import WebSocketController from '../controllers/ws';
 import BuffersController from '../controllers/buffers';
 // import MediaSourceController from '../controllers/mediaSource'
-import Worker from '../workers/retroview.worker.js';
+import Worker from '../workers/stats.worker.js';
 
 import * as mseUtils from '../utils/mseUtils';
 import { logger, enableLogs } from '../utils/logger';
@@ -30,6 +30,7 @@ const DEFAULT_RETRY_MUTED = false;
 // const DEFAULT_FORCE_UNMUTED = false;
 const MAX_BUFFER_DELAY = 2;
 const DEFAULT_ON_CRASH_TRY_VIDEO_ONLY = true;
+const DEFAULT_STATS_SEND = false;
 
 export default class MSEPlayer {
   static get version() {
@@ -147,29 +148,56 @@ export default class MSEPlayer {
       };
     }
 
-    if (this.opts.retroviewURL) {
-      if (window.Worker) {
-        this.retroviewWorker = new Worker();
-        // this.retroviewWorker.onmessage = this.onretroviewWorkerMessage.bind(this)
+    // Stats block start
+    this.resetStats = () => {
+      this.playerStatsObject = {
+        proto: 'mseld',
+        user_agent: navigator.userAgent,
+        bytes: 0,
+        // player info
+        player: {
+          player_type: 'mseld_player',
+          player_version: MSEPlayer.version,
+          // counts
+          stall_count: 0,
+          pause_count: 0,
+          error_count: 0,
+          reconnect_count: 0,
+          bitrate_change_count: 0,
+          // durations
+          playback_duration: 0,
+          stall_duration: 0,
+          pause_duration: 0,
+          bytes_played: 0,
+        },
+      };
+      this.addStat(this.playerStatsObject);
+    };
 
-        if (this.opts.retroviewSendTime) {
-          this.retroviewWorker.postMessage({
-            command: 'time',
-            commandObj: this.opts.retroviewSendTime,
-          });
+    this.opts.statsSendEnable = this.opts.statsSendEnable ? this.opts.statsSendEnable : DEFAULT_STATS_SEND;
+    if (typeof this.opts.maxBufferDelay !== 'number') {
+      throw new Error('invalid maxBufferDelay param, should be number');
+    }
+
+    if (window.Worker) {
+      this.statsWorker = new Worker();
+      this.statsWorker.onmessage = this.onStatsWorkerMessage.bind(this);
+
+      if (this.opts.statsSendTime) {
+        if (typeof this.opts.statsSendTime !== 'number') {
+          throw new Error('invalid statsSendTime param, should be number');
         }
-        this.retroviewWorker.postMessage({
-          command: 'start',
-          commandObj: this.opts.retroviewURL,
-        });
-
-        const options = JSON.stringify(this.opts);
-        this.retroviewWorker.postMessage({
-          command: 'add',
-          commandObj: { key: Date.now(), data: { options } },
+        this.statsWorker.postMessage({
+          command: 'time',
+          commandObj: this.opts.statsSendTime,
         });
       }
+      this.statsWorker.postMessage({
+        command: 'start',
+        commandObj: this.url,
+      });
     }
+    // Stats block end
 
     this.onProgress = opts && opts.onProgress;
     if (opts && opts.onDisconnect) {
@@ -193,9 +221,6 @@ export default class MSEPlayer {
       // iOS autoplay with no fullscreen fix
       media.WebKitPlaysInline = true;
       media.controls = false;
-      // media.onerror = () => {
-      //   this.stop();
-      // };
     }
 
     this.ws = new WebSocketController({
@@ -236,9 +261,7 @@ export default class MSEPlayer {
         }
       })
       .catch((error) => {
-        if (this.onError) {
-          this.onError(error);
-        }
+        this.onPlayerError(error);
         logger.error('[mse-player]: got error on play', error);
         this.playing = false;
       });
@@ -246,6 +269,23 @@ export default class MSEPlayer {
 
   stop() {
     if (this.playPromise) {
+      this.onEvent({
+        key: Date.now(),
+        data: {
+          event: 'play_stop',
+        },
+      });
+      this.playerStatsObject.closed_at = Date.now();
+      this.addStat({
+        closed_at: this.playerStatsObject.closed_at,
+      });
+      this.addStat({
+        event: 'play_stop',
+      });
+      if (this.opts.statsSendEnable) {
+        this.ws.sendStats(this.getStats());
+      }
+
       this.playPromise
         .catch(() => {
           if (this.resetTimer) {
@@ -273,27 +313,9 @@ export default class MSEPlayer {
       logger.log('[mse-player]: no playPromise exists, nothing to stop');
     }
     this.firstStart = true;
+    delete this.playbackSegmentStart;
+    delete this.uuid;
   }
-
-  // seek(utc) {
-  //   if (this.playing) {
-  //     try {
-  //       if (!utc) {
-  //         throw new Error('utc should be "live" or UTC value')
-  //       }
-  //       this.ws.seek(utc)
-  //       this.sb.seek()
-  //       this.onStartStalling()
-  //       // need for determine old frames
-  //       this.seekValue = utc
-  //       this.media.pause()
-  //       this._pause = true
-  //       this.playing = false
-  //     } catch (err) {
-  //       logger.warn(`seek:${err.message}`)
-  //     }
-  //   }
-  // }
 
   pause() {
     if (!canPause.bind(this)()) {
@@ -308,23 +330,15 @@ export default class MSEPlayer {
       this._pause = true;
       this.playing = false;
 
+      this.addPlayerStat('pause_count');
+      this.pauseStarted = Date.now();
+
       if (this.onPause) {
         try {
           this.onPause();
         } catch (e) {
           logger.error('Error ' + e.name + ':' + e.message + '\n' + e.stack);
         }
-      }
-      if (this.retroviewWorker) {
-        this.retroviewWorker.postMessage({
-          command: 'add',
-          commandObj: {
-            key: Date.now(),
-            data: {
-              event: 'play_pause',
-            },
-          },
-        });
       }
     }
 
@@ -351,6 +365,8 @@ export default class MSEPlayer {
     this.ws.destroy();
     this.ws.init();
     this.ws.start(this.url, from, this.videoTrack, this.audioTrack);
+
+    this.addPlayerStat('reconnect_count');
     this.onEndStalling();
   }
 
@@ -365,7 +381,7 @@ export default class MSEPlayer {
     this.ws.destroy();
     this.sb.destroy();
 
-    this.play(/*time, */ videoTrack, audioTrack).then(() => {
+    this.play(videoTrack, audioTrack).then(() => {
       this.onEndStalling();
     });
     this.retry = this.retry + 1;
@@ -449,18 +465,7 @@ export default class MSEPlayer {
     this.onStartStalling();
     this.ws.setTracks(videoTracksStr, audioTracksStr);
 
-    if (this.retroviewWorker) {
-      this.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: {
-          key: Date.now(),
-          data: {
-            event: 'play_options',
-            selectedTracks: { videoTracksStr, audioTracksStr },
-          },
-        },
-      });
-    }
+    this.addPlayerStat('bitrate_change_count');
 
     this.videoTrack = videoTracksStr;
     this.audioTrack = audioTracksStr;
@@ -547,10 +552,10 @@ export default class MSEPlayer {
    *
    */
 
-  _play(/*from, */ videoTrack, audioTrack) {
+  _play(videoTrack, audioTrack) {
     this.liveError = false;
     return new Promise((resolve, reject) => {
-      logger.log('_play', /*from, */ videoTrack, audioTrack);
+      logger.log('_play', videoTrack, audioTrack);
       if (this.playing) {
         const message = '[mse-player] _play: terminate because already has been playing';
         logger.log(message);
@@ -571,6 +576,15 @@ export default class MSEPlayer {
           logger.log('WebSocket is in opened state, resuming');
           this._pause = false;
           this._resume(); // ws
+          if (this.pauseStarted) {
+            const { player } = this.playerStatsObject;
+            if (player) {
+              let { pause_duration } = player;
+              pause_duration += Date.now() - this.pauseStarted;
+              this.addPlayerStat('pause_duration', pause_duration);
+              delete this.pauseStarted;
+            }
+          }
         }
 
         this.playPromise = this.media.play();
@@ -578,7 +592,11 @@ export default class MSEPlayer {
         return this.playPromise;
       }
 
-      // this.playTime = from
+      this.resetStats();
+      this.playerStatsObject.opened_at = Date.now();
+      this.uuid = this.generateUUID();
+      this.addStat({ opened_at: this.playerStatsObject.opened_at, id: this.uuid });
+
       this.videoTrack = videoTrack;
       this.audioTrack = audioTrack;
       this._pause = false;
@@ -675,12 +693,10 @@ export default class MSEPlayer {
                 this._play(/*from, */ videoTrack, audioTrack);
               }
 
-              if (this.onError) {
-                this.onError({
-                  error: 'play_promise_reject',
-                  err,
-                });
-              }
+              this.onPlayerError({
+                error: 'play_promise_reject',
+                err,
+              });
 
               if (this.rejectThenMediaSourceOpen) {
                 this.rejectThenMediaSourceOpen();
@@ -776,18 +792,8 @@ export default class MSEPlayer {
       if (!this.media) {
         return reject('no media to detach');
       }
-
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp); // checkVideoProgress
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.errorLog);
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.errorLog);
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.errorLog);
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication);
-      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication);
-      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
-
+      this.removeListeners();
       this.oncvp = null;
-      this.errorLog = null;
-
       this.mediaSource = null;
 
       this.init(true);
@@ -798,13 +804,6 @@ export default class MSEPlayer {
         this.stopRunning = false;
         this._stop = true;
         delete this.playPromise;
-
-        this.onEvent({
-          key: Date.now(),
-          data: {
-            event: 'play_stop',
-          },
-        });
         return resolve();
       };
     });
@@ -885,16 +884,7 @@ export default class MSEPlayer {
           this.onEvent(event);
         }
       };
-
-      this.oncvp = mseUtils.checkVideoProgress(media, this).bind(this);
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp);
-
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.eventLog);
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.eventLog);
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.eventLog);
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this));
-      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this));
-      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this))
+      this.addListeners();
 
       if (this.liveError) {
         this.player = void 0;
@@ -959,29 +949,13 @@ export default class MSEPlayer {
       return;
     }
 
+    if (!this.playerStatsObject.first_byte_at) {
+      this.playerStatsObject.first_byte_at = Date.now();
+      this.addStat({ first_byte_at: this.playerStatsObject.first_byte_at });
+    }
+
     const { rawData, parsedData, isDataAB } = data;
-
     // mseUtils.logDM(isDataAB, parsedData)
-
-    const websocketLag = Date.now() - this.messageTime;
-    this.messageTime = Date.now();
-    if (this.opts.onMessage) {
-      this.opts.onMessage({
-        utc: Date.now(),
-        messageTimeDiff: websocketLag,
-      });
-    }
-    if (this.retroviewWorker) {
-      this.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: {
-          key: Date.now(),
-          data: {
-            websocketLag,
-          },
-        },
-      });
-    }
 
     try {
       // ArrayBuffer data
@@ -1039,11 +1013,9 @@ export default class MSEPlayer {
                 this.ws.connectionPromise.then(() => this.ws.pause()); // #6694
               }
               if (!this.liveError) {
-                if (this.opts.onError) {
-                  this.opts.onError({
-                    error: 'playPromise reject - stream unavaible',
-                  });
-                }
+                this.onPlayerError({
+                  error: 'playPromise reject - stream unavaible',
+                });
                 this.liveError = true;
               }
 
@@ -1074,11 +1046,10 @@ export default class MSEPlayer {
       mseUtils.showDispatchError.bind(this)(err);
       try {
         if (this.media.error) {
-          this.onError &&
-            this.onError({
-              error: 'Media error',
-              mediaError: this.media.error,
-            });
+          this.onPlayerError({
+            error: 'Media error',
+            mediaError: this.media.error,
+          });
           this.stop();
         } else {
           if (this.mediaInfo && this.mediaInfo.activeStreams) {
@@ -1149,10 +1120,9 @@ export default class MSEPlayer {
         streams[videoIndex].height === 0 ||
         streams[videoIndex].width === 0
       ) {
-        this.onError &&
-          this.onError({
-            error: 'Video track error',
-          });
+        this.onPlayerError({
+          error: 'Video track error',
+        });
         return;
       }
       activeStreams.video = streams[videoIndex]['track_id'];
@@ -1162,10 +1132,9 @@ export default class MSEPlayer {
     if (audioIndex) {
       if (streams[audioIndex] && streams[audioIndex]['track_id']) {
         if (streams[audioIndex].bitrate && streams[audioIndex].bitrate === 0) {
-          this.onError &&
-            this.onError({
-              error: 'Audio track error',
-            });
+          this.onPlayerError({
+            error: 'Audio track error',
+          });
           let idToDelete;
           data.tracks.forEach((item, index) => {
             if (item.id === this.sb.audioTrackId.id) {
@@ -1184,7 +1153,9 @@ export default class MSEPlayer {
       }
     }
 
-    const activeInfo = { ...metadata, activeStreams, version: MSEPlayer.version, xsid: data.session_id };
+    const activeInfo = { ...metadata, activeStreams, version: MSEPlayer.version };
+    this.playerStatsObject.source_id = data.session_id;
+    this.addStat({ source_id: this.playerStatsObject.source_id });
     this.doMediaInfo(activeInfo);
     logger.log('%cprocInitSegment:', 'background: lightpink;', data);
     this.onEvent({
@@ -1279,6 +1250,7 @@ export default class MSEPlayer {
   }
 
   onStartStalling() {
+    if (this._pause) return;
     if (!this.resetTimer) {
       this.resetTimer = setTimeout(() => {
         this.restart();
@@ -1292,6 +1264,10 @@ export default class MSEPlayer {
     this._stalling = true;
     logger.log('onStartStalling');
 
+    if (this.playerStatsObject.started_at) {
+      this.addPlayerStat('stall_count');
+      this.startStallingTime = Date.now();
+    }
     this.onEvent({
       key: Date.now(),
       data: {
@@ -1310,6 +1286,16 @@ export default class MSEPlayer {
 
     clearTimeout(this.resetTimer);
     this.resetTimer = void 0;
+
+    if (this.startStallingTime) {
+      const { player } = this.playerStatsObject;
+      if (player) {
+        let { stall_duration } = player;
+        stall_duration += Date.now() - this.startStallingTime;
+        this.startStallingTime = null;
+        this.addPlayerStat('stall_duration', stall_duration);
+      }
+    }
 
     this.onEvent({
       key: Date.now(),
@@ -1390,37 +1376,110 @@ export default class MSEPlayer {
     if (type === 'playing') {
       this.playing = true;
       this.onEndStalling();
-      if (this.stallingStartTime) {
-        if (this.retroviewWorker) {
-          this.retroviewWorker.postMessage({
-            command: 'add',
-            commandObj: {
-              key: Date.now(),
-              data: {
-                stallingTime: performance.now() - this.stallingStartTime,
-              },
-            },
-          });
-        }
-        delete this.stallingStartTime;
+
+      if (!this.playerStatsObject.started_at) {
+        this.playerStatsObject.started_at = Date.now();
+        this.addStat({ started_at: this.playerStatsObject.started_at });
       }
+      this.playbackSegmentStart = Date.now();
     } else if (type === 'waiting') {
       this.playing = false;
-      this.stallingStartTime = performance.now();
       this.onStartStalling();
+      delete this.playbackSegmentStart;
     }
   }
 
   onEvent(event) {
-    if (this.retroviewWorker) {
-      this.retroviewWorker.postMessage({
-        command: 'add',
-        commandObj: event,
-      });
-    }
-
     if (this.onEventCallback) {
       this.onEventCallback(event);
     }
+  }
+
+  onPlayerError(errorData) {
+    if (this.playerStatsObject) {
+      this.addPlayerStat('error_count');
+    }
+
+    this.onError && this.onError(errorData);
+  }
+
+  addListeners() {
+    if (this.media) {
+      // checkVideoProgress
+      this.oncvp = mseUtils.checkVideoProgress(this.media, this).bind(this);
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.loadingIndication.bind(this));
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.loadingIndication.bind(this));
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.loadingIndication.bind(this));
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication.bind(this));
+      this.media.addEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication.bind(this));
+      // this.media.addEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause.bind(this));
+    }
+  }
+  removeListeners() {
+    if (this.media) {
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PROGRESS, this.oncvp);
+
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_STALLED, this.loadingIndication.bind(this));
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_SUSPEND, this.loadingIndication.bind(this));
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_RATECHANGE, this.loadingIndication.bind(this));
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PLAYING, this.loadingIndication);
+      this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_WAITING, this.loadingIndication);
+      // this.media.removeEventListener(EVENTS.MEDIA_ELEMENT_PAUSE, this.pause)
+    }
+  }
+
+  generateUUID() {
+    // Public Domain/MIT
+    let d = new Date().getTime(); //Timestamp
+    let d2 = (typeof performance !== 'undefined' && performance.now && performance.now() * 1000) || 0; //Time in microseconds since page-load or 0 if unsupported
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      let r = Math.random() * 16; //random number between 0 and 16
+      if (d > 0) {
+        //Use timestamp until depleted
+        r = (d + r) % 16 | 0;
+        d = Math.floor(d / 16);
+      } else {
+        //Use microseconds since page-load if supported
+        r = (d2 + r) % 16 | 0;
+        d2 = Math.floor(d2 / 16);
+      }
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
+  }
+
+  addPlayerStat(name, data = null) {
+    const { player } = this.playerStatsObject;
+    if (player) {
+      if (data) {
+        player[name] = data;
+      } else {
+        player[name]++;
+      }
+      this.playerStatsObject.player = player;
+      this.addStat({ player });
+    }
+  }
+
+  addStat(data) {
+    this.statsWorker &&
+      this.statsWorker.postMessage({
+        command: 'add',
+        commandObj: data,
+      });
+  }
+
+  getStats() {
+    return {
+      ...this.playerStatsObject,
+      id: this.uuid,
+    };
+  }
+
+  onStatsWorkerMessage(message) {
+    if (!this.opts.statsSendEnable) return;
+    const { data } = message;
+    this.ws.sendStats(data);
   }
 }

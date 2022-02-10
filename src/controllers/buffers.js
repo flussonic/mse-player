@@ -27,8 +27,8 @@ export default class BuffersController {
     this.segmentsVideo = [];
     this.segmentsAudio = [];
     this.sourceBuffer = {};
-    this.audioBufferSize = 0;
-    this.videoBufferSize = 0;
+    // this.audioBufferSize = 0;
+    // this.videoBufferSize = 0;
     this.totalBytesCollected = 0;
   }
 
@@ -40,7 +40,10 @@ export default class BuffersController {
     const sb = this.sourceBuffer;
     data.tracks.forEach((s) => {
       const isVideo = s.content === VIDEO;
-      const mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+      let mimeType = isVideo ? 'video/mp4; codecs="avc1.4d401f"' : 'audio/mp4; codecs="mp4a.40.2"';
+      if (s.mime_type) {
+        mimeType = s.mime_type;
+      }
 
       sb[s.content] = this.mediaSource.addSourceBuffer(mimeType);
       sb[s.content].mode = BUFFER_MODE_SEQUENCE;
@@ -98,7 +101,7 @@ export default class BuffersController {
         const segment = this.segmentsAudio[0];
         buffer.appendBuffer(segment.data);
         this.segmentsAudio.shift();
-        this.audioBufferSize = this.audioBufferSize - segment.data.byteLength;
+        // this.audioBufferSize = this.audioBufferSize - segment.data.byteLength;
         this.appended++;
       }
     }
@@ -169,10 +172,10 @@ export default class BuffersController {
     const segment = this.rawDataToSegmnet(rawData);
     if (segment.type === 'audio') {
       this.segmentsAudio.push(segment);
-      this.audioBufferSize = this.audioBufferSize + segment.data.byteLength;
+      // this.audioBufferSize = this.audioBufferSize + segment.data.byteLength;
     } else {
       this.segmentsVideo.push(segment);
-      this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
+      // this.videoBufferSize = this.videoBufferSize + segment.data.byteLength;
     }
     this.totalBytesCollected = this.totalBytesCollected + segment.data.byteLength;
 

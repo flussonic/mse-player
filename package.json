@@ -1,6 +1,6 @@
 {
   "name": "@flussonic/flussonic-mse-player",
-  "version": "21.10.3",
+  "version": "22.2.1",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/FlussonicMsePlayer.js",
   "unpkg": "./dist/FlussonicMsePlayer.min.js",

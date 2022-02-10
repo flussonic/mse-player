@@ -72,6 +72,7 @@ export function debugData(rawData) {
 
   return { trackId, utc, view };
 }
+
 export const checkVideoProgress = (media, player) => () => {
   const {
     currentTime: ct,
@@ -159,7 +160,6 @@ export const checkVideoProgress = (media, player) => () => {
     return;
   }
   const endTime = buffered.end(l - 1);
-  // console.log(endTime - ct)
   const delay = Math.abs(endTime - ct);
   // if (player._stalling) {
   //   // player.onEndStalling()
@@ -178,43 +178,28 @@ export const checkVideoProgress = (media, player) => () => {
   //   }
   // }
 
-  // // logger.log('readyState', player.media.readyState)
-  if (player.retroviewWorker) {
-    player.retroviewWorker.postMessage({
-      command: 'add',
-      commandObj: {
-        key: Date.now(),
-        data: {
-          appended: player.sb.appended,
-          videoBuffer: player.sb.videoBufferSize,
-          audioBuffer: player.sb.audioBufferSize,
-          totalBytesCollected: player.sb.totalBytesCollected,
-          currentTime: ct,
-          endTime,
-          readyState: player.media.readyState,
-          networkState: player.media.networkState,
-        },
-      },
-    });
-  }
-  if (player.onStats) {
-    player.onStats({
-      timestamp: Date.now(),
-      appended: player.sb.appended,
-      videoBuffer: player.sb.videoBufferSize,
-      audioBuffer: player.sb.audioBufferSize,
-      totalBytesCollected: player.sb.totalBytesCollected,
-      // videoSegments: player.sb.segmentsVideo.length,
-      // audioSegments: player.sb.segmentsAudio.length,
-      currentTime: ct,
-      endTime,
-      readyState: player.media.readyState,
-      networkState: player.media.networkState,
+  if (player.playerStatsObject) {
+    player.playerStatsObject.bytes = player.sb.totalBytesCollected;
+    player.playerStatsObject.updated_at = Date.now();
+    if (player.playing) {
+      if (player.playbackSegmentStart) {
+        const { player: playerIns } = player.playerStatsObject;
+        if (playerIns) {
+          let { playback_duration } = playerIns;
+          playback_duration += player.playerStatsObject.updated_at - player.playbackSegmentStart;
+          player.addPlayerStat('playback_duration', playback_duration);
+        }
+      }
+      player.playbackSegmentStart = player.playerStatsObject.updated_at;
+    }
+
+    player.addStat({
+      updated_at: player.playerStatsObject.updated_at,
+      bytes: player.sb.totalBytesCollected,
     });
   }
 
   if (delay <= player.opts.maxBufferDelay) {
-    //   // console.log('lower the delay', delay, player.opts.maxBufferDelay)
     return;
   }
 

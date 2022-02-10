@@ -125,6 +125,12 @@ export default class WebSocketController {
     this.send(`set_tracks=${videoTrack}${audioTrack}`);
   }
 
+  sendStats(data) {
+    // console.log(data);
+    const encoded = JSON.stringify(data);
+    this.send(encoded);
+  }
+
   handleReceiveMessage(e) {
     this.opts.message(e);
   }
