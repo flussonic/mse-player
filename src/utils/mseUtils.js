@@ -183,11 +183,16 @@ export const checkVideoProgress = (media, player) => () => {
     player.playerStatsObject.updated_at = Date.now();
     if (player.playing) {
       if (player.playbackSegmentStart) {
-        const { player: playerIns } = player.playerStatsObject;
+        const { application: playerIns } = player.playerStatsObject;
         if (playerIns) {
-          let { playback_duration } = playerIns;
-          playback_duration += player.playerStatsObject.updated_at - player.playbackSegmentStart;
-          player.addPlayerStat('playback_duration', playback_duration);
+          const vQuality = player.media.getVideoPlaybackQuality();
+          const { corruptedVideoFrames, droppedVideoFrames, totalVideoFrames } = vQuality;
+          let { live_duration } = playerIns;
+          live_duration += player.playerStatsObject.updated_at - player.playbackSegmentStart;
+          player.addPlayerStat('live_duration', false, live_duration);
+          player.addPlayerStat('total_video_frames', false, totalVideoFrames);
+          player.addPlayerStat('dropped_video_frames', false, droppedVideoFrames);
+          player.addPlayerStat('corrupted_video_frames', false, corruptedVideoFrames);
         }
       }
       player.playbackSegmentStart = player.playerStatsObject.updated_at;
@@ -247,17 +252,19 @@ export function logDM(isDataAB, parsedData) {
 
 let errorsCount = 0;
 
-export function showDispatchError(e, err) {
-  const rawData = e.data;
-  const isDataAB = rawData instanceof ArrayBuffer;
-  logger.error(errorMsg(e), err);
-
-  if (this.media && this.media.error) {
-    logger.error('MediaError:', this.media.error);
+export function showDispatchError(e, err = '') {
+  if ('data' in e) {
+    const rawData = e.data;
+    const isDataAB = rawData instanceof ArrayBuffer;
+    if (isDataAB) {
+      logger.error('Data:', debugData(e.data));
+    }
   }
 
-  if (isDataAB) {
-    logger.error('Data:', debugData(e.data));
+  logger.error(errorMsg(e), err);
+
+  if (this.media && 'error' in this.media) {
+    logger.error('MediaError:', this.media.error);
   }
 
   errorsCount++;

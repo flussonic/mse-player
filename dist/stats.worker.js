@@ -105,7 +105,7 @@
           statsURL = commandObj
             .replace(/ws:/, 'http:')
             .replace(/wss:/, 'https:')
-            .replace(/mse_ld/, 'session');
+            .replace(/mse_ld/, 'sessions');
           start();
           break;
         case 'time':
@@ -135,6 +135,7 @@
   }
 
   function stop() {
+    post();
     clearInterval(sendingInterval);
   }
 
@@ -172,7 +173,8 @@
   // }
 
   function post() {
-    fetch(statsURL, {
+    const { source_id } = jsonTable;
+    fetch(statsURL + `${source_id ? `/${source_id}` : ''}`, {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',

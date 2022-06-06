@@ -1,6 +1,5 @@
 const path = require('path');
 const webpack = require('webpack');
-// const Clean = require('clean-webpack-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 // const HtmlWebPackPlugin = require('html-webpack-plugin');
 const WebpackBundleSizeAnalyzerPlugin = require('webpack-bundle-size-analyzer').WebpackBundleSizeAnalyzerPlugin;
@@ -15,10 +14,11 @@ module.exports = {
     'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
   },
   output: {
-    path: path.resolve(__dirname, 'dist/'),
-    filename: '[name].js',
     library: 'FlussonicMsePlayer',
     libraryTarget: 'umd',
+    path: path.resolve(__dirname, 'dist/'),
+    filename: '[name].js',
+    chunkFilename: 'scripts/[name].[hash].js',
   },
   plugins: [
     new webpack.DefinePlugin({
@@ -48,6 +48,33 @@ module.exports = {
     plugins: [new DirectoryNamedWebpackPlugin(true)],
   },
   optimization: {
+    splitChunks: {
+      chunks: 'async',
+      maxInitialRequests: Infinity,
+      minSize: 0,
+      cacheGroups: {
+        sentry: {
+          test: /node_modules[\\/]@sentry/,
+          name: 'sentry',
+          chunks: 'all',
+          priority: 1,
+        },
+        // parseurl: {
+        //   test: /node_modules[\\/]parseurl/,
+        //   name: 'parseurl',
+        //   chunks: 'all',
+        //   priority: 1,
+        // },
+        // commons: {
+        //   test: /[\\/]node_modules[\\/]/,
+        //   name: 'vendors',
+        //   chunks: 'all',
+        // },
+        default: {
+          reuseExistingChunk: true,
+        },
+      },
+    },
     minimize: true,
     minimizer: [
       new UglifyJsPlugin({
@@ -56,12 +83,11 @@ module.exports = {
         parallel: true,
         uglifyOptions: {
           compress: true,
-          ecma: 5,
-          mangle: true,
         },
         sourceMap: false,
       }),
     ],
+    removeAvailableModules: true,
   },
   devServer: {
     disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882

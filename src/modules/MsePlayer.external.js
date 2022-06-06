@@ -30,7 +30,7 @@ const DEFAULT_RETRY_MUTED = false;
 // const DEFAULT_FORCE_UNMUTED = false;
 const MAX_BUFFER_DELAY = 2;
 const DEFAULT_ON_CRASH_TRY_VIDEO_ONLY = true;
-const DEFAULT_STATS_SEND = false;
+const DEFAULT_STATS_SEND = true;
 
 export default class MSEPlayer {
   static get version() {
@@ -149,31 +149,6 @@ export default class MSEPlayer {
     }
 
     // Stats block start
-    this.resetStats = () => {
-      this.playerStatsObject = {
-        proto: 'mseld',
-        user_agent: navigator.userAgent,
-        bytes: 0,
-        // player info
-        player: {
-          player_type: 'mseld_player',
-          player_version: MSEPlayer.version,
-          // counts
-          stall_count: 0,
-          pause_count: 0,
-          error_count: 0,
-          reconnect_count: 0,
-          bitrate_change_count: 0,
-          // durations
-          playback_duration: 0,
-          stall_duration: 0,
-          pause_duration: 0,
-          bytes_played: 0,
-        },
-      };
-      this.addStat(this.playerStatsObject);
-    };
-
     this.opts.statsSendEnable = this.opts.statsSendEnable ? this.opts.statsSendEnable : DEFAULT_STATS_SEND;
     if (typeof this.opts.maxBufferDelay !== 'number') {
       throw new Error('invalid maxBufferDelay param, should be number');
@@ -189,14 +164,50 @@ export default class MSEPlayer {
         }
         this.statsWorker.postMessage({
           command: 'time',
-          commandObj: this.opts.statsSendTime,
+          commandObj: this.opts.statsSendTime * 1000,
         });
       }
       this.statsWorker.postMessage({
         command: 'start',
         commandObj: this.url,
       });
+      this.statsWorkerStarted = true;
     }
+
+    this.resetStats = () => {
+      this.playerStatsObject = {
+        proto: 'mseld',
+        user_agent: navigator.userAgent,
+        bytes: 0,
+        // player info
+        application: {
+          application_name: 'mseld_player',
+          application_version: MSEPlayer.version,
+          // counts
+          stall_count: 0,
+          pause_count: 0,
+          error_count: 0,
+          reconnect_count: 0,
+          bitrate_change_count: 0,
+          // durations
+          live_duration: 0,
+          stall_duration: 0,
+          pause_duration: 0,
+          // frames stats
+          total_video_frames: 0,
+          dropped_video_frames: 0,
+          corrupted_video_frames: 0,
+        },
+      };
+      this.addStat(this.playerStatsObject);
+      if (!this.statsWorkerStarted) {
+        this.statsWorker.postMessage({
+          command: 'start',
+          commandObj: this.url,
+        });
+        this.statsWorkerStarted = true;
+      }
+    };
     // Stats block end
 
     this.onProgress = opts && opts.onProgress;
@@ -279,11 +290,8 @@ export default class MSEPlayer {
       this.addStat({
         closed_at: this.playerStatsObject.closed_at,
       });
-      this.addStat({
-        event: 'play_stop',
-      });
       if (this.opts.statsSendEnable) {
-        this.ws.sendStats(this.getStats());
+        this.statsWorkerStarted = false;
       }
 
       this.playPromise
@@ -313,7 +321,6 @@ export default class MSEPlayer {
       logger.log('[mse-player]: no playPromise exists, nothing to stop');
     }
     this.firstStart = true;
-    delete this.playbackSegmentStart;
     delete this.uuid;
   }
 
@@ -577,11 +584,11 @@ export default class MSEPlayer {
           this._pause = false;
           this._resume(); // ws
           if (this.pauseStarted) {
-            const { player } = this.playerStatsObject;
-            if (player) {
-              let { pause_duration } = player;
+            const { application } = this.playerStatsObject;
+            if (application) {
+              let { pause_duration } = application;
               pause_duration += Date.now() - this.pauseStarted;
-              this.addPlayerStat('pause_duration', pause_duration);
+              this.addPlayerStat('pause_duration', false, pause_duration);
               delete this.pauseStarted;
             }
           }
@@ -1288,12 +1295,12 @@ export default class MSEPlayer {
     this.resetTimer = void 0;
 
     if (this.startStallingTime) {
-      const { player } = this.playerStatsObject;
-      if (player) {
-        let { stall_duration } = player;
+      const { application } = this.playerStatsObject;
+      if (application) {
+        let { stall_duration } = application;
         stall_duration += Date.now() - this.startStallingTime;
         this.startStallingTime = null;
-        this.addPlayerStat('stall_duration', stall_duration);
+        this.addPlayerStat('stall_duration', false, stall_duration);
       }
     }
 
@@ -1381,11 +1388,9 @@ export default class MSEPlayer {
         this.playerStatsObject.started_at = Date.now();
         this.addStat({ started_at: this.playerStatsObject.started_at });
       }
-      this.playbackSegmentStart = Date.now();
     } else if (type === 'waiting') {
       this.playing = false;
       this.onStartStalling();
-      delete this.playbackSegmentStart;
     }
   }
 
@@ -1449,16 +1454,16 @@ export default class MSEPlayer {
     });
   }
 
-  addPlayerStat(name, data = null) {
-    const { player } = this.playerStatsObject;
-    if (player) {
+  addPlayerStat(name, count = true, data = null) {
+    const { application } = this.playerStatsObject;
+    if (application) {
       if (data) {
-        player[name] = data;
-      } else {
-        player[name]++;
+        application[name] = Math.round(data);
+      } else if (count) {
+        application[name]++;
       }
-      this.playerStatsObject.player = player;
-      this.addStat({ player });
+      this.playerStatsObject.application = application;
+      this.addStat({ application });
     }
   }
 
@@ -1477,9 +1482,16 @@ export default class MSEPlayer {
     };
   }
 
-  onStatsWorkerMessage(message) {
-    if (!this.opts.statsSendEnable) return;
-    const { data } = message;
-    this.ws.sendStats(data);
+  onStatsWorkerMessage() {
+    if (this.opts.statsSendEnable) {
+      fetch(this.url + 'sessions/' + this.playerStatsObject.source_id, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        method: 'PUT',
+        body: JSON.stringify(this.getStats()),
+      });
+    }
   }
 }

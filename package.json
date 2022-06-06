@@ -1,6 +1,6 @@
 {
   "name": "@flussonic/flussonic-mse-player",
-  "version": "22.2.1",
+  "version": "22.6.1",
   "description": "Media Source Extension support for Flussonic.",
   "main": "./dist/FlussonicMsePlayer.js",
   "unpkg": "./dist/FlussonicMsePlayer.min.js",
@@ -32,7 +32,7 @@
     "babel-plugin-transform-es2015-classes": "^6.24.1",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-preset-env": "^1.6.0",
-    "clean-webpack-plugin": "^0.1.17",
+    "clean-webpack-plugin": "^4.0.0",
     "directory-named-webpack-plugin": "^4.0.0",
     "eslint": "7.2.0",
     "eslint-config-airbnb": "18.2.1",

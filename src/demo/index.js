@@ -7,7 +7,7 @@ window.onload = onLoad;
 function onLoad() {
   let streamer_ws = 'ws://localhost:8080';
   let stream_name = 'clock';
-  let videotrack, audiotrack, token, videoQuality;
+  let videotrack, audiotrack, token, videoQuality, statsSendEnable = false, statsSendTime = 60;
 
   // parse query string
   let query = window.location.search;
@@ -33,6 +33,12 @@ function onLoad() {
     }
     if (qs.videoQuality) {
       videoQuality = qs.videoQuality;
+    }
+    if (qs.statsSendEnable) {
+      statsSendEnable = qs.statsSendEnable === 'true' ? true : false;
+    }
+    if (qs.statsSendTime) {
+      statsSendTime = Number(qs.statsSendTime);
     }
   }
   let url = `${streamer_ws}/${stream_name}/mse_ld${token ? `?token=${token}` : ''}`;
@@ -74,8 +80,8 @@ function onLoad() {
     videoQuality,
     progressUpdateTime: 100,
     wsReconnect: false,
-    statsSendEnable: false,
-    statsSendTime: 20000,
+    statsSendEnable,
+    statsSendTime, // in seconds
     // sentryConfig: 'https://*some sentry instance*',
     onStartStalling: () => {
       showStallingIndicator('start stalling');

@@ -1,6 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
-// const Clean = require('clean-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 // const HtmlWebPackPlugin = require('html-webpack-plugin');
 const WebpackBundleSizeAnalyzerPlugin = require('webpack-bundle-size-analyzer').WebpackBundleSizeAnalyzerPlugin;
@@ -12,15 +12,16 @@ module.exports = {
   node: { Buffer: false, global: true, process: true, setImmediate: false },
   entry: {
     FlussonicMsePlayer: [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
-    'FlussonicMsePlayer.min': [path.resolve(__dirname, 'src/FlussonicMsePlayer.js')],
   },
   output: {
     path: path.resolve(__dirname, 'dist/'),
+    chunkFilename: 'scripts/[name].[hash].js',
     filename: '[name].sentry.js',
     library: 'FlussonicMsePlayer',
     libraryTarget: 'umd',
   },
   plugins: [
+    new CleanWebpackPlugin(),
     new webpack.DefinePlugin({
       VERSION: JSON.stringify(require('./package.json').version),
     }),
@@ -41,41 +42,41 @@ module.exports = {
     plugins: [new DirectoryNamedWebpackPlugin(true)],
   },
   optimization: {
-    // minimize: true,
-    // minimizer: [
-    //   new UglifyJsPlugin({
-    //     include: /\.min\.js$/,
-    //     cache: true,
-    //     parallel: 4,
-    //     uglifyOptions: {
-    //       compress: true,
-    //       ecma: 5,
-    //       mangle: true,
-    //     },
-    //     sourceMap: false,
-    //   }),
-    // ],
+    splitChunks: {
+      chunks: 'async',
+      maxInitialRequests: Infinity,
+      minSize: 0,
+      cacheGroups: {
+        sentry: {
+          test: /node_modules[\\/]@sentry/,
+          name: 'sentry',
+          chunks: 'all',
+          priority: 1,
+        },
+        // core_js: {
+        //   test: /node_modules[\\/]parseurl/,
+        //   name: 'parseurl',
+        //   chunks: 'all',
+        //   priority: 1,
+        // },
+        // commons: {
+        //   test: /[\\/]node_modules[\\/]/,
+        //   name: 'vendors',
+        //   chunks: 'all',
+        // },
+        default: {
+          reuseExistingChunk: true,
+        },
+      },
+    },
     minimize: true,
-    // runtimeChunk: true,
-    // splitChunks: {
-    //   chunks: 'async',
-    //   minSize: 1000,
-    //   minChunks: 2,
-    //   maxAsyncRequests: 5,
-    //   maxInitialRequests: 3,
-    //   name: true,
-    //   cacheGroups: {
-    //     default: {
-    //       minChunks: 1,
-    //       priority: -20,
-    //       reuseExistingChunk: true,
-    //     },
-    //     vendors: {
-    //       test: /[\\/]node_modules[\\/]/,
-    //       priority: -10,
-    //     },
-    //   },
-    // },
+    minimizer: [
+      new UglifyJsPlugin({
+        cache: true,
+        parallel: true,
+      }),
+    ],
+    removeAvailableModules: true,
   },
   devServer: {
     disableHostCheck: true, // https://github.com/webpack/webpack-dev-server/issues/882

@@ -151,7 +151,7 @@ function consolePrintFn(type) {
         args[0] = formatMsg(type, args[0]);
       }
 
-      func.apply(global.console, args);
+      args && func.apply(global.console, args);
     };
   }
   return noop;
@@ -437,13 +437,20 @@ var checkVideoProgress = exports.checkVideoProgress = function checkVideoProgres
       player.playerStatsObject.updated_at = Date.now();
       if (player.playing) {
         if (player.playbackSegmentStart) {
-          var playerIns = player.playerStatsObject.player;
+          var playerIns = player.playerStatsObject.application;
 
           if (playerIns) {
-            var playback_duration = playerIns.playback_duration;
+            var vQuality = player.media.getVideoPlaybackQuality();
+            var corruptedVideoFrames = vQuality.corruptedVideoFrames,
+                droppedVideoFrames = vQuality.droppedVideoFrames,
+                totalVideoFrames = vQuality.totalVideoFrames;
+            var live_duration = playerIns.live_duration;
 
-            playback_duration += player.playerStatsObject.updated_at - player.playbackSegmentStart;
-            player.addPlayerStat('playback_duration', playback_duration);
+            live_duration += player.playerStatsObject.updated_at - player.playbackSegmentStart;
+            player.addPlayerStat('live_duration', false, live_duration);
+            player.addPlayerStat('total_video_frames', false, totalVideoFrames);
+            player.addPlayerStat('dropped_video_frames', false, droppedVideoFrames);
+            player.addPlayerStat('corrupted_video_frames', false, corruptedVideoFrames);
           }
         }
         player.playbackSegmentStart = player.playerStatsObject.updated_at;
@@ -506,17 +513,21 @@ function logDM(isDataAB, parsedData) {
 
 var errorsCount = 0;
 
-function showDispatchError(e, err) {
-  var rawData = e.data;
-  var isDataAB = rawData instanceof ArrayBuffer;
-  _logger.logger.error(errorMsg(e), err);
+function showDispatchError(e) {
+  var err = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
 
-  if (this.media && this.media.error) {
-    _logger.logger.error('MediaError:', this.media.error);
+  if ('data' in e) {
+    var rawData = e.data;
+    var isDataAB = rawData instanceof ArrayBuffer;
+    if (isDataAB) {
+      _logger.logger.error('Data:', debugData(e.data));
+    }
   }
 
-  if (isDataAB) {
-    _logger.logger.error('Data:', debugData(e.data));
+  _logger.logger.error(errorMsg(e), err);
+
+  if (this.media && 'error' in this.media) {
+    _logger.logger.error('MediaError:', this.media.error);
   }
 
   errorsCount++;
@@ -692,7 +703,7 @@ var DEFAULT_RETRY_MUTED = false;
 // const DEFAULT_FORCE_UNMUTED = false;
 var MAX_BUFFER_DELAY = 2;
 var DEFAULT_ON_CRASH_TRY_VIDEO_ONLY = true;
-var DEFAULT_STATS_SEND = false;
+var DEFAULT_STATS_SEND = true;
 
 var MSEPlayer = function () {
   MSEPlayer.replaceHttpByWS = function replaceHttpByWS(url) {
@@ -712,7 +723,7 @@ var MSEPlayer = function () {
   _createClass(MSEPlayer, null, [{
     key: 'version',
     get: function get() {
-      return "22.2.1";
+      return "22.6.1";
     }
   }]);
 
@@ -820,31 +831,6 @@ var MSEPlayer = function () {
     }
 
     // Stats block start
-    this.resetStats = function () {
-      _this.playerStatsObject = {
-        proto: 'mseld',
-        user_agent: navigator.userAgent,
-        bytes: 0,
-        // player info
-        player: {
-          player_type: 'mseld_player',
-          player_version: MSEPlayer.version,
-          // counts
-          stall_count: 0,
-          pause_count: 0,
-          error_count: 0,
-          reconnect_count: 0,
-          bitrate_change_count: 0,
-          // durations
-          playback_duration: 0,
-          stall_duration: 0,
-          pause_duration: 0,
-          bytes_played: 0
-        }
-      };
-      _this.addStat(_this.playerStatsObject);
-    };
-
     this.opts.statsSendEnable = this.opts.statsSendEnable ? this.opts.statsSendEnable : DEFAULT_STATS_SEND;
     if (typeof this.opts.maxBufferDelay !== 'number') {
       throw new Error('invalid maxBufferDelay param, should be number');
@@ -860,14 +846,50 @@ var MSEPlayer = function () {
         }
         this.statsWorker.postMessage({
           command: 'time',
-          commandObj: this.opts.statsSendTime
+          commandObj: this.opts.statsSendTime * 1000
         });
       }
       this.statsWorker.postMessage({
         command: 'start',
         commandObj: this.url
       });
+      this.statsWorkerStarted = true;
     }
+
+    this.resetStats = function () {
+      _this.playerStatsObject = {
+        proto: 'mseld',
+        user_agent: navigator.userAgent,
+        bytes: 0,
+        // player info
+        application: {
+          application_name: 'mseld_player',
+          application_version: MSEPlayer.version,
+          // counts
+          stall_count: 0,
+          pause_count: 0,
+          error_count: 0,
+          reconnect_count: 0,
+          bitrate_change_count: 0,
+          // durations
+          live_duration: 0,
+          stall_duration: 0,
+          pause_duration: 0,
+          // frames stats
+          total_video_frames: 0,
+          dropped_video_frames: 0,
+          corrupted_video_frames: 0
+        }
+      };
+      _this.addStat(_this.playerStatsObject);
+      if (!_this.statsWorkerStarted) {
+        _this.statsWorker.postMessage({
+          command: 'start',
+          commandObj: _this.url
+        });
+        _this.statsWorkerStarted = true;
+      }
+    };
     // Stats block end
 
     this.onProgress = opts && opts.onProgress;
@@ -952,11 +974,8 @@ var MSEPlayer = function () {
       this.addStat({
         closed_at: this.playerStatsObject.closed_at
       });
-      this.addStat({
-        event: 'play_stop'
-      });
       if (this.opts.statsSendEnable) {
-        this.ws.sendStats(this.getStats());
+        this.statsWorkerStarted = false;
       }
 
       this.playPromise.catch(function () {
@@ -984,7 +1003,6 @@ var MSEPlayer = function () {
       _logger.logger.log('[mse-player]: no playPromise exists, nothing to stop');
     }
     this.firstStart = true;
-    delete this.playbackSegmentStart;
     delete this.uuid;
   };
 
@@ -1254,13 +1272,13 @@ var MSEPlayer = function () {
           _this6._pause = false;
           _this6._resume(); // ws
           if (_this6.pauseStarted) {
-            var player = _this6.playerStatsObject.player;
+            var application = _this6.playerStatsObject.application;
 
-            if (player) {
-              var pause_duration = player.pause_duration;
+            if (application) {
+              var pause_duration = application.pause_duration;
 
               pause_duration += Date.now() - _this6.pauseStarted;
-              _this6.addPlayerStat('pause_duration', pause_duration);
+              _this6.addPlayerStat('pause_duration', false, pause_duration);
               delete _this6.pauseStarted;
             }
           }
@@ -1973,14 +1991,14 @@ var MSEPlayer = function () {
     this.resetTimer = void 0;
 
     if (this.startStallingTime) {
-      var player = this.playerStatsObject.player;
+      var application = this.playerStatsObject.application;
 
-      if (player) {
-        var stall_duration = player.stall_duration;
+      if (application) {
+        var stall_duration = application.stall_duration;
 
         stall_duration += Date.now() - this.startStallingTime;
         this.startStallingTime = null;
-        this.addPlayerStat('stall_duration', stall_duration);
+        this.addPlayerStat('stall_duration', false, stall_duration);
       }
     }
 
@@ -2073,11 +2091,9 @@ var MSEPlayer = function () {
         this.playerStatsObject.started_at = Date.now();
         this.addStat({ started_at: this.playerStatsObject.started_at });
       }
-      this.playbackSegmentStart = Date.now();
     } else if (type === 'waiting') {
       this.playing = false;
       this.onStartStalling();
-      delete this.playbackSegmentStart;
     }
   };
 
@@ -2143,17 +2159,18 @@ var MSEPlayer = function () {
   };
 
   MSEPlayer.prototype.addPlayerStat = function addPlayerStat(name) {
-    var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-    var player = this.playerStatsObject.player;
+    var count = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+    var data = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+    var application = this.playerStatsObject.application;
 
-    if (player) {
+    if (application) {
       if (data) {
-        player[name] = data;
-      } else {
-        player[name]++;
+        application[name] = Math.round(data);
+      } else if (count) {
+        application[name]++;
       }
-      this.playerStatsObject.player = player;
-      this.addStat({ player: player });
+      this.playerStatsObject.application = application;
+      this.addStat({ application: application });
     }
   };
 
@@ -2170,11 +2187,17 @@ var MSEPlayer = function () {
     });
   };
 
-  MSEPlayer.prototype.onStatsWorkerMessage = function onStatsWorkerMessage(message) {
-    if (!this.opts.statsSendEnable) return;
-    var data = message.data;
-
-    this.ws.sendStats(data);
+  MSEPlayer.prototype.onStatsWorkerMessage = function onStatsWorkerMessage() {
+    if (this.opts.statsSendEnable) {
+      fetch(this.url + 'sessions/' + this.playerStatsObject.source_id, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        method: 'PUT',
+        body: JSON.stringify(this.getStats())
+      });
+    }
   };
 
   return MSEPlayer;
@@ -2291,6 +2314,8 @@ var WebSocketController = function () {
   };
 
   WebSocketController.prototype.open = function open() {
+    if (this.opened) return;
+
     this.opened = true;
     this.paused = true;
     this._openingResolve(); // #6809
@@ -4670,7 +4695,7 @@ var _inline2 = _interopRequireDefault(_inline);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function Worker_fn() {
-  return (0, _inline2.default)("/******/ (function(modules) { // webpackBootstrap\n/******/ \t// The module cache\n/******/ \tvar installedModules = {};\n/******/\n/******/ \t// The require function\n/******/ \tfunction __webpack_require__(moduleId) {\n/******/\n/******/ \t\t// Check if module is in cache\n/******/ \t\tif(installedModules[moduleId]) {\n/******/ \t\t\treturn installedModules[moduleId].exports;\n/******/ \t\t}\n/******/ \t\t// Create a new module (and put it into the cache)\n/******/ \t\tvar module = installedModules[moduleId] = {\n/******/ \t\t\ti: moduleId,\n/******/ \t\t\tl: false,\n/******/ \t\t\texports: {}\n/******/ \t\t};\n/******/\n/******/ \t\t// Execute the module function\n/******/ \t\tmodules[moduleId].call(module.exports, module, module.exports, __webpack_require__);\n/******/\n/******/ \t\t// Flag the module as loaded\n/******/ \t\tmodule.l = true;\n/******/\n/******/ \t\t// Return the exports of the module\n/******/ \t\treturn module.exports;\n/******/ \t}\n/******/\n/******/\n/******/ \t// expose the modules object (__webpack_modules__)\n/******/ \t__webpack_require__.m = modules;\n/******/\n/******/ \t// expose the module cache\n/******/ \t__webpack_require__.c = installedModules;\n/******/\n/******/ \t// define getter function for harmony exports\n/******/ \t__webpack_require__.d = function(exports, name, getter) {\n/******/ \t\tif(!__webpack_require__.o(exports, name)) {\n/******/ \t\t\tObject.defineProperty(exports, name, { enumerable: true, get: getter });\n/******/ \t\t}\n/******/ \t};\n/******/\n/******/ \t// define __esModule on exports\n/******/ \t__webpack_require__.r = function(exports) {\n/******/ \t\tif(typeof Symbol !== 'undefined' && Symbol.toStringTag) {\n/******/ \t\t\tObject.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });\n/******/ \t\t}\n/******/ \t\tObject.defineProperty(exports, '__esModule', { value: true });\n/******/ \t};\n/******/\n/******/ \t// create a fake namespace object\n/******/ \t// mode & 1: value is a module id, require it\n/******/ \t// mode & 2: merge all properties of value into the ns\n/******/ \t// mode & 4: return value when already ns object\n/******/ \t// mode & 8|1: behave like require\n/******/ \t__webpack_require__.t = function(value, mode) {\n/******/ \t\tif(mode & 1) value = __webpack_require__(value);\n/******/ \t\tif(mode & 8) return value;\n/******/ \t\tif((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;\n/******/ \t\tvar ns = Object.create(null);\n/******/ \t\t__webpack_require__.r(ns);\n/******/ \t\tObject.defineProperty(ns, 'default', { enumerable: true, value: value });\n/******/ \t\tif(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));\n/******/ \t\treturn ns;\n/******/ \t};\n/******/\n/******/ \t// getDefaultExport function for compatibility with non-harmony modules\n/******/ \t__webpack_require__.n = function(module) {\n/******/ \t\tvar getter = module && module.__esModule ?\n/******/ \t\t\tfunction getDefault() { return module['default']; } :\n/******/ \t\t\tfunction getModuleExports() { return module; };\n/******/ \t\t__webpack_require__.d(getter, 'a', getter);\n/******/ \t\treturn getter;\n/******/ \t};\n/******/\n/******/ \t// Object.prototype.hasOwnProperty.call\n/******/ \t__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };\n/******/\n/******/ \t// __webpack_public_path__\n/******/ \t__webpack_require__.p = \"\";\n/******/\n/******/\n/******/ \t// Load entry module and return exports\n/******/ \treturn __webpack_require__(__webpack_require__.s = 0);\n/******/ })\n/************************************************************************/\n/******/ ([\n/* 0 */\n/***/ (function(module, exports) {\n\n(function () {\n  let statsURL = null;\n  let sendTime = 60000;\n  let jsonTable = {};\n  let sendingInterval = null;\n\n  self.addEventListener(\n    'message',\n    function (e) {\n      let data = e.data;\n      //Get command parameter to identify operation\n      const { command, commandObj } = data;\n      switch (command) {\n        case 'start':\n          statsURL = commandObj\n            .replace(/ws:/, 'http:')\n            .replace(/wss:/, 'https:')\n            .replace(/mse_ld/, 'session');\n          start();\n          break;\n        case 'time':\n          correctSendTime(commandObj);\n          break;\n        case 'stop':\n          stop();\n          break;\n        case 'add':\n          addToTable(commandObj);\n          break;\n        default:\n          break;\n      }\n    },\n    false\n  );\n\n  function correctSendTime(time) {\n    sendTime = time;\n  }\n\n  function start() {\n    sendingInterval = this.setInterval(() => {\n      post();\n    }, sendTime);\n  }\n\n  function stop() {\n    clearInterval(sendingInterval);\n  }\n\n  function addToTable(data) {\n    jsonTable = { ...jsonTable, ...data };\n\n    if (data.event && data.event === 'play_stop') {\n      stop();\n    }\n  }\n\n  // function roughSizeOfObject(object) {\n  //   let objectList = [];\n  //   let stack = [object];\n  //   let bytes = 0;\n\n  //   while (stack.length) {\n  //     let value = stack.pop();\n\n  //     if (typeof value === 'boolean') {\n  //       bytes += 4;\n  //     } else if (typeof value === 'string') {\n  //       bytes += value.length * 2;\n  //     } else if (typeof value === 'number') {\n  //       bytes += 8;\n  //     } else if (typeof value === 'object' && objectList.indexOf(value) === -1) {\n  //       objectList.push(value);\n\n  //       for (let i in value) {\n  //         stack.push(value[i]);\n  //       }\n  //     }\n  //   }\n  //   return bytes;\n  // }\n\n  function post() {\n    fetch(statsURL, {\n      headers: {\n        Accept: 'application/json',\n        'Content-Type': 'application/json',\n      },\n      method: 'PUT',\n      body: JSON.stringify(jsonTable),\n    });\n  }\n})();\n\n\n/***/ })\n/******/ ]);", "Worker", undefined, __webpack_require__.p + "stats.worker.js");
+  return (0, _inline2.default)("/******/ (function(modules) { // webpackBootstrap\n/******/ \t// The module cache\n/******/ \tvar installedModules = {};\n/******/\n/******/ \t// The require function\n/******/ \tfunction __webpack_require__(moduleId) {\n/******/\n/******/ \t\t// Check if module is in cache\n/******/ \t\tif(installedModules[moduleId]) {\n/******/ \t\t\treturn installedModules[moduleId].exports;\n/******/ \t\t}\n/******/ \t\t// Create a new module (and put it into the cache)\n/******/ \t\tvar module = installedModules[moduleId] = {\n/******/ \t\t\ti: moduleId,\n/******/ \t\t\tl: false,\n/******/ \t\t\texports: {}\n/******/ \t\t};\n/******/\n/******/ \t\t// Execute the module function\n/******/ \t\tmodules[moduleId].call(module.exports, module, module.exports, __webpack_require__);\n/******/\n/******/ \t\t// Flag the module as loaded\n/******/ \t\tmodule.l = true;\n/******/\n/******/ \t\t// Return the exports of the module\n/******/ \t\treturn module.exports;\n/******/ \t}\n/******/\n/******/\n/******/ \t// expose the modules object (__webpack_modules__)\n/******/ \t__webpack_require__.m = modules;\n/******/\n/******/ \t// expose the module cache\n/******/ \t__webpack_require__.c = installedModules;\n/******/\n/******/ \t// define getter function for harmony exports\n/******/ \t__webpack_require__.d = function(exports, name, getter) {\n/******/ \t\tif(!__webpack_require__.o(exports, name)) {\n/******/ \t\t\tObject.defineProperty(exports, name, { enumerable: true, get: getter });\n/******/ \t\t}\n/******/ \t};\n/******/\n/******/ \t// define __esModule on exports\n/******/ \t__webpack_require__.r = function(exports) {\n/******/ \t\tif(typeof Symbol !== 'undefined' && Symbol.toStringTag) {\n/******/ \t\t\tObject.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });\n/******/ \t\t}\n/******/ \t\tObject.defineProperty(exports, '__esModule', { value: true });\n/******/ \t};\n/******/\n/******/ \t// create a fake namespace object\n/******/ \t// mode & 1: value is a module id, require it\n/******/ \t// mode & 2: merge all properties of value into the ns\n/******/ \t// mode & 4: return value when already ns object\n/******/ \t// mode & 8|1: behave like require\n/******/ \t__webpack_require__.t = function(value, mode) {\n/******/ \t\tif(mode & 1) value = __webpack_require__(value);\n/******/ \t\tif(mode & 8) return value;\n/******/ \t\tif((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;\n/******/ \t\tvar ns = Object.create(null);\n/******/ \t\t__webpack_require__.r(ns);\n/******/ \t\tObject.defineProperty(ns, 'default', { enumerable: true, value: value });\n/******/ \t\tif(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));\n/******/ \t\treturn ns;\n/******/ \t};\n/******/\n/******/ \t// getDefaultExport function for compatibility with non-harmony modules\n/******/ \t__webpack_require__.n = function(module) {\n/******/ \t\tvar getter = module && module.__esModule ?\n/******/ \t\t\tfunction getDefault() { return module['default']; } :\n/******/ \t\t\tfunction getModuleExports() { return module; };\n/******/ \t\t__webpack_require__.d(getter, 'a', getter);\n/******/ \t\treturn getter;\n/******/ \t};\n/******/\n/******/ \t// Object.prototype.hasOwnProperty.call\n/******/ \t__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };\n/******/\n/******/ \t// __webpack_public_path__\n/******/ \t__webpack_require__.p = \"\";\n/******/\n/******/\n/******/ \t// Load entry module and return exports\n/******/ \treturn __webpack_require__(__webpack_require__.s = 0);\n/******/ })\n/************************************************************************/\n/******/ ([\n/* 0 */\n/***/ (function(module, exports) {\n\n(function () {\n  let statsURL = null;\n  let sendTime = 60000;\n  let jsonTable = {};\n  let sendingInterval = null;\n\n  self.addEventListener(\n    'message',\n    function (e) {\n      let data = e.data;\n      //Get command parameter to identify operation\n      const { command, commandObj } = data;\n      switch (command) {\n        case 'start':\n          statsURL = commandObj\n            .replace(/ws:/, 'http:')\n            .replace(/wss:/, 'https:')\n            .replace(/mse_ld/, 'sessions');\n          start();\n          break;\n        case 'time':\n          correctSendTime(commandObj);\n          break;\n        case 'stop':\n          stop();\n          break;\n        case 'add':\n          addToTable(commandObj);\n          break;\n        default:\n          break;\n      }\n    },\n    false\n  );\n\n  function correctSendTime(time) {\n    sendTime = time;\n  }\n\n  function start() {\n    sendingInterval = this.setInterval(() => {\n      post();\n    }, sendTime);\n  }\n\n  function stop() {\n    post();\n    clearInterval(sendingInterval);\n  }\n\n  function addToTable(data) {\n    jsonTable = { ...jsonTable, ...data };\n\n    if (data.event && data.event === 'play_stop') {\n      stop();\n    }\n  }\n\n  // function roughSizeOfObject(object) {\n  //   let objectList = [];\n  //   let stack = [object];\n  //   let bytes = 0;\n\n  //   while (stack.length) {\n  //     let value = stack.pop();\n\n  //     if (typeof value === 'boolean') {\n  //       bytes += 4;\n  //     } else if (typeof value === 'string') {\n  //       bytes += value.length * 2;\n  //     } else if (typeof value === 'number') {\n  //       bytes += 8;\n  //     } else if (typeof value === 'object' && objectList.indexOf(value) === -1) {\n  //       objectList.push(value);\n\n  //       for (let i in value) {\n  //         stack.push(value[i]);\n  //       }\n  //     }\n  //   }\n  //   return bytes;\n  // }\n\n  function post() {\n    const { source_id } = jsonTable;\n    fetch(statsURL + `${source_id ? `/${source_id}` : ''}`, {\n      headers: {\n        Accept: 'application/json',\n        'Content-Type': 'application/json',\n      },\n      method: 'PUT',\n      body: JSON.stringify(jsonTable),\n    });\n  }\n})();\n\n\n/***/ })\n/******/ ]);", "Worker", undefined, __webpack_require__.p + "stats.worker.js");
 }
 module.exports = exports["default"];
 

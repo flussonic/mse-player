@@ -1,4 +1,4 @@
-import {getSelfScope} from './get-self-scope';
+import { getSelfScope } from './get-self-scope';
 
 function noop() {}
 
@@ -37,7 +37,7 @@ function consolePrintFn(type) {
         args[0] = formatMsg(type, args[0]);
       }
 
-      func.apply(global.console, args);
+      args && func.apply(global.console, args);
     };
   }
   return noop;

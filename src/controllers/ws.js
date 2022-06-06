@@ -78,6 +78,8 @@ export default class WebSocketController {
   }
 
   open() {
+    if (this.opened) return;
+    
     this.opened = true;
     this.paused = true;
     this._openingResolve(); // #6809
