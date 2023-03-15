@@ -3,8 +3,7 @@ stages:
   - dependencies
   - build
   - deploy
-  - notify
-  - publish
+  - distribution
 
 prepare_environment:
   stage: prepare_environment
@@ -48,6 +47,7 @@ deploy_review:
     - build_frontci
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG FRONTCI_USER=$FRONTCI_USER FRONTCI_PASS=$FRONTCI_PASS ci_upload_frontci
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
   environment:
     name: review/$CI_COMMIT_REF_NAME
     url: https://front-ci.erlyvideo.ru/latest.html?p=$CI_PROJECT_NAME&r=$CI_COMMIT_REF_SLUG
@@ -62,24 +62,48 @@ deploy_staging:
     - build_frontci
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG FRONTCI_USER=$FRONTCI_USER FRONTCI_PASS=$FRONTCI_PASS ci_upload_frontci
+    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
   environment:
     name: staging
     url: https://front-ci.erlyvideo.ru/latest.html?p=$CI_PROJECT_NAME&r=$CI_COMMIT_REF_SLUG
   only:
     - master
 
-notify:
-  stage: notify
-  script:
-    - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG SLACKURL=$SLACKURL ci_notify
-
 publish_npm:
-  stage: publish
+  stage: deploy
   script:
     - make -f deploy/Makefile BRANCH=$CI_COMMIT_REF_SLUG NPM_AUTH_TOKEN=$NPM_AUTH_TOKEN ci_publish_npm
-  dependencies:
-    - build_package
-  allow_failure: true
   only:
-    refs:
-      - tags
+    - master
+
+deploy_live_player:
+  stage: distribution
+  script:
+    - "VERSION=$(git describe --abbrev=7 --long | sed 's/^v//g')"
+    - git clone https://gitlab-ci-token:${LIVE_PLAYER_REPO_KEY}@git.erlyvideo.ru/flussonic/live-player.git -b master --depth 3
+    - cd live-player
+    - git pull
+    - jq '.peerDependencies."@flussonic\/flussonic-mse-player"="'${VERSION}'"' package.json > new.json
+    - jq '.dependencies."@flussonic\/flussonic-mse-player"="'${VERSION}'"' new.json > package.json
+    - git add package.json
+    - 'git commit -m "update mse-player: ${VERSION} ${CI_COMMIT_MESSAGE}"'
+    - git push
+    - cd .. && rm -rf live-player/
+  only:
+    - master
+
+deploy_dvr_player:
+  stage: distribution
+  script:
+    - "VERSION=$(git describe --abbrev=7 --long | sed 's/^v//g')"
+    - git clone https://gitlab-ci-token:${DVR_PLAYER_REPO_KEY}@git.erlyvideo.ru/flussonic/dvr-player.git -b master --depth 3
+    - cd dvr-player
+    - git pull
+    - jq '.peerDependencies."@flussonic\/flussonic-mse-player"="'${VERSION}'"' package.json > new.json
+    - jq '.dependencies."@flussonic\/flussonic-mse-player"="'${VERSION}'"' new.json > package.json
+    - git add package.json
+    - 'git commit -m "update mse-player: ${VERSION} ${CI_COMMIT_MESSAGE}"'
+    - git push
+    - cd .. && rm -rf dvr-player/
+  only:
+    - master

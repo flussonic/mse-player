@@ -173,8 +173,13 @@
   // }
 
   function post() {
+    if (!jsonTable.started_at) {
+      return;
+    }
+
     const { source_id } = jsonTable;
-    fetch(statsURL + `${source_id ? `/${source_id}` : ''}`, {
+    const newUrl = statsURL.replace(/sessions/, `sessions/${source_id ? `${source_id}` : ''}`);
+    fetch(newUrl, {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',

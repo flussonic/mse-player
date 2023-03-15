@@ -1483,8 +1483,14 @@ export default class MSEPlayer {
   }
 
   onStatsWorkerMessage() {
+    if (!this.playerStatsObject.started_at) {
+      return;
+    }
+
     if (this.opts.statsSendEnable) {
-      fetch(this.url + 'sessions/' + this.playerStatsObject.source_id, {
+      const { source_id } = (this.playerStatsObject && this.playerStatsObject.source_id) || {};
+      const newUrl = this.url.replace(/sessions/, `sessions/${source_id ? `${source_id}` : ''}`);
+      fetch(newUrl, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
